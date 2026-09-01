@@ -1,8 +1,7 @@
 """Admin tab: config table editing + the B4 learning loop's rule-correction
-log. Restricted to Victoria and Kanvesh (flagged in the plan; SPEC.md B4
-doesn't name who besides Victoria has this authority, and the references name
-Kanvesh as the process owner). A bare-bones version now; SPEC.md C5 (source
-tier management, email whitelist) completes it later."""
+log. Restricted to Victoria and Mark, the sole scouting desk since Kanvesh
+and Hammad were consolidated out on 2026-09-01. A bare-bones version now;
+SPEC.md C5 (source tier management, email whitelist) completes it later."""
 
 import secrets
 from datetime import datetime, timezone
@@ -51,13 +50,15 @@ AUTO_MANAGED_COLUMNS = {"id", "updated_at", "updated_by", "created_at"}
 
 
 def _has_correction_authority() -> bool:
-    return current_user.display_name in ("Victoria", "Kanvesh", "Mark")
+    return current_user.display_name in ("Victoria", "Mark")
 
 
 def _is_super_admin() -> bool:
     """Account-management authority: deliberately Mark (is_admin), separate
-    from Victoria/Kanvesh's rule-correction authority above (2026-08-08,
-    explicit request -- the two roles are not the same person)."""
+    from Victoria's rule-correction authority above (2026-08-08, explicit
+    request -- the two roles are not the same person). Kanvesh and Hammad
+    lost correction authority on 2026-09-01 when scouting consolidated to
+    Mark alone."""
     return bool(current_user.is_admin)
 
 
@@ -95,11 +96,11 @@ def index():
     # "nothing changed" to anyone who only ever looked at the one they had
     # access to. Now anyone with either authority can land on this one page;
     # each section below still only renders/acts for the authority that
-    # actually owns it -- Sectors & Rules for Victoria/Kanvesh, Manage Users
+    # actually owns it -- Sectors & Rules for Victoria/Mark, Manage Users
     # for Mark (is_admin) -- so the underlying permission split is unchanged,
     # just physically co-located.
     if not (_has_correction_authority() or _is_super_admin()):
-        flash("Only Victoria, Kanvesh or the admin account can access this page.", "error")
+        flash("Only Victoria or the admin account can access this page.", "error")
         return redirect(url_for("queues.index"))
     conn = get_db()
     has_correction = _has_correction_authority()
@@ -161,7 +162,7 @@ def index():
 @login_required
 def update_row(table_name, row_id):
     if not _has_correction_authority():
-        flash("Only Victoria, Kanvesh or Mark can make rule corrections.", "error")
+        flash("Only Victoria or Mark can make rule corrections.", "error")
         return redirect(url_for("queues.index"))
     if table_name not in EDITABLE_TABLES:
         flash("Unknown config table.", "error")
@@ -249,7 +250,7 @@ def assign_owner(row_id):
     correction-authority action; typing a genuinely new person is account-
     management authority, since it creates a login."""
     if not (_has_correction_authority() or _is_super_admin()):
-        flash("Only Victoria, Kanvesh or the admin account can assign sector owners.", "error")
+        flash("Only Victoria or the admin account can assign sector owners.", "error")
         return redirect(url_for("admin.index") + "#group-sectors")
 
     reason = request.form.get("reason", "")
@@ -363,7 +364,7 @@ def assign_owner(row_id):
 @login_required
 def add_row(table_name):
     if not _has_correction_authority():
-        flash("Only Victoria, Kanvesh or Mark can make rule corrections.", "error")
+        flash("Only Victoria or Mark can make rule corrections.", "error")
         return redirect(url_for("queues.index"))
     if table_name not in EDITABLE_TABLES:
         flash("Unknown config table.", "error")
@@ -420,7 +421,7 @@ def add_row(table_name):
 @login_required
 def delete_row(table_name, row_id):
     if not _has_correction_authority():
-        flash("Only Victoria, Kanvesh or Mark can make rule corrections.", "error")
+        flash("Only Victoria or Mark can make rule corrections.", "error")
         return redirect(url_for("queues.index"))
     if table_name not in EDITABLE_TABLES:
         flash("Unknown config table.", "error")
@@ -478,7 +479,7 @@ def _invite_or_reset(email: str, display_name: str, username: str) -> tuple[str,
 def add_user():
     """Standalone "add a teammate" for the admin (is_admin), independent of
     Sectors & Owners' inline "+ New person..." creation -- that path only
-    renders for Victoria/Kanvesh (has_correction_authority), so an is_admin-
+    renders for Victoria/Mark (has_correction_authority), so an is_admin-
     only Mark had no way to create an account at all without it (2026-08-09
     fix: the Manage Users card told him to use Sectors & Owners, but he
     can't see that section)."""
@@ -702,7 +703,7 @@ def retriage_escalated():
     gates freshly re-evaluated, so owners review the updated result before
     anything reaches Victoria again."""
     if not (_has_correction_authority() or _is_super_admin()):
-        flash("Only Victoria, Kanvesh or the admin account can do this.", "error")
+        flash("Only Victoria or the admin account can do this.", "error")
         return redirect(url_for("queues.index"))
     conn = get_db()
     counts = bring_back_escalated_for_gate_retriage(conn, actor=current_user.display_name)
@@ -721,7 +722,7 @@ def delete_notice(notice_id):
     history, audit log) -- for cleaning up test/duplicate entries, not for
     real triage decisions (use Reject for those)."""
     if not (_has_correction_authority() or _is_super_admin()):
-        flash("Only Victoria, Kanvesh or the admin account can do this.", "error")
+        flash("Only Victoria or the admin account can do this.", "error")
         return redirect(url_for("queues.index"))
     conn = get_db()
     row = conn.execute("SELECT ref, title FROM notices WHERE id = ?", (notice_id,)).fetchone()

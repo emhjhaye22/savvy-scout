@@ -223,7 +223,7 @@ def reject_notice(
     _require_owner_or_victoria(notice_row, actor_display_name, actor_is_victoria)
     was_owner_phase2_review = (
         Status(notice_row["status"]) == Status.AWAITING_PHASE2_APPROVAL
-        and actor_display_name in ("Mark", "Kanvesh", "Hammad")
+        and actor_display_name == "Mark"
     )
     _transition(conn, notice_row, Status.REJECTED, actor_display_name, reason)
     if was_owner_phase2_review:

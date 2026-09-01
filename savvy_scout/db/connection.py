@@ -355,18 +355,29 @@ def _apply_migrations(conn: sqlite3.Connection) -> None:
         )
 
     # NHS and Healthcare owner transferred from Hammad to Mark (2026-08-11,
-    # Trifork scouting skill v2, Rule 2.4, confirmed with Mark) -- two
-    # scouting desks only, Mark and Kanvesh. seed_owner_map only seeds an
-    # empty table, so an already-seeded production DB needs its existing
-    # row updated directly. This only changes the CONFIG (which owner
+    # Trifork scouting skill v2, Rule 2.4, confirmed with Mark). seed_owner_map
+    # only seeds an empty table, so an already-seeded production DB needs its
+    # existing row updated directly. This only changes the CONFIG (which owner
     # new/re-triaged notices get); existing notices.owner rows already
     # assigned to Hammad are reassigned separately, by an explicit one-off
     # script, not by this migration.
     conn.execute(
         "UPDATE config_owner_map SET owner = 'Mark', "
         "notes = 'Transferred from Hammad to Mark, 11 August 2026 (Trifork scouting skill v2, "
-        "Rule 2.4). There are two scouting desks only, Mark and Kanvesh.' "
+        "Rule 2.4). Scouting consolidated to Mark alone on 2026-09-01.' "
         "WHERE sector = 'NHS and Healthcare' AND owner = 'Hammad'"
+    )
+
+    # Scouting consolidated to a single desk, Mark, on 2026-09-01 -- Kanvesh
+    # and Hammad no longer own any sector. Central and Local Government was
+    # the last sector still on Kanvesh; same idempotent pattern as the NHS
+    # migration above (existing notices.owner rows reassigned separately, by
+    # an explicit one-off script, not by this migration).
+    conn.execute(
+        "UPDATE config_owner_map SET owner = 'Mark', "
+        "notes = 'Transferred from Kanvesh to Mark, 2026-09-01 -- scouting consolidated to a "
+        "single desk.' "
+        "WHERE sector = 'Central and Local Government' AND owner = 'Kanvesh'"
     )
 
     # Trifork scouting skill v2, Section 3a NHS keywords + exclusions

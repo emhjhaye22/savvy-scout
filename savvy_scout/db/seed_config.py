@@ -30,9 +30,14 @@ def seed_owner_map(conn: sqlite3.Connection) -> None:
             "NHS and Healthcare",
             "Mark",
             "Transferred from Hammad to Mark, 11 August 2026 (Trifork scouting skill v2, "
-            "Rule 2.4). There are two scouting desks only, Mark and Kanvesh.",
+            "Rule 2.4). Scouting consolidated to Mark alone on 2026-09-01.",
         ),
-        ("Central and Local Government", "Kanvesh", None),
+        (
+            "Central and Local Government",
+            "Mark",
+            "Transferred from Kanvesh to Mark, 2026-09-01 -- scouting consolidated to a "
+            "single desk.",
+        ),
         ("Fintech", "Mark", None),
         ("Aviation", "Mark", "Airlines only. Airports, ATC and defence aviation fail Gate 1."),
         ("Rail and Transport", "Mark", None),
@@ -40,9 +45,8 @@ def seed_owner_map(conn: sqlite3.Connection) -> None:
             "Energy",
             "Mark",
             "Moved from Kanvesh to Mark per Victoria's verbal sector confirmation "
-            "in the references, overriding SPEC.md's original draft. Formal "
-            "confirmation and removal from Kanvesh's scope is an open question "
-            "for Victoria, see README.",
+            "in the references, overriding SPEC.md's original draft. Formally "
+            "confirmed 2026-09-01.",
         ),
     ]
     conn.executemany(

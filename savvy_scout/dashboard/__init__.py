@@ -79,13 +79,13 @@ def create_app(settings: Settings) -> Flask:
         
         if count == 0:
             # Create test users. Mark is the account-management admin
-            # (is_admin), separate from Victoria/Kanvesh's rule-correction
-            # authority (is_victoria) -- see dashboard/routes/admin.py.
+            # (is_admin), separate from Victoria's rule-correction authority
+            # (is_victoria) -- see dashboard/routes/admin.py. Kanvesh and
+            # Hammad are no longer seeded here: scouting consolidated to
+            # Mark alone on 2026-09-01.
             password_hash = generate_password_hash('12345')
             users = [
                 ('mark', 'Mark', False, True),
-                ('kanvesh', 'Kanvesh', False, False),
-                ('hammad', 'Hammad', False, False),
                 ('victoria', 'Victoria', True, False),
             ]
 
@@ -94,9 +94,9 @@ def create_app(settings: Settings) -> Flask:
                     "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at) VALUES (?, ?, ?, ?, ?, ?)",
                     (username, password_hash, display_name, int(is_victoria), int(is_admin), datetime.now(timezone.utc).isoformat())
                 )
-            
+
             conn.commit()
-            print("✓ Created test users: mark, kanvesh, hammad, victoria (password: '12345')")
+            print("✓ Created test users: mark, victoria (password: '12345')")
     
     try:
         with app.app_context():

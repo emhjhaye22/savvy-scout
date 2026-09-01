@@ -75,14 +75,15 @@ def hammad_client(app):
 
 def test_admin_index_requires_correction_authority(hammad_client):
     resp = hammad_client.get("/admin/", follow_redirects=True)
-    assert b"Only Victoria, Kanvesh or the admin account" in resp.data
+    assert b"Only Victoria or the admin account" in resp.data
 
 
 def test_admin_index_allows_mark_correction_authority(mark_client):
     """2026-08-09: Mark was granted the same rule-correction authority as
-    Victoria/Kanvesh (explicit request), on top of his existing is_admin
+    Victoria (explicit request), on top of his existing is_admin
     account-management authority -- distinct from is_admin, which only
-    gates Manage Users."""
+    gates Manage Users. Kanvesh lost this same authority on 2026-09-01 when
+    scouting consolidated to Mark alone."""
     resp = mark_client.get("/admin/")
     assert b"config_sector_keywords" in resp.data
 
