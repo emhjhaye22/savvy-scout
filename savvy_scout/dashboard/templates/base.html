@@ -18,9 +18,10 @@
       --surface-alt: rgba(255,255,255,0.04);
       --sidebar-bg: #071428;
       --sidebar-text: #9AA3AD;
-      --sidebar-active: #AF1F23;
-      --primary: #AF1F23;
-      --primary-dark: #8A191D;
+      --brand-red: #AF1F23;
+      --sidebar-active: #3B6EA5;
+      --primary: #3B6EA5;
+      --primary-dark: #2E5680;
       --navy: #FFFFFF;
       --border: rgba(255,255,255,0.1);
       --text: #E5E7EB;
@@ -70,7 +71,7 @@
     }
     .sidebar-logo .brand .mark-badge img { display: block; }
     .sidebar-logo .brand .wordmark { color: #FFFFFF; }
-    .sidebar-logo .brand .wordmark .accent { color: var(--primary); }
+    .sidebar-logo .brand .wordmark .accent { color: var(--brand-red); }
 
     .sidebar-logo .tagline {
       font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
@@ -114,7 +115,7 @@
     }
 
     .sidebar-nav a:hover, .sidebar-nav a.active {
-      background: rgba(220,38,38,0.12);
+      background: rgba(59,110,165,0.12);
       color: white; border-left-color: var(--primary);
     }
 
@@ -123,14 +124,14 @@
     .sidebar-sweep-button {
       display: flex; align-items: center; gap: 10px; justify-content: center;
       width: 100%; padding: 9px 10px; border-radius: 7px;
-      border: 1px solid rgba(220,38,38,0.18); background: rgba(220,38,38,0.08);
-      color: #FEE2E2; text-decoration: none; font-size: 14px; font-weight: 700;
+      border: 1px solid rgba(59,110,165,0.18); background: rgba(59,110,165,0.08);
+      color: #DBEAFE; text-decoration: none; font-size: 14px; font-weight: 700;
       cursor: pointer; transition: all 0.15s;
     }
 
     .sidebar-sweep-button:hover {
-      background: rgba(220,38,38,0.16);
-      border-color: rgba(220,38,38,0.40);
+      background: rgba(59,110,165,0.16);
+      border-color: rgba(59,110,165,0.40);
       color: #FFFFFF;
     }
 
@@ -415,7 +416,7 @@
       font-size: 12px; font-family: var(--font); width: 140px;
       display: none;
     }
-    .action-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(220,38,38,0.1); }
+    .action-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59,110,165,0.1); }
     .action-group.expanded .action-input { display: inline-block; }
     .action-group.expanded .show-input-btn { display: none; }
     .action-group.expanded .submit-btn { display: inline-flex; }
@@ -434,7 +435,7 @@
     }
     input[type="text"]:focus, input[type="password"]:focus, select:focus, textarea:focus {
       outline: none; border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
+      box-shadow: 0 0 0 3px rgba(59,110,165,0.1);
     }
 
     /* ---- ADMIN TABLE ---- */
@@ -526,6 +527,9 @@
       <li><a href="{{ url_for('queues.opportunities') }}" class="{% if request.endpoint == 'queues.opportunities' %}active{% endif %}">
         <span class="nav-icon">🔎</span><span class="nav-label">All Opportunities</span>
       </a></li>
+      <li><a href="{{ url_for('signals.index') }}" class="{% if request.endpoint == 'signals.index' %}active{% endif %}">
+        <span class="nav-icon">📡</span><span class="nav-label">Signals</span>
+      </a></li>
       <li>
         <form action="{{ url_for('home.sweep_now') }}" method="post">
           <button class="sidebar-sweep-button" type="submit" title="Run sweep now" aria-label="Run sweep now">
@@ -550,7 +554,7 @@
     </ul>
   </div>
 
-  {% if current_user.is_victoria or current_user.display_name == 'Kanvesh' or current_user.is_admin %}
+  {% if current_user.is_victoria or current_user.is_admin %}
   <div class="sidebar-divider"></div>
   <div class="sidebar-section">
     <div class="sidebar-section-label">Administration</div>

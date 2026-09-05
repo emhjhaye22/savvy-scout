@@ -11,8 +11,10 @@
     :root {
       --bg: #041226;
       --surface: #0B1F3A;
-      --primary: #AF1F23;
-      --primary-dark: #8A191D;
+      --brand-red: #AF1F23;
+      --danger: #FF4D4F;
+      --primary: #3B6EA5;
+      --primary-dark: #2E5680;
       --text: #E5E7EB;
       --text-muted: #9AA3AD;
       --border: rgba(255,255,255,0.1);
@@ -43,7 +45,7 @@
       background: #FFFFFF; border-radius: 8px; padding: 6px 8px; margin-bottom: 10px;
     }
     .brand-text { font-family: var(--font-heading); font-size: 22px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; color: #FFFFFF; }
-    .brand-text .accent { color: var(--primary); }
+    .brand-text .accent { color: var(--brand-red); }
     .brand-sub { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted); font-weight: 600; margin-top: 6px; }
     h1 { font-family: var(--font-heading); font-size: 20px; font-weight: 700; color: #FFFFFF; text-align: center; margin-bottom: 6px; }
     .subtitle { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 28px; }
@@ -54,10 +56,10 @@
       font-family: inherit; color: var(--text); background: rgba(255,255,255,0.03);
       transition: all 0.2s;
     }
-    input:focus { outline: none; border-color: var(--primary); background: rgba(255,255,255,0.05); box-shadow: 0 0 0 3px rgba(175,31,35,0.18); }
+    input:focus { outline: none; border-color: var(--primary); background: rgba(255,255,255,0.05); box-shadow: 0 0 0 3px rgba(59,110,165,0.18); }
     .error-msg {
       background: rgba(255,77,79,0.1); color: #FF8A8C; padding: 10px 14px;
-      border-radius: 6px; border-left: 4px solid var(--primary);
+      border-radius: 6px; border-left: 4px solid var(--danger);
       font-size: 13px; font-weight: 500; margin: 16px 0 0;
     }
     .btn-signin {
@@ -67,7 +69,7 @@
       font-family: inherit; letter-spacing: 0.5px; text-transform: uppercase;
       transition: all 0.2s;
     }
-    .btn-signin:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(175,31,35,0.35); }
+    .btn-signin:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(59,110,165,0.35); }
     .quick-access { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--border); }
     .quick-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
     .quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -76,7 +78,7 @@
       background: rgba(255,255,255,0.02); color: var(--text); font-size: 12px; font-weight: 600;
       cursor: pointer; font-family: inherit; transition: all 0.15s;
     }
-    .quick-btn:hover { border-color: var(--primary); color: #FF8A8C; background: rgba(175,31,35,0.08); }
+    .quick-btn:hover { border-color: var(--primary); color: #BFDBFE; background: rgba(59,110,165,0.08); }
     .accounts-info { margin-top: 20px; padding: 12px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; font-size: 12px; color: var(--text-muted); }
     .accounts-info strong { color: var(--text); }
     .accounts-info .pwd { color: var(--text-muted); margin-top: 4px; font-size: 11px; }

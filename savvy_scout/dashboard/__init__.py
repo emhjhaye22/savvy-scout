@@ -14,6 +14,7 @@ from savvy_scout.dashboard.notifications import get_notification_context, get_si
 from savvy_scout.dashboard.routes.admin import admin_bp
 from savvy_scout.dashboard.routes.home import home_bp
 from savvy_scout.dashboard.routes.queues import queues_bp
+from savvy_scout.dashboard.routes.signals import signals_bp
 from savvy_scout.db.connection import get_connection, init_db
 from savvy_scout.db.seed_config import seed_all
 
@@ -52,6 +53,7 @@ def create_app(settings: Settings) -> Flask:
     app.register_blueprint(auth_bp)
     app.register_blueprint(home_bp)
     app.register_blueprint(queues_bp)
+    app.register_blueprint(signals_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
 
     # Ensure schema and lightweight migrations are applied on dashboard boot.
