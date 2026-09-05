@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Settings — Savvy Scout{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block page_subtitle %}<div class="topbar-subtitle">Read-only view of controls already enforced in the backend</div>{% endblock %}
+
+{% block content %}
+<style>
+  .settings-note {
+    background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; margin-bottom: 20px; font-size: 12.5px; color: var(--text-muted); line-height: 1.5;
+  }
+  .settings-note strong { color: var(--text); }
+
+  .settings-section { margin-bottom: 28px; }
+  .settings-section h2 { font-size: 15px; margin: 0 0 10px; color: var(--navy); }
+
+  .whitelist-row {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  }
+  .whitelist-domain {
+    font-family: ui-monospace, monospace; font-size: 13px; font-weight: 700;
+    padding: 4px 10px; border-radius: 6px; background: var(--surface-alt);
+    color: var(--primary-dark); border: 1px solid var(--border);
+  }
+  .whitelist-hint { font-size: 12px; color: var(--text-muted); }
+
+  .dict-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .dict-table thead th {
+    padding: 10px 14px; background: var(--surface-alt); border-bottom: 2px solid var(--border);
+    text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--text-muted);
+  }
+  .dict-table tbody tr { border-bottom: 1px solid var(--border); }
+  .dict-table tbody tr:hover { background: var(--surface-alt); }
+  .dict-table td { padding: 10px 14px; vertical-align: top; }
+  .dict-col-name { font-weight: 600; color: var(--navy); white-space: nowrap; }
+  .dict-col-desc { color: var(--text-muted); }
+</style>
+
+<div class="settings-note">
+  <strong>What this is:</strong> both sections below reflect the actual code, not a separately maintained document — the whitelist domain and the tracker column list will always match what the app really does. <strong>Not editable here:</strong> the email whitelist is a deliberate, non-bypassable safety rule and is intentionally not configurable from this screen.
+</div>
+
+<div class="settings-section">
+  <h2>Notice email whitelist</h2>
+  <div class="card">
+    <div class="whitelist-row">
+      <span class="whitelist-domain">@{{ allowed_domain }}</span>
+      <span class="whitelist-hint">The only domain Savvy Scout is allowed to send outbound email to. Enforced in code before every send — there is no path that skips this check, and it cannot be changed from the UI. Contact whoever maintains the app if this rule itself needs to change.</span>
+    </div>
+  </div>
+</div>
+
+<div class="settings-section">
+  <h2>Tracker data dictionary</h2>
+  <div class="card" style="overflow-x: auto;">
+    <table class="dict-table">
+      <thead>
+        <tr><th>Column</th><th>What it is</th></tr>
+      </thead>
+      <tbody>
+        {% for name, description in data_dictionary %}
+        <tr>
+          <td class="dict-col-name">{{ name }}</td>
+          <td class="dict-col-desc">{{ description }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
