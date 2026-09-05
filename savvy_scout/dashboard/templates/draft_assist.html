@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Draft assist — Savvy Scout{% endblock %}
+{% block page_title %}Draft assist{% endblock %}
+{% block page_subtitle %}<div class="topbar-subtitle">PROVISIONAL first-draft Q&A answers and real historical price guidance</div>{% endblock %}
+
+{% block content %}
+<style>
+  .da-note {
+    background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; margin-bottom: 20px; font-size: 12.5px; color: var(--text-muted); line-height: 1.5;
+  }
+  .da-note strong { color: var(--text); }
+
+  .da-picker { display: flex; flex-direction: column; gap: 8px; }
+  .da-picker a {
+    display: flex; justify-content: space-between; padding: 12px 16px; border: 1px solid var(--border);
+    border-radius: 8px; text-decoration: none; color: var(--text); font-size: 13px;
+  }
+  .da-picker a:hover { border-color: var(--primary); }
+  .da-picker .da-picker-sector { color: var(--text-muted); font-size: 12px; }
+
+  .da-price-card { display: flex; gap: 24px; flex-wrap: wrap; }
+  .da-price-stat .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600; }
+  .da-price-stat .stat-value { font-size: 18px; font-weight: 700; color: var(--text); margin-top: 2px; }
+
+  .da-item { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; }
+  .da-item-q { font-weight: 600; color: var(--navy); font-size: 13px; margin-bottom: 8px; }
+  .da-item-answer { font-size: 13px; line-height: 1.5; white-space: pre-wrap; color: var(--text); margin-bottom: 8px; }
+  .provisional-badge {
+    display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+    padding: 2px 8px; border-radius: 4px; background: #FEF3C7; color: #92400E; margin-bottom: 8px;
+  }
+  .da-item-actions { display: flex; gap: 8px; align-items: center; }
+  .da-status { font-size: 11px; color: var(--text-muted); }
+</style>
+
+<div class="da-note">
+  <strong>What this is:</strong> paste in an actual selection-questionnaire or bid-response question and get a PROVISIONAL first-draft answer, grounded only in Trifork's own capability profile and the opportunity's notice text -- never invented client names, certifications, or figures. <strong>Review required:</strong> every draft must be explicitly marked used or rejected before it counts as anything more than a starting point. Price guidance below uses real historical award values already captured by the sweep, and always states how many awards it's based on.
+  {% if not scope_read_ready %}<br><strong>AI drafting is currently unavailable:</strong> the configured provider account has no usable credit right now (the same issue affecting Phase 2 scope reads) -- drafting will fail gracefully until that's resolved.{% endif %}
+</div>
+
+{% if not notice %}
+  {% if shortlisted %}
+  <div class="da-picker">
+    {% for s in shortlisted %}
+    <a href="{{ url_for('draft_assist.index', notice_id=s.notice_id) }}">
+      <span>{{ s.title | truncate(70, True, '…') }}</span>
+      <span class="da-picker-sector">{{ s.sector or '—' }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><p>Nothing shortlisted yet — star an opportunity in <a href="{{ url_for('shortlists.index') }}">Shortlists</a> first, then come back here to draft for it.</p></div>
+  {% endif %}
+{% else %}
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+      <div>
+        <div style="font-family: monospace; font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">{{ notice['ref'] }}</div>
+        <h2 style="font-size: 18px; font-weight: 800; color: var(--navy);">{{ notice['title'] }}</h2>
+      </div>
+      <a href="{{ url_for('queues.notice_detail', notice_id=notice['id']) }}" class="btn btn-secondary btn-sm">View notice</a>
+    </div>
+  </div>
+
+  <div class="settings-section" style="margin-bottom:20px;">
+    <h2 style="font-size:15px; margin:0 0 10px; color: var(--navy);">Price guidance</h2>
+    <div class="card">
+      {% if not notice['sector'] %}
+        <p style="color:var(--text-muted); font-size:13px;">This notice has no sector recorded, so no comparable award data can be selected.</p>
+      {% elif price_guidance.priced_count %}
+        <div class="da-price-card">
+          <div class="da-price-stat"><div class="stat-label">Low</div><div class="stat-value">£{{ "{:,.0f}".format(price_guidance.low) }}</div></div>
+          <div class="da-price-stat"><div class="stat-label">Median</div><div class="stat-value">£{{ "{:,.0f}".format(price_guidance.median) }}</div></div>
+          <div class="da-price-stat"><div class="stat-label">High</div><div class="stat-value">£{{ "{:,.0f}".format(price_guidance.high) }}</div></div>
+        </div>
+        <p style="color:var(--text-muted); font-size:12px; margin-top:10px;">Based on {{ price_guidance.priced_count }} of {{ price_guidance.count }} award{{ 's' if price_guidance.count != 1 else '' }} in {{ notice['sector'] }} with a recorded value.</p>
+      {% else %}
+        <p style="color:var(--text-muted); font-size:13px;">No {{ notice['sector'] }} award notices with a recorded value yet ({{ price_guidance.count }} award{{ 's' if price_guidance.count != 1 else '' }} seen, none priced) — not enough data for a real range.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2 style="font-size:15px; margin:0 0 10px; color: var(--navy);">Draft a Q&A answer</h2>
+    <div class="card" style="margin-bottom:20px;">
+      <form method="post" action="{{ url_for('draft_assist.draft') }}">
+        <input type="hidden" name="notice_id" value="{{ notice['id'] }}">
+        <textarea name="question_text" rows="3" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:13px;" placeholder="Paste the selection-questionnaire or bid-response question here..." required></textarea>
+        <button type="submit" class="btn btn-sm" style="margin-top:10px; background: var(--primary); color: white;">Draft answer (PROVISIONAL)</button>
+      </form>
+    </div>
+
+    {% for item in draft_items %}
+    <div class="da-item">
+      <div class="da-item-q">Q: {{ item['question_text'] }}</div>
+      <div class="provisional-badge">Provisional</div>
+      <div class="da-item-answer">{{ item['draft_answer'] }}</div>
+      {% if item['status'] == 'DRAFTED' %}
+      <div class="da-item-actions">
+        <form method="post" action="{{ url_for('draft_assist.review') }}">
+          <input type="hidden" name="item_id" value="{{ item['id'] }}">
+          <input type="hidden" name="notice_id" value="{{ notice['id'] }}">
+          <input type="hidden" name="decision" value="REVIEWED_USED">
+          <button type="submit" class="btn btn-secondary btn-sm">Mark used</button>
+        </form>
+        <form method="post" action="{{ url_for('draft_assist.review') }}">
+          <input type="hidden" name="item_id" value="{{ item['id'] }}">
+          <input type="hidden" name="notice_id" value="{{ notice['id'] }}">
+          <input type="hidden" name="decision" value="REVIEWED_REJECTED">
+          <button type="submit" class="btn btn-secondary btn-sm">Reject</button>
+        </form>
+      </div>
+      {% else %}
+        <span class="da-status">{{ 'Used' if item['status'] == 'REVIEWED_USED' else 'Rejected' }} — reviewed {{ item['reviewed_at'][:10] if item['reviewed_at'] else '' }}</span>
+      {% endif %}
+    </div>
+    {% else %}
+      <p style="color:var(--text-muted); font-size:13px;">No questions drafted yet for this opportunity.</p>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

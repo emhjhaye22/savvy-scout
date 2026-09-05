@@ -150,6 +150,25 @@ CREATE TABLE IF NOT EXISTS shortlisted_notices (
     added_at TEXT NOT NULL
 );
 
+-- Draft assist: PROVISIONAL AI-drafted answers to selection-questionnaire /
+-- bid-response questions Mark pastes in per opportunity (2026-09-05: no
+-- questionnaire text is captured anywhere else in the app, so there is
+-- nothing to draft against without this). Reuses the same Anthropic/OpenAI
+-- client already wired for Phase 2 scope reads -- status tracks the same
+-- "PROVISIONAL until a human reviews it" guardrail used everywhere else AI
+-- output appears in this app.
+CREATE TABLE IF NOT EXISTS draft_assist_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    notice_id INTEGER NOT NULL REFERENCES notices(id),
+    question_text TEXT NOT NULL,
+    draft_answer TEXT,
+    status TEXT NOT NULL DEFAULT 'DRAFTED',
+    model_used TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    reviewed_at TEXT
+);
+
 -- Config: buyer sector -> owner. Energy = Mark per Victoria's verbal sector
 -- confirmation (references), overriding the original SPEC.md draft (Kanvesh).
 -- See README "Open questions for Victoria" for the formal-confirmation ask.
