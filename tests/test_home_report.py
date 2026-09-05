@@ -560,3 +560,63 @@ def test_award_only_discovery_excluded_from_every_date_bucket(tmp_path):
     source_week = next(r for r in source_perf["rows"] if r["sector"] == "Find a Tender")["week"]
     assert swept_total_week == 1
     assert source_week == 1
+
+
+def test_overview_shows_cross_feature_tiles(tmp_path):
+    """2026-09-05 UI alignment: Renewals due, New signals this week, and
+    Competitors watched are cheap single-table counts surfaced on the
+    Overview so Signals and Competitor Intel each get a one-glance summary
+    without leaving the landing page."""
+    db_path = str(tmp_path / "test.db")
+    setup_conn = get_connection(db_path)
+    init_db(setup_conn)
+    seed_all(setup_conn)
+    setup_conn.execute(
+        "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        ("mark", generate_password_hash("testpass"), "Mark", 0, datetime.now(timezone.utc).isoformat()),
+    )
+
+    now = datetime.now(timezone.utc)
+    week_start = (now - timedelta(days=(now.weekday() - 5) % 7)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Due within 90 days AND created this week -- counts toward both tiles.
+    setup_conn.execute(
+        "INSERT INTO contract_expiry (notice_ref, buyer, title, end_date, review_date, source_ref, created_at) "
+        "VALUES ('REF-A', 'Buyer', 'Renewal A', ?, ?, 'REF-A', ?)",
+        ((now + timedelta(days=30)).isoformat(), (now - timedelta(days=1)).isoformat(), (week_start + timedelta(hours=1)).isoformat()),
+    )
+    # Beyond the 90-day window and created last month -- must not count
+    # towards either tile, proving the query doesn't just count every row.
+    setup_conn.execute(
+        "INSERT INTO contract_expiry (notice_ref, buyer, title, end_date, review_date, source_ref, created_at) "
+        "VALUES ('REF-B', 'Buyer', 'Renewal B', ?, ?, 'REF-B', ?)",
+        ((now + timedelta(days=400)).isoformat(), (now + timedelta(days=200)).isoformat(), (now - timedelta(days=40)).isoformat()),
+    )
+    setup_conn.execute(
+        "INSERT INTO watched_competitors (supplier_name, watched_by, watched_at) VALUES ('Acme Ltd', 'Mark', ?)",
+        (now.isoformat(),),
+    )
+    setup_conn.commit()
+    setup_conn.close()
+
+    settings = Settings(
+        db_path=db_path,
+        lookback_days=7,
+        find_a_tender_base_url="",
+        contracts_finder_base_url="",
+        flask_secret_key="test-key",
+        ms_graph_tenant_id=None,
+        ms_graph_client_id=None,
+        ms_graph_client_secret=None,
+        ms_graph_sender_upn=None,
+    )
+    app = create_app(settings)
+    app.config["TESTING"] = True
+    client = _logged_in_client(app, "mark")
+
+    html = client.get("/").get_data(as_text=True)
+
+    assert re.search(r'<div class="stat-value">1</div>\s*<div class="stat-label">Renewals due \(90d\)</div>', html)
+    assert re.search(r'<div class="stat-value">1</div>\s*<div class="stat-label">New signals this week</div>', html)
+    assert re.search(r'<div class="stat-value">1</div>\s*<div class="stat-label">Competitors watched</div>', html)

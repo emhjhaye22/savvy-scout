@@ -22,6 +22,11 @@
   .kpi-card .stat-label { margin-top: 2px; font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .kpi-card .hint { margin-top: 1px; font-size: 10.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+  .kpi-row-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 6px; }
+  .kpi-card-link { text-decoration: none; display: block; }
+  .kpi-card-link .kpi-card { transition: border-color 0.15s; }
+  .kpi-card-link:hover .kpi-card { border-color: var(--primary); }
+
   /* Row of 2 panels, table (wider) + donut (narrower). */
   .panel-grid-wide { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 10px; margin-bottom: 6px; align-items: stretch; }
   .panel-grid-wide > .panel { min-width: 0; }
@@ -146,6 +151,30 @@
         <div class="stat-label">Today</div>
         <div class="hint">{{ today_item.hint }}</div>
       </div>
+    </div>
+
+    <div class="kpi-row-3">
+      <a class="kpi-card-link" href="{{ url_for('signals.index') }}">
+        <div class="kpi-card">
+          <div class="stat-value">{{ renewals_due_90d }}</div>
+          <div class="stat-label">Renewals due (90d)</div>
+          <div class="hint">Contract end date within 90 days</div>
+        </div>
+      </a>
+      <a class="kpi-card-link" href="{{ url_for('signals.index') }}">
+        <div class="kpi-card">
+          <div class="stat-value">{{ new_signals_week }}</div>
+          <div class="stat-label">New signals this week</div>
+          <div class="hint">Renewal leads surfaced since Monday</div>
+        </div>
+      </a>
+      <a class="kpi-card-link" href="{{ url_for('competitor_intel.index') }}">
+        <div class="kpi-card">
+          <div class="stat-value">{{ competitors_watched }}</div>
+          <div class="stat-label">Competitors watched</div>
+          <div class="hint">Starred in Competitor Intel</div>
+        </div>
+      </a>
     </div>
 
     <div class="panel-grid-wide">

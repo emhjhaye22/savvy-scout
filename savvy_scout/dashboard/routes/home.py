@@ -631,6 +631,23 @@ def index():
     top_buyers = _build_top_buyers(conn, in_scope_where, in_scope_params)
     sweep_history = get_recent_sweep_runs(conn)
 
+    # Cross-feature tiles (2026-09-05 UI alignment): Signals and Competitor
+    # Intel are separate screens, but a one-glance count of each belongs on
+    # the landing page too. All three are cheap single-table counts, no
+    # scope_filter involved -- contract_expiry and watched_competitors have
+    # no sector/CPV columns of their own to filter by.
+    renewals_due_90d = _count(
+        conn,
+        "SELECT COUNT(*) FROM contract_expiry WHERE end_date <= ?",
+        ((now + timedelta(days=90)).isoformat(),),
+    )
+    new_signals_week = _count(
+        conn,
+        "SELECT COUNT(*) FROM contract_expiry WHERE created_at >= ?",
+        (week_start.isoformat(),),
+    )
+    competitors_watched = _count(conn, "SELECT COUNT(*) FROM watched_competitors", ())
+
     latest_triage_rows = conn.execute(
         f"""
         WITH latest AS (
@@ -700,6 +717,9 @@ def index():
         approval_rate_by_owner=approval_rate_by_owner,
         top_buyers=top_buyers,
         sweep_history=sweep_history,
+        renewals_due_90d=renewals_due_90d,
+        new_signals_week=new_signals_week,
+        competitors_watched=competitors_watched,
         sweep_note={"last_run": sweep_last_run, "next_run": sweep_next_run},
         sector_palette=SECTOR_PALETTE,
         triage_colors=TRIAGE_COLORS,
