@@ -129,6 +129,16 @@ CREATE TABLE IF NOT EXISTS contract_expiry (
     created_at TEXT NOT NULL
 );
 
+-- Competitor Intel's watch toggle. supplier_name is the natural key (the
+-- same free-text name notices.supplier_name carries off award notices --
+-- no separate competitor entity exists anywhere else in the app).
+CREATE TABLE IF NOT EXISTS watched_competitors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    supplier_name TEXT NOT NULL UNIQUE,
+    watched_by TEXT NOT NULL,
+    watched_at TEXT NOT NULL
+);
+
 -- Config: buyer sector -> owner. Energy = Mark per Victoria's verbal sector
 -- confirmation (references), overriding the original SPEC.md draft (Kanvesh).
 -- See README "Open questions for Victoria" for the formal-confirmation ask.

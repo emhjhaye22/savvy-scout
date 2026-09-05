@@ -530,6 +530,9 @@
       <li><a href="{{ url_for('signals.index') }}" class="{% if request.endpoint == 'signals.index' %}active{% endif %}">
         <span class="nav-icon">📡</span><span class="nav-label">Signals</span>
       </a></li>
+      <li><a href="{{ url_for('competitor_intel.index') }}" class="{% if request.endpoint == 'competitor_intel.index' %}active{% endif %}">
+        <span class="nav-icon">🎯</span><span class="nav-label">Competitor Intel</span>
+      </a></li>
       <li>
         <form action="{{ url_for('home.sweep_now') }}" method="post">
           <button class="sidebar-sweep-button" type="submit" title="Run sweep now" aria-label="Run sweep now">
