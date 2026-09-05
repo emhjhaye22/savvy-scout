@@ -22,7 +22,7 @@
   .kpi-card .stat-label { margin-top: 2px; font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .kpi-card .hint { margin-top: 1px; font-size: 10.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  .kpi-row-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 6px; }
+  .kpi-row-3 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 6px; }
   .kpi-card-link { text-decoration: none; display: block; }
   .kpi-card-link .kpi-card { transition: border-color 0.15s; }
   .kpi-card-link:hover .kpi-card { border-color: var(--primary); }
@@ -173,6 +173,13 @@
           <div class="stat-value">{{ competitors_watched }}</div>
           <div class="stat-label">Competitors watched</div>
           <div class="hint">Starred in Competitor Intel</div>
+        </div>
+      </a>
+      <a class="kpi-card-link" href="{{ url_for('shortlists.index') }}">
+        <div class="kpi-card">
+          <div class="stat-value">{{ items_shortlisted }}</div>
+          <div class="stat-label">Items shortlisted</div>
+          <div class="hint">Saved opportunities</div>
         </div>
       </a>
     </div>

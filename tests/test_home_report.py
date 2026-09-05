@@ -563,10 +563,10 @@ def test_award_only_discovery_excluded_from_every_date_bucket(tmp_path):
 
 
 def test_overview_shows_cross_feature_tiles(tmp_path):
-    """2026-09-05 UI alignment: Renewals due, New signals this week, and
-    Competitors watched are cheap single-table counts surfaced on the
-    Overview so Signals and Competitor Intel each get a one-glance summary
-    without leaving the landing page."""
+    """2026-09-05 UI alignment: Renewals due, New signals this week,
+    Competitors watched, and Items shortlisted are cheap single-table counts
+    surfaced on the Overview so Signals, Competitor Intel, and Shortlists
+    each get a one-glance summary without leaving the landing page."""
     db_path = str(tmp_path / "test.db")
     setup_conn = get_connection(db_path)
     init_db(setup_conn)
@@ -597,6 +597,14 @@ def test_overview_shows_cross_feature_tiles(tmp_path):
         "INSERT INTO watched_competitors (supplier_name, watched_by, watched_at) VALUES ('Acme Ltd', 'Mark', ?)",
         (now.isoformat(),),
     )
+    _insert_notice(setup_conn, "REF-SHORTLIST", now.isoformat(), "Fintech")
+    shortlisted_notice_id = setup_conn.execute(
+        "SELECT id FROM notices WHERE ref = 'REF-SHORTLIST'"
+    ).fetchone()["id"]
+    setup_conn.execute(
+        "INSERT INTO shortlisted_notices (notice_id, added_by, added_at) VALUES (?, 'Mark', ?)",
+        (shortlisted_notice_id, now.isoformat()),
+    )
     setup_conn.commit()
     setup_conn.close()
 
@@ -620,3 +628,4 @@ def test_overview_shows_cross_feature_tiles(tmp_path):
     assert re.search(r'<div class="stat-value">1</div>\s*<div class="stat-label">Renewals due \(90d\)</div>', html)
     assert re.search(r'<div class="stat-value">1</div>\s*<div class="stat-label">New signals this week</div>', html)
     assert re.search(r'<div class="stat-value">1</div>\s*<div class="stat-label">Competitors watched</div>', html)
+    assert re.search(r'<div class="stat-value">1</div>\s*<div class="stat-label">Items shortlisted</div>', html)

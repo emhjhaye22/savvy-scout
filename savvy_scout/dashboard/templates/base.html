@@ -533,6 +533,9 @@
       <li><a href="{{ url_for('competitor_intel.index') }}" class="{% if request.endpoint == 'competitor_intel.index' %}active{% endif %}">
         <span class="nav-icon">🎯</span><span class="nav-label">Competitor Intel</span>
       </a></li>
+      <li><a href="{{ url_for('shortlists.index') }}" class="{% if request.endpoint == 'shortlists.index' %}active{% endif %}">
+        <span class="nav-icon">⭐</span><span class="nav-label">Shortlists</span>
+      </a></li>
       <li><a href="{{ url_for('settings.index') }}" class="{% if request.endpoint == 'settings.index' %}active{% endif %}">
         <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
       </a></li>

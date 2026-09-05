@@ -139,6 +139,17 @@ CREATE TABLE IF NOT EXISTS watched_competitors (
     watched_at TEXT NOT NULL
 );
 
+-- Shortlists: one flat save-list per the single-owner design (2026-09-05
+-- clarification -- no named/multiple lists, just a star toggle on a notice
+-- and one page listing everything saved). notice_id is UNIQUE because a
+-- notice is either on the list or it isn't, not on it more than once.
+CREATE TABLE IF NOT EXISTS shortlisted_notices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    notice_id INTEGER NOT NULL UNIQUE REFERENCES notices(id),
+    added_by TEXT NOT NULL,
+    added_at TEXT NOT NULL
+);
+
 -- Config: buyer sector -> owner. Energy = Mark per Victoria's verbal sector
 -- confirmation (references), overriding the original SPEC.md draft (Kanvesh).
 -- See README "Open questions for Victoria" for the formal-confirmation ask.

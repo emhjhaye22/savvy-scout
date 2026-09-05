@@ -12,6 +12,7 @@ from savvy_scout.dashboard.auth import get_db
 from savvy_scout.dashboard.notifications import STAGE_GROUPS, victoria_sourced_reject_sql
 from savvy_scout.dashboard.scope_filter import in_scope_filter_sql
 from savvy_scout.escalation.brief import mark_emailed
+from savvy_scout.dashboard.routes.shortlists import is_shortlisted
 from savvy_scout.graph.mail import send_escalation_email as graph_send_escalation_email
 from savvy_scout.models.notice import Notice
 from savvy_scout.sources.ocds_parser import ParsedNotice
@@ -401,9 +402,12 @@ def notice_detail(notice_id):
         notice, triage_run, phase2_assessment, escalation_brief, status_history
     )
 
+    shortlisted = is_shortlisted(conn, notice_id)
+
     return render_template(
         "notice_detail.html",
         notice=notice,
+        shortlisted=shortlisted,
         gate_results=gate_results,
         triage_run=triage_run,
         phase2_assessment=phase2_assessment,

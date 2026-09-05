@@ -16,6 +16,7 @@ from savvy_scout.dashboard.routes.competitor_intel import competitor_intel_bp
 from savvy_scout.dashboard.routes.home import home_bp
 from savvy_scout.dashboard.routes.queues import queues_bp
 from savvy_scout.dashboard.routes.settings import settings_bp
+from savvy_scout.dashboard.routes.shortlists import shortlists_bp
 from savvy_scout.dashboard.routes.signals import signals_bp
 from savvy_scout.db.connection import get_connection, init_db
 from savvy_scout.db.seed_config import seed_all
@@ -57,6 +58,7 @@ def create_app(settings: Settings) -> Flask:
     app.register_blueprint(queues_bp)
     app.register_blueprint(signals_bp)
     app.register_blueprint(competitor_intel_bp)
+    app.register_blueprint(shortlists_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
 

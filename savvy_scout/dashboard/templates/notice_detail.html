@@ -63,6 +63,11 @@
       {% if notice['uk_stage'] and notice['uk_stage'] != 'UNVERIFIED' %}
         <span class="badge badge-stage">{{ notice['uk_stage'] }}</span>
       {% endif %}
+      <form method="post" action="{{ url_for('shortlists.toggle') }}">
+        <input type="hidden" name="notice_id" value="{{ notice['id'] }}">
+        <input type="hidden" name="next" value="{{ url_for('queues.notice_detail', notice_id=notice['id']) }}">
+        <button type="submit" class="btn btn-secondary btn-sm" title="{% if shortlisted %}Remove from Shortlists{% else %}Save to Shortlists{% endif %}">{% if shortlisted %}★ Shortlisted{% else %}☆ Shortlist{% endif %}</button>
+      </form>
     </div>
   </div>
 
