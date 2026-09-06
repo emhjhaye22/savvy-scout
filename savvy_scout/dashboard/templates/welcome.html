@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Welcome — Savvy Scout{% endblock %}
+{% block page_title %}Welcome{% endblock %}
+
+{% block content %}
+
+<style>
+  body { overflow-y: auto; }
+  .content { padding: 10px 18px; overflow: visible; }
+  .page-wrapper { overflow: visible; }
+
+  .welcome-hero { padding: 28px 4px 8px; }
+  .welcome-greeting { font-size: 26px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+  .welcome-subtitle { font-size: 14px; color: var(--text-muted); margin-bottom: 22px; }
+
+  .welcome-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
+  }
+  .welcome-card {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--border); text-decoration: none; color: inherit;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .welcome-card:hover { border-color: var(--primary); background: var(--surface-alt); }
+  .welcome-card-icon { font-size: 22px; width: 30px; text-align: center; flex-shrink: 0; }
+  .welcome-card-label { font-size: 14px; font-weight: 700; color: var(--navy); }
+  .welcome-card-desc { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; }
+
+  .welcome-section-label {
+    font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.5px; margin: 26px 0 10px;
+  }
+  .welcome-client-badge {
+    font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+    background: rgba(59,110,165,0.15); color: var(--primary); margin-left: 8px;
+  }
+</style>
+
+<div class="welcome-hero">
+  <div class="welcome-greeting">👋 Welcome, {{ current_user.display_name }}!</div>
+  <div class="welcome-subtitle">Where would you like to go?</div>
+
+  <div class="welcome-grid">
+    <a class="welcome-card" href="{{ url_for('home.index') }}">
+      <span class="welcome-card-icon">🏠</span>
+      <div>
+        <div class="welcome-card-label">Overview</div>
+        <div class="welcome-card-desc">Pipeline health at a glance</div>
+      </div>
+    </a>
+    <a class="welcome-card" href="{{ url_for('queues.index') }}">
+      <span class="welcome-card-icon">📋</span>
+      <div>
+        <div class="welcome-card-label">Approval Queue</div>
+        <div class="welcome-card-desc">Notices waiting on a decision</div>
+      </div>
+    </a>
+    <a class="welcome-card" href="{{ url_for('queues.opportunities') }}">
+      <span class="welcome-card-icon">🔎</span>
+      <div>
+        <div class="welcome-card-label">All Opportunities</div>
+        <div class="welcome-card-desc">Every swept notice, one list</div>
+      </div>
+    </a>
+    <a class="welcome-card" href="{{ url_for('signals.index') }}">
+      <span class="welcome-card-icon">📡</span>
+      <div>
+        <div class="welcome-card-label">Signals</div>
+        <div class="welcome-card-desc">Renewal &amp; expiry alerts</div>
+      </div>
+    </a>
+    <a class="welcome-card" href="{{ url_for('competitor_intel.index') }}">
+      <span class="welcome-card-icon">🎯</span>
+      <div>
+        <div class="welcome-card-label">Competitor Intel</div>
+        <div class="welcome-card-desc">Who's winning, and against whom</div>
+      </div>
+    </a>
+    <a class="welcome-card" href="{{ url_for('shortlists.index') }}">
+      <span class="welcome-card-icon">⭐</span>
+      <div>
+        <div class="welcome-card-label">Shortlists</div>
+        <div class="welcome-card-desc">Notices you've saved for later</div>
+      </div>
+    </a>
+    <a class="welcome-card" href="{{ url_for('draft_assist.index') }}">
+      <span class="welcome-card-icon">✍️</span>
+      <div>
+        <div class="welcome-card-label">Draft assist</div>
+        <div class="welcome-card-desc">Q&amp;A drafting for a live bid</div>
+      </div>
+    </a>
+    <a class="welcome-card" href="{{ url_for('settings.index') }}">
+      <span class="welcome-card-icon">⚙️</span>
+      <div>
+        <div class="welcome-card-label">Settings</div>
+        <div class="welcome-card-desc">Whitelist, data dictionary, sweep history</div>
+      </div>
+    </a>
+    {% if current_user.is_victoria or current_user.is_admin %}
+    <a class="welcome-card" href="{{ url_for('admin.index') }}">
+      <span class="welcome-card-icon">⚙️</span>
+      <div>
+        <div class="welcome-card-label">Admin</div>
+        <div class="welcome-card-desc">Rules, users, client onboarding</div>
+      </div>
+    </a>
+    {% endif %}
+  </div>
+
+  {% if is_super_admin and clients %}
+  <div class="welcome-section-label">Clients</div>
+  <div class="welcome-grid">
+    {% for client in clients %}
+    {% if client.name == 'Trifork' %}
+    <a class="welcome-card" href="{{ url_for('home.index') }}">
+      <span class="welcome-card-icon">🏢</span>
+      <div>
+        <div class="welcome-card-label">Trifork<span class="welcome-client-badge">Full workspace</span></div>
+        <div class="welcome-card-desc">5-gate triage, Approval Queue, everything above</div>
+      </div>
+    </a>
+    {% else %}
+    <a class="welcome-card" href="{{ url_for('admin.client_matches', client_id=client.id) }}">
+      <span class="welcome-card-icon">🏢</span>
+      <div>
+        <div class="welcome-card-label">{{ client.name }}<span class="welcome-client-badge">Matches only</span></div>
+        <div class="welcome-card-desc">Structured filter, no workflow yet</div>
+      </div>
+    </a>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

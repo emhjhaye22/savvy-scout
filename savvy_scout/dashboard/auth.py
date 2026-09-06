@@ -57,7 +57,7 @@ def login():
         ).fetchone()
         if row and check_password_hash(row["password_hash"], request.form.get("password", "")):
             login_user(User(row))
-            return redirect(url_for("home.index"))
+            return redirect(url_for("welcome.index"))
         error = "Invalid email/username or password"
 
     return render_template("login.html", error=error)

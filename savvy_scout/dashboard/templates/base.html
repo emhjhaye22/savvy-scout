@@ -543,6 +543,9 @@
   <div class="sidebar-section">
     <div class="sidebar-section-label">Workflow</div>
     <ul class="sidebar-nav">
+      <li><a href="{{ url_for('welcome.index') }}" class="{% if request.endpoint == 'welcome.index' %}active{% endif %}">
+        <span class="nav-icon">👋</span><span class="nav-label">Welcome</span>
+      </a></li>
       <li><a href="{{ url_for('home.index') }}" class="{% if request.endpoint == 'home.index' %}active{% endif %}">
         <span class="nav-icon">🏠</span><span class="nav-label">Overview</span>
       </a></li>

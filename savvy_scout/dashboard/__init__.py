@@ -19,6 +19,7 @@ from savvy_scout.dashboard.routes.queues import queues_bp
 from savvy_scout.dashboard.routes.settings import settings_bp
 from savvy_scout.dashboard.routes.shortlists import shortlists_bp
 from savvy_scout.dashboard.routes.signals import signals_bp
+from savvy_scout.dashboard.routes.welcome import welcome_bp
 from savvy_scout.db.connection import get_connection, init_db
 from savvy_scout.db.seed_config import seed_all
 
@@ -55,6 +56,7 @@ def create_app(settings: Settings) -> Flask:
 
     login_manager.init_app(app)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(welcome_bp)
     app.register_blueprint(home_bp)
     app.register_blueprint(queues_bp)
     app.register_blueprint(signals_bp)
