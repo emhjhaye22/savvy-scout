@@ -109,19 +109,6 @@
   .funnel-track { height: 10px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); overflow: hidden; }
   .funnel-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2563EB, #7C3AED); }
 
-  /* Sweep history: one row per run, a badge per source showing success/failure
-     -- hover a failed badge for its error message (title attribute). */
-  .sweep-history-list { display: grid; gap: 8px; }
-  .sweep-history-run { padding: 6px 4px; border-bottom: 1px solid var(--border); }
-  .sweep-history-run:last-child { border-bottom: none; }
-  .sweep-history-run-head { display: flex; gap: 10px; align-items: baseline; margin-bottom: 5px; flex-wrap: wrap; }
-  .sweep-history-time { font-size: 11px; font-weight: 700; color: var(--navy); }
-  .sweep-history-triggered { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
-  .sweep-history-totals { font-size: 11px; color: var(--text-muted); margin-left: auto; }
-  .sweep-history-sources { display: flex; gap: 6px; flex-wrap: wrap; }
-  .sweep-source-badge { font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; cursor: default; }
-  .sweep-source-badge.ok { background: rgba(16,185,129,0.12); color: #6EE7B7; }
-  .sweep-source-badge.fail { background: rgba(255,77,79,0.12); color: #FF8A8C; }
 </style>
 
 <div class="card report-card">
@@ -309,43 +296,7 @@
       </div>
     </div>
 
-    <div class="panel" style="margin-bottom: 6px;">
-      <div class="panel-head">
-        <div class="panel-title">Sweep history</div>
-        <div class="panel-subtitle">Every sweep run, per-source success/failure &mdash; a source missing from "Notices by source" above usually shows why here</div>
-      </div>
-      <div class="sweep-history-list">
-        {% for run in sweep_history %}
-        <div class="sweep-history-run">
-          <div class="sweep-history-run-head">
-            <span class="sweep-history-time">{{ run.started_at[:16] | replace('T', ' ') }}</span>
-            <span class="sweep-history-triggered">{{ run.triggered_by }}</span>
-            <span class="sweep-history-totals">{{ run.total_pulled }} pulled &middot; {{ run.total_triaged }} triaged</span>
-          </div>
-          <div class="sweep-history-sources">
-            {% for s in run.sources %}
-            <span class="sweep-source-badge {{ 'ok' if s.status == 'success' else 'fail' }}"
-                  {% if s.error_message %}title="{{ s.error_message }}"{% endif %}>
-              {{ '✓' if s.status == 'success' else '✗' }} {{ s.source_name }}
-              {% if s.status == 'success' %}({{ s.pulled }}){% else %}&mdash; failed{% endif %}
-            </span>
-            {% endfor %}
-          </div>
-        </div>
-        {% endfor %}
-        {% if not sweep_history %}
-        <div class="mini-empty">No sweeps recorded yet.</div>
-        {% endif %}
-      </div>
-      <div class="sweep-history-manual-note" style="padding: 12px 16px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--text-muted);">
-        <strong>eTendersNI</strong> (Northern Ireland) isn't swept automatically — its search
-        results are CAPTCHA-protected. <a href="{{ url_for('queues.add_notice_manual') }}">Add a notice manually</a>
-        after checking it yourself at
-        <a href="https://etendersni.gov.uk/epps" target="_blank" rel="noopener">etendersni.gov.uk/epps</a>.
-      </div>
-    </div>
-
-    <div class="panel-grid-wide">
+    <div class="panel-grid-wide" style="grid-template-columns: minmax(0,1.6fr) minmax(0,1.2fr) minmax(0,1.2fr);">
       <div class="panel">
         <div class="panel-head">
           <div class="panel-title">Upcoming deadlines</div>
@@ -382,6 +333,25 @@
           {% endfor %}
           {% if not top_buyers %}
           <div class="mini-empty">No in-scope buyers yet.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Top competitors</div>
+          <div class="panel-subtitle">Most relevant award-winners (Competitor Intel)</div>
+        </div>
+        <div class="legend-list">
+          {% for row in top_competitors %}
+          <a class="legend-item" href="{{ url_for('competitor_intel.detail', name=row.supplier_name) }}" style="text-decoration:none; color:inherit;">
+            <span class="legend-swatch" style="background: {{ sector_palette[loop.index0 % sector_palette|length] }};"></span>
+            <span class="legend-label">{{ row.supplier_name | truncate(40, True, '…') }}</span>
+            <span class="legend-value">{{ row.count }}</span>
+          </a>
+          {% endfor %}
+          {% if not top_competitors %}
+          <div class="mini-empty">No relevant competitors identified yet.</div>
           {% endif %}
         </div>
       </div>

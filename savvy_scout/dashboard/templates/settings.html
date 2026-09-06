@@ -35,6 +35,20 @@
   .dict-table td { padding: 10px 14px; vertical-align: top; }
   .dict-col-name { font-weight: 600; color: var(--navy); white-space: nowrap; }
   .dict-col-desc { color: var(--text-muted); }
+
+  /* Sweep history: one row per run, a badge per source showing success/failure
+     -- hover a failed badge for its error message (title attribute). */
+  .sweep-history-list { display: grid; gap: 8px; padding: 14px 16px; }
+  .sweep-history-run { padding: 6px 4px; border-bottom: 1px solid var(--border); }
+  .sweep-history-run:last-child { border-bottom: none; }
+  .sweep-history-run-head { display: flex; gap: 10px; align-items: baseline; margin-bottom: 5px; flex-wrap: wrap; }
+  .sweep-history-time { font-size: 11px; font-weight: 700; color: var(--navy); }
+  .sweep-history-triggered { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+  .sweep-history-totals { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+  .sweep-history-sources { display: flex; gap: 6px; flex-wrap: wrap; }
+  .sweep-source-badge { font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; cursor: default; }
+  .sweep-source-badge.ok { background: rgba(16,185,129,0.12); color: #6EE7B7; }
+  .sweep-source-badge.fail { background: rgba(255,77,79,0.12); color: #FF8A8C; }
 </style>
 
 <div class="settings-note">
@@ -67,6 +81,41 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+</div>
+
+<div class="settings-section">
+  <h2>Sweep history</h2>
+  <div class="card">
+    <div class="sweep-history-list">
+      {% for run in sweep_history %}
+      <div class="sweep-history-run">
+        <div class="sweep-history-run-head">
+          <span class="sweep-history-time">{{ run.started_at[:16] | replace('T', ' ') }}</span>
+          <span class="sweep-history-triggered">{{ run.triggered_by }}</span>
+          <span class="sweep-history-totals">{{ run.total_pulled }} pulled &middot; {{ run.total_triaged }} triaged</span>
+        </div>
+        <div class="sweep-history-sources">
+          {% for s in run.sources %}
+          <span class="sweep-source-badge {{ 'ok' if s.status == 'success' else 'fail' }}"
+                {% if s.error_message %}title="{{ s.error_message }}"{% endif %}>
+            {{ '✓' if s.status == 'success' else '✗' }} {{ s.source_name }}
+            {% if s.status == 'success' %}({{ s.pulled }}){% else %}&mdash; failed{% endif %}
+          </span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+      {% if not sweep_history %}
+      <p style="color:var(--text-muted); font-size:13px;">No sweeps recorded yet.</p>
+      {% endif %}
+    </div>
+    <div style="padding: 12px 16px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--text-muted);">
+      <strong>eTendersNI</strong> (Northern Ireland) isn't swept automatically — its search
+      results are CAPTCHA-protected. <a href="{{ url_for('queues.add_notice_manual') }}">Add a notice manually</a>
+      after checking it yourself at
+      <a href="https://etendersni.gov.uk/epps" target="_blank" rel="noopener">etendersni.gov.uk/epps</a>.
+    </div>
   </div>
 </div>
 {% endblock %}

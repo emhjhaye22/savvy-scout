@@ -23,9 +23,9 @@ from flask_login import current_user, login_required
 from savvy_scout.dashboard.auth import get_db
 from savvy_scout.dashboard.charts import bar_chart_series
 from savvy_scout.dashboard.notifications import victoria_sourced_reject_sql
-from savvy_scout.dashboard.routes.competitor_intel import _parse_gbp
+from savvy_scout.dashboard.routes.competitor_intel import _competitors, _parse_gbp
 from savvy_scout.dashboard.scope_filter import IN_SCOPE_UK_STAGES, in_scope_filter_sql
-from savvy_scout.sweep.runner import get_recent_sweep_runs, run_sweep
+from savvy_scout.sweep.runner import run_sweep
 
 home_bp = Blueprint("home", __name__)
 
@@ -467,6 +467,22 @@ def _build_top_buyers(conn, in_scope_where, in_scope_params, limit=8) -> list[di
     return [{"buyer": r["buyer"], "count": r["cnt"], "pct": round(r["cnt"] / max_count * 100, 1)} for r in rows]
 
 
+def _build_top_competitors(conn, limit=8) -> list[dict]:
+    """Mirrors _build_top_buyers, but for Competitor Intel's own aggregation
+    (2026-09-06) rather than a fresh query -- reuses the same relevance
+    filter (Gate 2, not just sector match) so this doesn't reintroduce the
+    "taxi firm outranking real competitors" noise Competitor Intel itself
+    already fixed. Deliberately NOT scoped by in_scope_filter_sql: award
+    notices are UK5, which that filter excludes by design, same reasoning
+    as Competitor Intel's own screen."""
+    relevant = [c for c in _competitors(conn) if c["relevant"]][:limit]
+    max_count = relevant[0]["award_count"] if relevant else 1
+    return [
+        {"supplier_name": c["supplier_name"], "count": c["award_count"], "pct": round(c["award_count"] / max_count * 100, 1)}
+        for c in relevant
+    ]
+
+
 def _build_sector_spend(conn) -> list[dict]:
     """Market-size-by-sector panel named in the UI alignment build's
     Dashboard spec (2026-09-06): aggregated award value per sector, across
@@ -656,8 +672,8 @@ def index():
     approval_rate = _build_approval_rate(conn, in_scope_where, in_scope_params)
     approval_rate_by_owner = _build_approval_rate_by_owner(conn, in_scope_where, in_scope_params)
     top_buyers = _build_top_buyers(conn, in_scope_where, in_scope_params)
+    top_competitors = _build_top_competitors(conn)
     sector_spend = _build_sector_spend(conn)
-    sweep_history = get_recent_sweep_runs(conn)
 
     # Cross-feature tiles (2026-09-05 UI alignment): Signals, Competitor
     # Intel, and Shortlists are separate screens, but a one-glance count of
@@ -746,8 +762,8 @@ def index():
         approval_rate=approval_rate,
         approval_rate_by_owner=approval_rate_by_owner,
         top_buyers=top_buyers,
+        top_competitors=top_competitors,
         sector_spend=sector_spend,
-        sweep_history=sweep_history,
         renewals_due_90d=renewals_due_90d,
         new_signals_week=new_signals_week,
         competitors_watched=competitors_watched,

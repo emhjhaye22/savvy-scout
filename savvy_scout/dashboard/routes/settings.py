@@ -16,8 +16,10 @@ API-key/MCP panel this screen also leaves out."""
 from flask import Blueprint, render_template
 from flask_login import login_required
 
+from savvy_scout.dashboard.auth import get_db
 from savvy_scout.export.trifork_pipeline import HEADERS as TRACKER_COLUMNS
 from savvy_scout.graph.mail import ALLOWED_DOMAIN
+from savvy_scout.sweep.runner import get_recent_sweep_runs
 
 settings_bp = Blueprint("settings", __name__)
 
@@ -53,9 +55,15 @@ _COLUMN_DESCRIPTIONS = (
 @settings_bp.route("/settings")
 @login_required
 def index():
+    conn = get_db()
     data_dictionary = list(zip(TRACKER_COLUMNS, _COLUMN_DESCRIPTIONS))
+    # Moved here from the Overview 2026-09-06, on request -- this is
+    # operational/diagnostic detail (per-source sweep success/failure),
+    # not something that belongs on a daily-glance business dashboard.
+    sweep_history = get_recent_sweep_runs(conn)
     return render_template(
         "settings.html",
         allowed_domain=ALLOWED_DOMAIN,
         data_dictionary=data_dictionary,
+        sweep_history=sweep_history,
     )

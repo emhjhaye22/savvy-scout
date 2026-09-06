@@ -70,6 +70,16 @@ def test_settings_shows_every_tracker_column(app):
         assert column in body
 
 
+def test_settings_shows_sweep_history_section(app):
+    """Moved here from Overview 2026-09-06 -- operational/diagnostic detail,
+    not a daily-glance business metric."""
+    client = _logged_in_client(app)
+    resp = client.get("/settings")
+    body = resp.data.decode()
+    assert "Sweep history" in body
+    assert "No sweeps recorded yet" in body
+
+
 def test_settings_has_no_whitelist_editing_form(app):
     """The whitelist is a hard, non-bypassable check in graph/mail.py
     (SPEC.md non-negotiable 2) -- this page must never grow a form that
