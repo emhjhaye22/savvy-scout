@@ -66,6 +66,24 @@
   .ref-cell a:hover { color: var(--primary); }
 
   .search-input { flex: 1; min-width: 200px; }
+
+  .priority-badge {
+    display: inline-block; padding: 3px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 700; white-space: nowrap;
+  }
+  .priority-1 { background: rgba(59,110,165,0.15); color: var(--primary-dark); }
+  .priority-2 { background: #FEF3C7; color: #92400E; }
+  .priority-3 { background: #F3F4F6; color: #374151; }
+  .priority-4 { background: #FEE2E2; color: #991B1B; }
+  .priority-5 { background: #F3F4F6; color: #6B7280; }
+  .priority-6 { background: #F3F4F6; color: #9CA3AF; }
+
+  .sort-toggle { display: flex; gap: 4px; margin-left: auto; }
+  .sort-toggle a {
+    padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    text-decoration: none; color: var(--text-muted); border: 1px solid var(--border);
+  }
+  .sort-toggle a.active { background: var(--primary); color: white; border-color: var(--primary); }
 </style>
 
 {# Summary status pills #}
@@ -105,10 +123,15 @@
   </select>
   <input type="hidden" name="status" value="{{ status_filter }}">
   <input type="hidden" name="stage" value="{{ stage_filter }}">
+  <input type="hidden" name="sort" value="{{ sort_filter }}">
   <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
   {% if status_filter or stage_filter or sector_filter or request.args.get('q') %}
   <a href="{{ url_for('queues.opportunities') }}" class="btn btn-secondary btn-sm">✕ Clear</a>
   {% endif %}
+  <div class="sort-toggle">
+    <a href="{{ url_for('queues.opportunities', status=status_filter, stage=stage_filter, sector=sector_filter, sort='priority') }}" class="{% if sort_filter != 'newest' %}active{% endif %}" title="Sorted by what needs your attention first: AI/gate-recommended pursues first, then items needing a decision, then everything else">Priority</a>
+    <a href="{{ url_for('queues.opportunities', status=status_filter, stage=stage_filter, sector=sector_filter, sort='newest') }}" class="{% if sort_filter == 'newest' %}active{% endif %}">Newest</a>
+  </div>
 </form>
 
 {# Main table #}
@@ -116,6 +139,7 @@
   <table class="opp-table">
     <thead>
       <tr>
+        <th>Priority</th>
         <th>Ref</th>
         <th>Opportunity</th>
         <th>Buyer</th>
@@ -131,6 +155,11 @@
     {% if notices %}
       {% for n in notices %}
       <tr data-search="{{ (n['title'] or '') | lower }} {{ (n['buyer'] or '') | lower }} {{ (n['ref'] or '') | lower }}">
+        <td>
+          {% set tier = n['priority_tier'] %}
+          {% set tier_labels = {1: 'Pursue now', 2: 'Needs review', 3: 'Queued', 4: 'AI: Decline', 5: 'In progress', 6: 'Closed'} %}
+          <span class="priority-badge priority-{{ tier }}">{{ tier_labels.get(tier, '—') }}</span>
+        </td>
         <td class="ref-cell">
           <a href="{{ url_for('queues.notice_detail', notice_id=n['id']) }}" title="View detail">{{ n['ref'] | truncate(20, True, '…') }}</a>
         </td>
@@ -175,7 +204,7 @@
       </tr>
       {% endfor %}
     {% else %}
-    <tr><td colspan="9" style="text-align:center; padding: 40px; color: var(--text-muted);">No opportunities found.</td></tr>
+    <tr><td colspan="10" style="text-align:center; padding: 40px; color: var(--text-muted);">No opportunities found.</td></tr>
     {% endif %}
     </tbody>
   </table>

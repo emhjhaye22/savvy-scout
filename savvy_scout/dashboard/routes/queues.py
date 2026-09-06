@@ -425,6 +425,31 @@ def notice_detail(notice_id):
     )
 
 
+
+# Priority tiers for the Opportunities list (2026-09-05 UI alignment,
+# "surface what to work on next"): ranks every notice by how much it needs
+# Mark's attention right now, using the same AI/gate judgement the app
+# already computes rather than a keyword-matched feed like the commercial
+# competitor tools researched for this build. Lower tier = higher priority.
+# A notice AWAITING_PHASE2_APPROVAL with no phase2_assessments row at all
+# (advanced without an AI read) falls through to the plain
+# AWAITING_PHASE2_APPROVAL case below the rating-specific ones, landing in
+# tier 2 same as a FLAG rating -- it still needs a human decision, just
+# without an AI opinion to lean on.
+PRIORITY_TIER_SQL = """
+    CASE
+        WHEN n.status = 'AWAITING_PHASE2_APPROVAL' AND p2.overall_rating = 'PURSUE' THEN 1
+        WHEN n.status = 'AWAITING_PHASE2_APPROVAL' AND p2.overall_rating = 'FLAG' THEN 2
+        WHEN n.status IN ('TO_REVIEW', 'HANDOFF') THEN 2
+        WHEN n.status = 'AWAITING_PHASE2_APPROVAL' AND p2.overall_rating = 'DECLINE' THEN 4
+        WHEN n.status = 'AWAITING_PHASE2_APPROVAL' THEN 2
+        WHEN n.status IN ('NEW', 'PHASE1_TRIAGED', 'PHASE2_SCOPED') THEN 3
+        WHEN n.status IN ('REJECTED', 'PARKED') THEN 6
+        ELSE 5
+    END
+"""
+
+
 @queues_bp.route("/opportunities")
 @login_required
 def opportunities():
@@ -434,6 +459,7 @@ def opportunities():
     status_filter = request.args.get("status", "")
     sector_filter = request.args.get("sector", "")
     stage_filter = request.args.get("stage", "")
+    sort_filter = request.args.get("sort", "priority")
 
     # 2026-07-30: scoped to in_scope_filter_sql throughout (real sector, CPV
     # within that sector's scope, UK1-4), consistent with the Overview,
@@ -447,10 +473,15 @@ def opportunities():
                n.indicative_value, n.deadline, n.uk_stage, n.cpv_primary,
                n.first_seen_at, n.first_published_at, n.published_at, n.updated_at,
                n.publish_date_unknown, n.source,
-               tr.headline_outcome, tr.headline_reason
+               tr.headline_outcome, tr.headline_reason,
+               p2.overall_rating,
+               ({PRIORITY_TIER_SQL}) AS priority_tier
         FROM notices n
         LEFT JOIN triage_runs tr ON tr.id = (
             SELECT MAX(id) FROM triage_runs WHERE notice_id = n.id
+        )
+        LEFT JOIN phase2_assessments p2 ON p2.id = (
+            SELECT MAX(id) FROM phase2_assessments WHERE notice_id = n.id
         )
         WHERE {in_scope_where}
     """
@@ -481,7 +512,14 @@ def opportunities():
         query += " AND n.sector = ?"
         params.append(sector_filter)
 
-    query += " ORDER BY n.first_seen_at DESC LIMIT 500"
+    if sort_filter == "newest":
+        query += " ORDER BY n.first_seen_at DESC LIMIT 500"
+    else:
+        sort_filter = "priority"
+        query += (
+            " ORDER BY priority_tier ASC, n.deadline IS NULL, n.deadline ASC, "
+            "n.first_seen_at DESC LIMIT 500"
+        )
 
     notices = conn.execute(query, params).fetchall()
 
@@ -514,6 +552,7 @@ def opportunities():
         status_filter=status_filter,
         sector_filter=sector_filter,
         stage_filter=stage_filter,
+        sort_filter=sort_filter,
     )
 
 
