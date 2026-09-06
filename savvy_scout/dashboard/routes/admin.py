@@ -832,10 +832,12 @@ def toggle_client_active(client_id):
 @admin_bp.route("/clients/<int:client_id>/matches")
 @login_required
 def client_matches(client_id):
-    """Read-only proof that a client's filter actually works, against real
-    swept notices -- deliberately not a full Approval Queue/workflow like
-    Trifork has. A brand-new client doesn't need that depth on day one;
-    this exists to validate the filter before ever investing in it."""
+    """A minimal working triage for a client -- not Trifork's full 5-gate
+    workflow (no Phase 2 AI, no escalation, no reports), just enough for
+    Mark to actually act on matches day-to-day: mark a notice Shortlisted
+    or Rejected with a note, same operating model as Trifork (Mark
+    triages on the client's behalf; no separate client login exists).
+    status defaults to NEW until Mark records a decision."""
     if not _is_super_admin():
         flash("Only the admin account can manage clients.", "error")
         return redirect(url_for("queues.index"))
@@ -846,16 +848,65 @@ def client_matches(client_id):
         flash("Client not found.", "error")
         return redirect(url_for("admin.index") + "#group-clients")
 
-    matches = conn.execute(
+    status_filter = request.args.get("status", "")
+    query = (
         "SELECT n.id, n.ref, n.title, n.buyer, n.cpv_primary, n.uk_stage, n.buyer_region, "
-        "n.indicative_value, r.reason, r.evaluated_at "
+        "n.indicative_value, r.reason, r.evaluated_at, "
+        "COALESCE(a.status, 'NEW') AS action_status, a.note "
         "FROM client_triage_results r JOIN notices n ON n.id = r.notice_id "
-        "WHERE r.client_id = ? AND r.outcome = 'PASS' "
-        "ORDER BY r.evaluated_at DESC LIMIT 500",
-        (client_id,),
-    ).fetchall()
+        "LEFT JOIN client_notice_actions a ON a.client_id = r.client_id AND a.notice_id = r.notice_id "
+        "WHERE r.client_id = ? AND r.outcome = 'PASS'"
+    )
+    params = [client_id]
+    if status_filter:
+        query += " AND COALESCE(a.status, 'NEW') = ?"
+        params.append(status_filter)
+    query += " ORDER BY r.evaluated_at DESC LIMIT 500"
+    matches = conn.execute(query, params).fetchall()
 
-    return render_template("admin_client_matches.html", client=client, matches=matches)
+    status_counts = {
+        row["action_status"]: row["cnt"]
+        for row in conn.execute(
+            "SELECT COALESCE(a.status, 'NEW') AS action_status, COUNT(*) AS cnt "
+            "FROM client_triage_results r "
+            "LEFT JOIN client_notice_actions a ON a.client_id = r.client_id AND a.notice_id = r.notice_id "
+            "WHERE r.client_id = ? AND r.outcome = 'PASS' GROUP BY action_status",
+            (client_id,),
+        ).fetchall()
+    }
+
+    return render_template(
+        "admin_client_matches.html", client=client, matches=matches,
+        status_filter=status_filter, status_counts=status_counts,
+    )
+
+
+@admin_bp.route("/clients/<int:client_id>/notices/<int:notice_id>/set-status", methods=["POST"])
+@login_required
+def set_client_notice_status(client_id, notice_id):
+    if not _is_super_admin():
+        flash("Only the admin account can manage clients.", "error")
+        return redirect(url_for("queues.index"))
+
+    status = request.form.get("status", "")
+    if status not in ("NEW", "SHORTLISTED", "REJECTED"):
+        flash("Invalid status.", "error")
+        return redirect(url_for("admin.client_matches", client_id=client_id))
+
+    note = request.form.get("note", "").strip() or None
+    conn = get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "INSERT INTO client_notice_actions (client_id, notice_id, status, note, updated_at, updated_by) "
+        "VALUES (?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(client_id, notice_id) DO UPDATE SET status = excluded.status, note = excluded.note, "
+        "updated_at = excluded.updated_at, updated_by = excluded.updated_by",
+        (client_id, notice_id, status, note, now, current_user.display_name),
+    )
+    conn.commit()
+
+    keep_filter = request.form.get("status_filter", "")
+    return redirect(url_for("admin.client_matches", client_id=client_id, status=keep_filter or None))
 
 
 @admin_bp.route("/retriage-escalated", methods=["POST"])

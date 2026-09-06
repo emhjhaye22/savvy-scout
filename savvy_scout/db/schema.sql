@@ -530,6 +530,27 @@ CREATE TABLE IF NOT EXISTS client_triage_results (
 CREATE INDEX IF NOT EXISTS idx_client_triage_results_client ON client_triage_results(client_id);
 CREATE INDEX IF NOT EXISTS idx_client_triage_results_notice ON client_triage_results(notice_id);
 
+-- Human review state for a client's matched notices (2026-09-06) --
+-- deliberately separate from client_triage_results, same reasoning
+-- gates.py's triage_runs is kept separate from notices.status: outcome is
+-- the automated filter's own re-computable verdict (overwritten wholesale
+-- on every re-evaluation), status/note is what Mark (operating on the
+-- client's behalf, same model as Trifork -- no separate client login
+-- exists) has actually decided to do about it, which must never be
+-- clobbered by a filter re-run.
+CREATE TABLE IF NOT EXISTS client_notice_actions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL REFERENCES clients(id),
+    notice_id INTEGER NOT NULL REFERENCES notices(id),
+    status TEXT NOT NULL DEFAULT 'NEW',
+    note TEXT,
+    updated_at TEXT NOT NULL,
+    updated_by TEXT NOT NULL,
+    UNIQUE(client_id, notice_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_client_notice_actions_client ON client_notice_actions(client_id);
+
 CREATE INDEX IF NOT EXISTS idx_notices_ref ON notices(ref);
 CREATE INDEX IF NOT EXISTS idx_notices_status ON notices(status);
 CREATE INDEX IF NOT EXISTS idx_gate_results_notice ON gate_results(notice_id);

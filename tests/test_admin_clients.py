@@ -188,3 +188,108 @@ def test_client_matches_view_denied_to_non_admin(app):
     client = _logged_in_client(app, "victoria")
     resp = client.get("/admin/clients/1/matches", follow_redirects=True)
     assert b"Only the admin account" in resp.data
+
+
+def _add_client_and_get_id(client, conn, name="Acme Construction", **form):
+    form.setdefault("cpv_prefixes", "45")
+    client.post("/admin/clients/add", data={"name": name, **form})
+    return conn.execute("SELECT id FROM clients WHERE name = ?", (name,)).fetchone()["id"]
+
+
+def test_matched_notice_defaults_to_new_status(app):
+    conn = _db(app)
+    _insert_notice(conn, "REF-A", cpv_primary="45200000")
+    client = _admin_client(app)
+    client_id = _add_client_and_get_id(client, conn)
+
+    resp = client.get(f"/admin/clients/{client_id}/matches")
+    table_body = resp.data.decode().split("<tbody>", 1)[1]
+    assert "cna-status-NEW" in table_body
+    assert "cna-status-SHORTLISTED" not in table_body
+
+
+def test_set_client_notice_status_to_shortlisted_with_note(app):
+    conn = _db(app)
+    _insert_notice(conn, "REF-A", cpv_primary="45200000")
+    client = _admin_client(app)
+    client_id = _add_client_and_get_id(client, conn)
+    notice_id = conn.execute("SELECT id FROM notices WHERE ref = 'REF-A'").fetchone()["id"]
+
+    resp = client.post(
+        f"/admin/clients/{client_id}/notices/{notice_id}/set-status",
+        data={"status": "SHORTLISTED", "note": "Looks promising"},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+
+    row = conn.execute(
+        "SELECT * FROM client_notice_actions WHERE client_id = ? AND notice_id = ?", (client_id, notice_id)
+    ).fetchone()
+    assert row["status"] == "SHORTLISTED"
+    assert row["note"] == "Looks promising"
+    assert b"Shortlisted" in resp.data
+    assert b"Looks promising" in resp.data
+
+
+def test_set_client_notice_status_upserts_on_repeat(app):
+    """Changing a decision updates the existing row, not a duplicate."""
+    conn = _db(app)
+    _insert_notice(conn, "REF-A", cpv_primary="45200000")
+    client = _admin_client(app)
+    client_id = _add_client_and_get_id(client, conn)
+    notice_id = conn.execute("SELECT id FROM notices WHERE ref = 'REF-A'").fetchone()["id"]
+
+    client.post(f"/admin/clients/{client_id}/notices/{notice_id}/set-status", data={"status": "SHORTLISTED"})
+    client.post(f"/admin/clients/{client_id}/notices/{notice_id}/set-status", data={"status": "REJECTED"})
+
+    rows = conn.execute(
+        "SELECT * FROM client_notice_actions WHERE client_id = ? AND notice_id = ?", (client_id, notice_id)
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0]["status"] == "REJECTED"
+
+
+def test_set_client_notice_status_rejects_invalid_status(app):
+    conn = _db(app)
+    _insert_notice(conn, "REF-A", cpv_primary="45200000")
+    client = _admin_client(app)
+    client_id = _add_client_and_get_id(client, conn)
+    notice_id = conn.execute("SELECT id FROM notices WHERE ref = 'REF-A'").fetchone()["id"]
+
+    resp = client.post(
+        f"/admin/clients/{client_id}/notices/{notice_id}/set-status",
+        data={"status": "BOGUS"},
+        follow_redirects=True,
+    )
+    assert b"Invalid status" in resp.data
+    row = conn.execute(
+        "SELECT * FROM client_notice_actions WHERE client_id = ? AND notice_id = ?", (client_id, notice_id)
+    ).fetchone()
+    assert row is None
+
+
+def test_client_matches_status_filter(app):
+    conn = _db(app)
+    _insert_notice(conn, "REF-A", cpv_primary="45200000", text_blob="construction bridge one")
+    _insert_notice(conn, "REF-B", cpv_primary="45300000", text_blob="construction bridge two")
+    client = _admin_client(app)
+    client_id = _add_client_and_get_id(client, conn)
+    notice_a = conn.execute("SELECT id FROM notices WHERE ref = 'REF-A'").fetchone()["id"]
+
+    client.post(f"/admin/clients/{client_id}/notices/{notice_a}/set-status", data={"status": "SHORTLISTED"})
+
+    resp = client.get(f"/admin/clients/{client_id}/matches?status=SHORTLISTED")
+    body = resp.data.decode()
+    assert "REF-A" in body
+    assert "REF-B" not in body
+
+    resp = client.get(f"/admin/clients/{client_id}/matches?status=NEW")
+    body = resp.data.decode()
+    assert "REF-A" not in body
+    assert "REF-B" in body
+
+
+def test_set_client_notice_status_denied_to_non_admin(app):
+    client = _logged_in_client(app, "victoria")
+    resp = client.post("/admin/clients/1/notices/1/set-status", data={"status": "SHORTLISTED"}, follow_redirects=True)
+    assert b"Only the admin account" in resp.data

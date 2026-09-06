@@ -4,35 +4,74 @@
 {% block page_subtitle %}<div class="topbar-subtitle">{{ client['name'] }} — matched notices</div>{% endblock %}
 
 {% block content %}
+<style>
+  .cna-status-badge {
+    display: inline-block; padding: 3px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap;
+  }
+  .cna-status-NEW { background: #EFF6FF; color: #1D4ED8; }
+  .cna-status-SHORTLISTED { background: #D1FAE5; color: #065F46; }
+  .cna-status-REJECTED { background: #FEE2E2; color: #991B1B; }
+  .cna-note { font-size: 11px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
+  .cna-actions { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+  .cna-note-input { font-size: 12px; padding: 4px 6px; width: 140px; }
+</style>
+
 <div class="cd-breadcrumb" style="font-size:12.5px; color:var(--text-muted); margin-bottom:12px;">
   <a href="{{ url_for('admin.index') }}#group-clients" style="color:var(--text-muted); text-decoration:none;">Admin &rsaquo; Clients</a> &rsaquo; {{ client['name'] }}
 </div>
 
 <div class="ci-note" style="background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; font-size: 12.5px; color: var(--text-muted); line-height: 1.5;">
-  <strong>What this is:</strong> every notice that currently passes {{ client['name'] }}'s filter, most recently evaluated first. This is a read-only proof the filter works -- no approval workflow or reports yet, unlike Trifork's own pipeline.
+  <strong>What this is:</strong> every notice that currently passes {{ client['name'] }}'s filter, most recently evaluated first, with a minimal working triage -- mark a notice Shortlisted or Rejected with a note. This is deliberately not Trifork's full pipeline (no Phase 2 AI, no escalation, no reports); Mark triages on the client's behalf here, same as Trifork, just simpler.
+</div>
+
+<div class="summary-bar" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+  {% set all_count = status_counts.values() | sum %}
+  <a href="{{ url_for('admin.client_matches', client_id=client.id) }}" class="summary-pill {% if not status_filter %}active{% endif %}" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:var(--surface); font-size:12px; font-weight:600; text-decoration:none; color:var(--text);">
+    All <span style="font-size:11px; font-weight:700;">({{ all_count }})</span>
+  </a>
+  {% for s in ['NEW', 'SHORTLISTED', 'REJECTED'] %}
+  {% if status_counts.get(s) %}
+  <a href="{{ url_for('admin.client_matches', client_id=client.id, status=s) }}" class="summary-pill {% if status_filter == s %}active{% endif %}" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:var(--surface); font-size:12px; font-weight:600; text-decoration:none; color:var(--text);">
+    {{ s.title() }} <span style="font-size:11px; font-weight:700;">({{ status_counts[s] }})</span>
+  </a>
+  {% endif %}
+  {% endfor %}
 </div>
 
 <div class="card" style="overflow-x: auto;">
   <table class="buyer-table">
     <thead>
-      <tr><th>Ref</th><th>Title</th><th>Buyer</th><th>CPV</th><th>Stage</th><th>Region</th><th>Value</th><th>Matched</th></tr>
+      <tr><th>Ref</th><th>Title</th><th>Buyer</th><th>CPV</th><th>Stage</th><th>Value</th><th>Matched</th><th>Status</th><th>Actions</th></tr>
     </thead>
     <tbody>
       {% if matches %}
         {% for m in matches %}
         <tr>
           <td style="font-family:monospace; font-size:11px; color:var(--text-muted);"><a href="{{ url_for('queues.notice_detail', notice_id=m['id']) }}">{{ m['ref'] }}</a></td>
-          <td>{{ m['title'] | truncate(60, True, '…') }}</td>
+          <td>{{ m['title'] | truncate(50, True, '…') }}</td>
           <td style="color:var(--text-muted);">{{ m['buyer'] or '—' }}</td>
           <td style="font-family:monospace; font-size:12px; color:var(--text-muted);">{{ m['cpv_primary'] or '—' }}</td>
           <td>{{ m['uk_stage'] }}</td>
-          <td style="color:var(--text-muted);">{{ m['buyer_region'] or '—' }}</td>
           <td style="color:var(--text-muted); white-space:nowrap;">{{ m['indicative_value'] or 'Not stated' }}</td>
           <td style="color:var(--text-muted); white-space:nowrap;">{{ m['evaluated_at'][:10] }}</td>
+          <td>
+            <span class="cna-status-badge cna-status-{{ m['action_status'] }}">{{ m['action_status'].title() }}</span>
+            {% if m['note'] %}<div class="cna-note">{{ m['note'] }}</div>{% endif %}
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('admin.set_client_notice_status', client_id=client.id, notice_id=m['id']) }}" class="cna-actions">
+              <input type="hidden" name="status_filter" value="{{ status_filter }}">
+              <input type="text" name="note" class="cna-note-input" placeholder="Note (optional)" value="{{ m['note'] or '' }}">
+              <button type="submit" name="status" value="SHORTLISTED" class="btn btn-secondary btn-sm">★ Shortlist</button>
+              <button type="submit" name="status" value="REJECTED" class="btn btn-secondary btn-sm">✕ Reject</button>
+              {% if m['action_status'] != 'NEW' %}<button type="submit" name="status" value="NEW" class="btn btn-secondary btn-sm">Reset</button>{% endif %}
+            </form>
+          </td>
         </tr>
         {% endfor %}
       {% else %}
-        <tr><td colspan="8" style="text-align:center; padding:40px; color:var(--text-muted);">No notices match this filter yet.</td></tr>
+        <tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-muted);">No notices match this filter yet.</td></tr>
       {% endif %}
     </tbody>
   </table>
