@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign in — Savvy Scout</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/bidsavvy-mark.png') }}">
+  <script>
+    (function () {
+      var saved = localStorage.getItem('savvy-scout-theme');
+      if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    })();
+  </script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Poppins:wght@600;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -15,15 +21,34 @@
       --danger: #FF4D4F;
       --primary: #3B6EA5;
       --primary-dark: #2E5680;
+      --navy: #FFFFFF;
       --text: #E5E7EB;
       --text-muted: #9AA3AD;
       --border: rgba(255,255,255,0.1);
+      --input-bg: rgba(255,255,255,0.03);
+      --input-bg-focus: rgba(255,255,255,0.05);
+      --flash-error-text: #FF8A8C;
+      --tint-blue-text: #BFDBFE;
+      --bg-gradient: linear-gradient(135deg, #041226 0%, #0B1F3A 100%);
       --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       --font-heading: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
+    :root[data-theme="light"] {
+      --bg: #EEF1F5;
+      --surface: #FFFFFF;
+      --navy: #0B1F3A;
+      --text: #1F2937;
+      --text-muted: #64748B;
+      --border: rgba(11,31,58,0.12);
+      --input-bg: rgba(11,31,58,0.03);
+      --input-bg-focus: rgba(11,31,58,0.05);
+      --flash-error-text: #B91C1C;
+      --tint-blue-text: #1D4ED8;
+      --bg-gradient: linear-gradient(135deg, #EEF1F5 0%, #DCE3EC 100%);
+    }
     body {
       font-family: var(--font);
-      background: linear-gradient(135deg, #041226 0%, #0B1F3A 100%);
+      background: var(--bg-gradient);
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -44,21 +69,21 @@
       display: inline-flex; align-items: center; justify-content: center;
       background: #FFFFFF; border-radius: 8px; padding: 6px 8px; margin-bottom: 10px;
     }
-    .brand-text { font-family: var(--font-heading); font-size: 22px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; color: #FFFFFF; }
+    .brand-text { font-family: var(--font-heading); font-size: 22px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; color: var(--navy); }
     .brand-text .accent { color: var(--brand-red); }
     .brand-sub { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted); font-weight: 600; margin-top: 6px; }
-    h1 { font-family: var(--font-heading); font-size: 20px; font-weight: 700; color: #FFFFFF; text-align: center; margin-bottom: 6px; }
+    h1 { font-family: var(--font-heading); font-size: 20px; font-weight: 700; color: var(--navy); text-align: center; margin-bottom: 6px; }
     .subtitle { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 28px; }
     label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; margin-top: 16px; }
     input[type="text"], input[type="password"] {
       width: 100%; padding: 11px 14px; font-size: 14px;
       border: 1px solid var(--border); border-radius: 8px;
-      font-family: inherit; color: var(--text); background: rgba(255,255,255,0.03);
+      font-family: inherit; color: var(--text); background: var(--input-bg);
       transition: all 0.2s;
     }
-    input:focus { outline: none; border-color: var(--primary); background: rgba(255,255,255,0.05); box-shadow: 0 0 0 3px rgba(59,110,165,0.18); }
+    input:focus { outline: none; border-color: var(--primary); background: var(--input-bg-focus); box-shadow: 0 0 0 3px rgba(59,110,165,0.18); }
     .error-msg {
-      background: rgba(255,77,79,0.1); color: #FF8A8C; padding: 10px 14px;
+      background: rgba(255,77,79,0.1); color: var(--flash-error-text); padding: 10px 14px;
       border-radius: 6px; border-left: 4px solid var(--danger);
       font-size: 13px; font-weight: 500; margin: 16px 0 0;
     }
@@ -78,7 +103,7 @@
       background: rgba(255,255,255,0.02); color: var(--text); font-size: 12px; font-weight: 600;
       cursor: pointer; font-family: inherit; transition: all 0.15s;
     }
-    .quick-btn:hover { border-color: var(--primary); color: #BFDBFE; background: rgba(59,110,165,0.08); }
+    .quick-btn:hover { border-color: var(--primary); color: var(--tint-blue-text); background: rgba(59,110,165,0.08); }
     .accounts-info { margin-top: 20px; padding: 12px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; font-size: 12px; color: var(--text-muted); }
     .accounts-info strong { color: var(--text); }
     .accounts-info .pwd { color: var(--text-muted); margin-top: 4px; font-size: 11px; }
