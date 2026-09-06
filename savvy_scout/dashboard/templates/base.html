@@ -240,6 +240,17 @@
     .page-wrapper {
       margin-left: var(--sidebar-w);
       flex: 1; display: flex; flex-direction: column; min-height: 100vh; min-width: 0;
+      transition: margin-left 0.2s ease;
+    }
+
+    /* Sidebar is position:fixed, so it overlaps (rather than pushes) page
+       content by default -- widening it on hover previously hid the first
+       ~176px of every table row underneath it (2026-09-06 bug fix). Grow
+       the content's left margin in step with the sidebar's hover width so
+       it reflows instead of getting covered. */
+    body:has(.sidebar:hover) .page-wrapper,
+    body:has(.sidebar:focus-within) .page-wrapper {
+      margin-left: var(--sidebar-expanded-w);
     }
 
     /* ---- TOPBAR ---- */

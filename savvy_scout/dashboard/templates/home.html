@@ -36,7 +36,16 @@
   .panel-grid > .panel { min-width: 0; }
 
   .panel { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.04); padding: 9px 12px; }
-  .panel-head { margin-bottom: 5px; }
+  .panel-head { margin-bottom: 5px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+
+  .daily-toggle-btn {
+    flex-shrink: 0; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface-alt); color: var(--text-muted); font-size: 11.5px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+  }
+  .daily-toggle-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .daily-col { display: none; }
+  .panel.show-daily .daily-col { display: table-cell; }
   .panel-title { font-size: 12.5px; font-weight: 800; color: var(--navy); }
   .panel-subtitle { margin-top: 1px; font-size: 10.5px; color: var(--text-muted); }
 
@@ -185,19 +194,22 @@
     </div>
 
     <div class="panel-grid-wide">
-      <div class="panel">
+      <div class="panel" id="panel-sector-performance">
         <div class="panel-head">
-          <div class="panel-title">Sector performance</div>
-          <div class="panel-subtitle">Opportunities by publication date &mdash; Mon&ndash;Fri this week, then rolling totals</div>
+          <div>
+            <div class="panel-title">Sector performance</div>
+            <div class="panel-subtitle">This week / this month / YTD by default &mdash; daily breakdown on demand</div>
+          </div>
+          <button type="button" class="daily-toggle-btn" data-target="panel-sector-performance">Show daily breakdown</button>
         </div>
         <div style="overflow-x: auto;">
         <table class="perf-table">
           <thead>
             <tr>
               <th>Sector</th>
-              <th>Last week</th>
+              <th class="daily-col">Last week</th>
               {% for day in sector_performance.day_headers %}
-              <th title="{{ day.date }}">{{ day.label }}</th>
+              <th class="daily-col" title="{{ day.date }}">{{ day.label }}</th>
               {% endfor %}
               <th>This week</th>
               <th>This month</th>
@@ -213,9 +225,9 @@
                   {{ row.sector }}
                 </span>
               </td>
-              <td>{{ row.last_week }}</td>
+              <td class="daily-col">{{ row.last_week }}</td>
               {% for count in row.days %}
-              <td>{{ count }}</td>
+              <td class="daily-col">{{ count }}</td>
               {% endfor %}
               <td>{{ row.week }}</td>
               <td>{{ row.month }}</td>
@@ -252,19 +264,22 @@
       </div>
     </div>
 
-    <div class="panel" style="margin-bottom: 6px;">
+    <div class="panel" style="margin-bottom: 6px;" id="panel-notices-by-source">
       <div class="panel-head">
-        <div class="panel-title">Notices by source</div>
-        <div class="panel-subtitle">Which portal each opportunity was swept from &mdash; by publication date, unfiltered by sector</div>
+        <div>
+          <div class="panel-title">Notices by source</div>
+          <div class="panel-subtitle">This week / this month / YTD by default &mdash; daily breakdown on demand</div>
+        </div>
+        <button type="button" class="daily-toggle-btn" data-target="panel-notices-by-source">Show daily breakdown</button>
       </div>
       <div style="overflow-x: auto;">
       <table class="perf-table">
         <thead>
           <tr>
             <th>Source</th>
-            <th>Last week</th>
+            <th class="daily-col">Last week</th>
             {% for day in source_performance.day_headers %}
-            <th title="{{ day.date }}">{{ day.label }}</th>
+            <th class="daily-col" title="{{ day.date }}">{{ day.label }}</th>
             {% endfor %}
             <th>This week</th>
             <th>This month</th>
@@ -280,9 +295,9 @@
                 {{ row.sector }}
               </span>
             </td>
-            <td>{{ row.last_week }}</td>
+            <td class="daily-col">{{ row.last_week }}</td>
             {% for count in row.days %}
-            <td>{{ count }}</td>
+            <td class="daily-col">{{ count }}</td>
             {% endfor %}
             <td>{{ row.week }}</td>
             <td>{{ row.month }}</td>
@@ -539,6 +554,16 @@
     </div>
   </div>
 </div>
+
+<script>
+document.querySelectorAll('.daily-toggle-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const panel = document.getElementById(this.getAttribute('data-target'));
+    const showing = panel.classList.toggle('show-daily');
+    this.textContent = showing ? 'Hide daily breakdown' : 'Show daily breakdown';
+  });
+});
+</script>
 
 {% endblock %}
 

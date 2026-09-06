@@ -19,22 +19,7 @@
   .ci-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
   .ci-tab:hover:not(.active) { color: var(--text); }
 
-  .ci-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
-  .ci-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-  .ci-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
-  .ci-card-name { font-size: 14px; font-weight: 700; color: var(--navy); line-height: 1.3; }
-  .ci-watch-btn {
-    flex-shrink: 0; width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
-    background: var(--surface-alt); color: var(--text-muted); cursor: pointer; font-size: 14px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .ci-watch-btn.watched { background: rgba(59,110,165,0.15); border-color: var(--primary); color: var(--primary); }
-  .ci-stat-row { display: flex; gap: 14px; margin-bottom: 10px; }
-  .ci-stat .ci-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600; }
-  .ci-stat .ci-stat-value { font-size: 15px; font-weight: 700; color: var(--text); margin-top: 2px; }
-  .ci-sectors { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
   .ci-sector-chip { font-size: 10.5px; padding: 2px 6px; border-radius: 4px; background: var(--surface-alt); color: var(--text); }
-  .ci-last-win { font-size: 11.5px; color: var(--text-muted); }
 
   .buyer-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .buyer-table thead th {
@@ -45,6 +30,15 @@
   .buyer-table tbody tr { border-bottom: 1px solid var(--border); }
   .buyer-table tbody tr:hover { background: var(--surface-alt); }
   .buyer-table td { padding: 10px 14px; vertical-align: middle; }
+
+  .ci-watch-cell-btn {
+    width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface-alt); color: var(--text-muted); cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ci-watch-cell-btn.watched { background: rgba(59,110,165,0.15); border-color: var(--primary); color: var(--primary); }
+  .ci-name-link { font-weight: 600; color: var(--navy); text-decoration: none; }
+  .ci-name-link:hover { color: var(--primary); text-decoration: underline; }
 </style>
 
 <div class="ci-note">
@@ -58,40 +52,39 @@
 </div>
 
 {% if tab != 'buyers' %}
-  {% if competitors %}
-  <div class="ci-grid">
-    {% for c in competitors %}
-    <div class="ci-card">
-      <div class="ci-card-top">
-        <a class="ci-card-name" href="{{ url_for('competitor_intel.detail', name=c.supplier_name) }}" style="text-decoration:none; color:var(--navy);">{{ c.supplier_name }}</a>
-        <form method="post" action="{{ url_for('competitor_intel.toggle_watch') }}">
-          <input type="hidden" name="supplier_name" value="{{ c.supplier_name }}">
-          <button type="submit" class="ci-watch-btn {% if c.watched %}watched{% endif %}" title="{% if c.watched %}Watching{% else %}Watch this competitor{% endif %}">{% if c.watched %}★{% else %}☆{% endif %}</button>
-        </form>
-      </div>
-      <div class="ci-stat-row">
-        <div class="ci-stat">
-          <div class="ci-stat-label">Awards won</div>
-          <div class="ci-stat-value">{{ c.award_count }}</div>
-        </div>
-        <div class="ci-stat">
-          <div class="ci-stat-label">Recorded value</div>
-          <div class="ci-stat-value">
-            {% if c.priced_count %}£{{ "{:,.0f}".format(c.priced_total) }}{% else %}—{% endif %}
-          </div>
-        </div>
-      </div>
-      {% if c.priced_count %}<div class="ci-last-win" style="margin-bottom:8px;">across {{ c.priced_count }} of {{ c.award_count }} award{{ 's' if c.award_count != 1 else '' }} with a recorded value</div>{% endif %}
-      <div class="ci-sectors">
-        {% for s in c.sectors %}<span class="ci-sector-chip">{{ s }}</span>{% endfor %}
-      </div>
-      <div class="ci-last-win">Last win: {{ c.last_win_date[:10] if c.last_win_date else 'unknown' }}</div>
-    </div>
-    {% endfor %}
+  <div class="card" style="overflow-x: auto;">
+    <table class="buyer-table">
+      <thead>
+        <tr><th></th><th>Competitor</th><th>Sectors</th><th>Awards won</th><th>Recorded value</th><th>Last win</th></tr>
+      </thead>
+      <tbody>
+        {% if competitors %}
+          {% for c in competitors %}
+          <tr>
+            <td>
+              <form method="post" action="{{ url_for('competitor_intel.toggle_watch') }}">
+                <input type="hidden" name="supplier_name" value="{{ c.supplier_name }}">
+                <button type="submit" class="ci-watch-cell-btn {% if c.watched %}watched{% endif %}" title="{% if c.watched %}Watching{% else %}Watch this competitor{% endif %}">{% if c.watched %}★{% else %}☆{% endif %}</button>
+              </form>
+            </td>
+            <td><a class="ci-name-link" href="{{ url_for('competitor_intel.detail', name=c.supplier_name) }}">{{ c.supplier_name }}</a></td>
+            <td>{% for s in c.sectors %}<span class="ci-sector-chip">{{ s }}</span>{% endfor %}</td>
+            <td>{{ c.award_count }}</td>
+            <td style="color:var(--text-muted); white-space:nowrap;">
+              {% if c.priced_count %}
+                £{{ "{:,.0f}".format(c.priced_total) }}
+                <div style="font-size:10.5px;">across {{ c.priced_count }} of {{ c.award_count }} award{{ 's' if c.award_count != 1 else '' }} with a recorded value</div>
+              {% else %}—{% endif %}
+            </td>
+            <td style="color:var(--text-muted); white-space:nowrap;">{{ c.last_win_date[:10] if c.last_win_date else 'unknown' }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="6" style="text-align:center; padding:40px; color:var(--text-muted);">No award notices with a named supplier found in tracked sectors yet.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
   </div>
-  {% else %}
-  <div class="empty-state"><p>No award notices with a named supplier found in tracked sectors yet.</p></div>
-  {% endif %}
 {% else %}
   <div class="card" style="overflow-x: auto;">
     <table class="buyer-table">
