@@ -35,6 +35,12 @@
   }
   .cd-table tbody tr { border-bottom: 1px solid var(--border); }
   .cd-table td { padding: 10px 14px; }
+
+  .cd-company-card { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 20px; }
+  .cd-company-field { min-width: 140px; }
+  .cd-company-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 700; margin-bottom: 4px; }
+  .cd-company-value { font-size: 13px; color: var(--text); }
+  .cd-company-value a { color: var(--primary); }
 </style>
 
 <div class="cd-breadcrumb"><a href="{{ url_for('competitor_intel.index') }}">Competitor Intel</a> &rsaquo; {{ supplier_name }}</div>
@@ -46,6 +52,35 @@
     <input type="hidden" name="next" value="{{ url_for('competitor_intel.detail', name=supplier_name) }}">
     <button type="submit" class="cd-watch-btn {% if watched %}watched{% endif %}">{% if watched %}★ Watching{% else %}☆ Watch this competitor{% endif %}</button>
   </form>
+</div>
+
+<div class="card" style="padding: 16px 18px; margin-bottom: 20px;">
+  <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); font-weight:700; margin-bottom:10px;">Company record (Companies House)</div>
+  {% if not companies_house_configured %}
+    <p style="color:var(--text-muted); font-size:13px;">Not configured -- set COMPANIES_HOUSE_API_KEY to look up registered company details. No source publishes personal contact details (email/phone) for company staff; this only ever shows the public company record.</p>
+  {% elif company_info %}
+    <div class="cd-company-card">
+      <div class="cd-company-field">
+        <div class="cd-company-label">Registered name</div>
+        <div class="cd-company-value">{{ company_info.company_name }}</div>
+      </div>
+      <div class="cd-company-field">
+        <div class="cd-company-label">Company number</div>
+        <div class="cd-company-value"><a href="{{ company_url }}" target="_blank" rel="noopener">{{ company_info.company_number }} &#8599;</a></div>
+      </div>
+      <div class="cd-company-field">
+        <div class="cd-company-label">Status</div>
+        <div class="cd-company-value">{{ company_info.status or '—' }}</div>
+      </div>
+      <div class="cd-company-field" style="flex:1;">
+        <div class="cd-company-label">Registered address</div>
+        <div class="cd-company-value">{{ company_info.address or '—' }}</div>
+      </div>
+    </div>
+    <p style="color:var(--text-muted); font-size:11.5px; margin-top:6px;">Best name match from Companies House's public register -- verify the company number before relying on this if the name is a common one.</p>
+  {% else %}
+    <p style="color:var(--text-muted); font-size:13px;">No Companies House match found for "{{ supplier_name }}".</p>
+  {% endif %}
 </div>
 
 <div class="cd-stat-row">

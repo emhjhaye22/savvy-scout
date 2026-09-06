@@ -16,15 +16,18 @@ The real award value lives in the free-text indicative_value field
 below is explicit about how many awards it's actually based on, rather
 than presenting a total as more complete than it is."""
 
+import json
 import re
 import sqlite3
 from datetime import datetime, timezone
 
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from savvy_scout.dashboard.auth import get_db
 from savvy_scout.dashboard.charts import MONTH_LABELS, bar_chart_series
+from savvy_scout.dashboard.companies_house import COMPANY_URL_TEMPLATE, get_company_info
+from savvy_scout.triage.gates import gate2_type_of_work
 
 competitor_intel_bp = Blueprint("competitor_intel", __name__)
 
@@ -47,10 +50,34 @@ def _watched_names(conn: sqlite3.Connection) -> set[str]:
     return {r["supplier_name"] for r in conn.execute("SELECT supplier_name FROM watched_competitors").fetchall()}
 
 
+def _is_relevant_award(conn: sqlite3.Connection, row: sqlite3.Row) -> bool:
+    """Reuses the exact same Gate 2 "type of work" logic already vetted for
+    real Phase 1 triage (2026-09-06), rather than inventing a new relevance
+    heuristic: a supplier only counts as a real Trifork competitor if at
+    least one of their wins is itself the kind of work Trifork does (a
+    PASS), not just any award in a tracked sector. This is what separates a
+    genuine competitor from noise like a taxi firm winning an NHS
+    patient-transport contract -- the sector matches, the type of work
+    doesn't. Award notices skip Gate 2 in the real triage pipeline (Gate 3
+    fails every UK5 outright, before Gate 2 runs), so this calls it
+    directly rather than reading a stored (and likely absent) result."""
+    cpv_additional = json.loads(row["cpv_additional"]) if row["cpv_additional"] else []
+    result = gate2_type_of_work(
+        conn,
+        row["text_blob"] or "",
+        cpv_primary=row["cpv_primary"],
+        cpv_primary_inferred=bool(row["cpv_primary_inferred"]),
+        cpv_additional=cpv_additional,
+        sector=row["sector"],
+    )
+    return result.outcome == "PASS"
+
+
 def _competitors(conn: sqlite3.Connection):
     rows = conn.execute(
         """
-        SELECT supplier_name, sector, indicative_value,
+        SELECT supplier_name, sector, indicative_value, text_blob, cpv_primary,
+               cpv_primary_inferred, cpv_additional,
                COALESCE(published_at, first_seen_at) AS win_date
         FROM notices
         WHERE is_award = 1 AND supplier_name IS NOT NULL AND supplier_name != '' AND sector IS NOT NULL
@@ -62,7 +89,7 @@ def _competitors(conn: sqlite3.Connection):
         entry = by_supplier.setdefault(
             r["supplier_name"],
             {"supplier_name": r["supplier_name"], "award_count": 0, "sectors": set(),
-             "priced_total": 0.0, "priced_count": 0, "last_win_date": None},
+             "priced_total": 0.0, "priced_count": 0, "last_win_date": None, "relevant": False},
         )
         entry["award_count"] += 1
         entry["sectors"].add(r["sector"])
@@ -72,6 +99,8 @@ def _competitors(conn: sqlite3.Connection):
             entry["priced_count"] += 1
         if r["win_date"] and (entry["last_win_date"] is None or r["win_date"] > entry["last_win_date"]):
             entry["last_win_date"] = r["win_date"]
+        if not entry["relevant"] and _is_relevant_award(conn, r):
+            entry["relevant"] = True
 
     watched = _watched_names(conn)
     out = []
@@ -191,10 +220,14 @@ def _buyers(conn: sqlite3.Connection):
 def index():
     conn = get_db()
     tab = request.args.get("tab", "competitors")
-    competitors = _competitors(conn) if tab != "buyers" else []
+    show_all = request.args.get("show") == "all"
+    all_competitors = _competitors(conn) if tab != "buyers" else []
+    irrelevant_count = sum(1 for c in all_competitors if not c["relevant"])
+    competitors = all_competitors if show_all else [c for c in all_competitors if c["relevant"]]
     buyers = _buyers(conn) if tab == "buyers" else []
     return render_template(
         "competitor_intel.html", tab=tab, competitors=competitors, buyers=buyers,
+        show_all=show_all, irrelevant_count=irrelevant_count,
     )
 
 
@@ -206,7 +239,20 @@ def detail():
     detail_data = _competitor_detail(conn, supplier_name)
     if detail_data is None:
         abort(404)
-    return render_template("competitor_detail.html", **detail_data)
+
+    # Company enrichment only runs here, not on the main list (2026-09-06):
+    # a live/cached lookup per row would slow down a page listing dozens of
+    # competitors, and the drill-down is where "who exactly is this" is
+    # actually being asked.
+    settings = current_app.config["SAVVY_SCOUT_SETTINGS"]
+    company_info = get_company_info(conn, supplier_name, settings.companies_house_api_key)
+    company_url = COMPANY_URL_TEMPLATE.format(number=company_info["company_number"]) if company_info else None
+
+    return render_template(
+        "competitor_detail.html", **detail_data,
+        company_info=company_info, company_url=company_url,
+        companies_house_configured=bool(settings.companies_house_api_key),
+    )
 
 
 @competitor_intel_bp.route("/competitor-intel/watch", methods=["POST"])

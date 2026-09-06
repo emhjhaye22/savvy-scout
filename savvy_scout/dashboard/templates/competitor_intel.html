@@ -44,6 +44,7 @@
 <div class="ci-note">
   <strong>What this is:</strong> aggregated directly from award notices and buyer names already captured by the sweep — no data partnership or external source involved.
   <strong>Value figures are honest, not complete:</strong> only about a quarter of award notices carry a recorded contract value in the source data, so each competitor's value figure states exactly how many of their awards it's based on rather than implying a full total.
+  {% if tab != 'buyers' %}<strong>Relevance filter:</strong> a supplier only appears by default if at least one of their wins is itself Trifork's type of work (the same Gate 2 check used in real triage) — not just any award in a tracked sector. This is what keeps e.g. taxi firms winning NHS patient-transport contracts out of the default list.{% endif %}
 </div>
 
 <div class="ci-tabs">
@@ -52,6 +53,13 @@
 </div>
 
 {% if tab != 'buyers' %}
+  <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+    {% if show_all %}
+      <a href="{{ url_for('competitor_intel.index', tab='competitors') }}" class="btn btn-secondary btn-sm">Show likely competitors only</a>
+    {% else %}
+      <a href="{{ url_for('competitor_intel.index', tab='competitors', show='all') }}" class="btn btn-secondary btn-sm">Show all suppliers{% if irrelevant_count %} (+{{ irrelevant_count }} filtered out){% endif %}</a>
+    {% endif %}
+  </div>
   <div class="card" style="overflow-x: auto;">
     <table class="buyer-table">
       <thead>
@@ -67,7 +75,10 @@
                 <button type="submit" class="ci-watch-cell-btn {% if c.watched %}watched{% endif %}" title="{% if c.watched %}Watching{% else %}Watch this competitor{% endif %}">{% if c.watched %}★{% else %}☆{% endif %}</button>
               </form>
             </td>
-            <td><a class="ci-name-link" href="{{ url_for('competitor_intel.detail', name=c.supplier_name) }}">{{ c.supplier_name }}</a></td>
+            <td>
+              <a class="ci-name-link" href="{{ url_for('competitor_intel.detail', name=c.supplier_name) }}">{{ c.supplier_name }}</a>
+              {% if show_all and not c.relevant %}<div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Not Trifork's type of work</div>{% endif %}
+            </td>
             <td>{% for s in c.sectors %}<span class="ci-sector-chip">{{ s }}</span>{% endfor %}</td>
             <td>{{ c.award_count }}</td>
             <td style="color:var(--text-muted); white-space:nowrap;">

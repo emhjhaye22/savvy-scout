@@ -447,6 +447,22 @@ CREATE TABLE IF NOT EXISTS sweep_run_sources (
     finished_at TEXT NOT NULL
 );
 
+-- Competitor Intel company enrichment (2026-09-06): caches the Companies
+-- House search result for a supplier_name so the API (rate-limited, and
+-- a registered company's name/number/address/status rarely changes) is
+-- only ever called once per supplier, not on every page load. found=0
+-- means the search ran and matched nothing -- also cached, so a
+-- never-registered or unmatchable name doesn't get retried every time.
+CREATE TABLE IF NOT EXISTS company_lookups (
+    supplier_name TEXT PRIMARY KEY,
+    found INTEGER NOT NULL,
+    company_name TEXT,
+    company_number TEXT,
+    address TEXT,
+    status TEXT,
+    looked_up_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_notices_ref ON notices(ref);
 CREATE INDEX IF NOT EXISTS idx_notices_status ON notices(status);
 CREATE INDEX IF NOT EXISTS idx_gate_results_notice ON gate_results(notice_id);

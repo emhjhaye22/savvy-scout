@@ -118,6 +118,63 @@ def test_watch_toggle_round_trips(app):
     assert row is None
 
 
+def _insert_irrelevant_award(conn, ref, buyer, sector, supplier_name):
+    """A win that's real (real buyer, real sector) but is not Trifork's
+    type of work -- CPV 33xxx (medical devices) is a seeded Gate 2 CPV
+    disqualifier, and there's no digital/software signal in the text, so
+    gate2_type_of_work returns FAIL for this one specifically."""
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "INSERT INTO notices (ref, title, buyer, sector, cpv_primary, indicative_value, status, "
+        "source, uk_stage, text_blob, raw_json, first_seen_at, last_swept_at, created_at, updated_at, "
+        "is_award, supplier_name) "
+        "VALUES (?, 'Non-emergency patient transport', ?, ?, '33100000', NULL, 'ACTIVE', "
+        "'Find a Tender', 'UK5', 'provision of taxi and ambulance transport services', '{}', "
+        "?, ?, ?, ?, 1, ?)",
+        (ref, buyer, sector, now, now, now, now, supplier_name),
+    )
+    conn.commit()
+
+
+def test_competitors_tab_filters_out_irrelevant_suppliers_by_default(app):
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "A Buyer", "Fintech", "Acme Ltd", "10000 GBP")
+    _insert_irrelevant_award(conn, "REF-B", "NHS Trust", "NHS and Healthcare", "GR Taxis")
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel")
+    body = resp.data.decode()
+    assert "Acme Ltd" in body
+    assert "GR Taxis" not in body
+    assert "Show all suppliers (+1 filtered out)" in body
+
+
+def test_competitors_tab_show_all_reveals_irrelevant_suppliers(app):
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "A Buyer", "Fintech", "Acme Ltd", "10000 GBP")
+    _insert_irrelevant_award(conn, "REF-B", "NHS Trust", "NHS and Healthcare", "GR Taxis")
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel?show=all")
+    body = resp.data.decode()
+    assert "Acme Ltd" in body
+    assert "GR Taxis" in body
+    assert "Not Trifork's type of work" in body
+    assert "Show likely competitors only" in body
+
+
+def test_competitor_relevant_if_any_award_is_relevant(app):
+    """A supplier with one relevant win and one irrelevant one still counts
+    as a real competitor -- relevance is "any", not "all"."""
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "A Buyer", "Fintech", "Mixed Supplier Ltd", "10000 GBP")
+    _insert_irrelevant_award(conn, "REF-B", "NHS Trust", "NHS and Healthcare", "Mixed Supplier Ltd")
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel")
+    assert b"Mixed Supplier Ltd" in resp.data
+
+
 def _insert_award_with_date(conn, ref, buyer, sector, supplier_name, indicative_value, first_seen_at):
     conn.execute(
         "INSERT INTO notices (ref, title, buyer, sector, cpv_primary, indicative_value, status, "
@@ -187,6 +244,63 @@ def test_competitor_detail_watch_toggle_links_back_to_detail_page(app):
     assert resp.headers["Location"] == "/competitor-intel/detail?name=Acme%20Ltd"
     row = conn.execute("SELECT * FROM watched_competitors WHERE supplier_name = 'Acme Ltd'").fetchone()
     assert row is not None
+
+
+def test_detail_page_shows_not_configured_when_no_api_key(app):
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "A Buyer", "Fintech", "Acme Ltd", "10000 GBP")
+    client = _logged_in_client(app)
+
+    resp = client.get("/competitor-intel/detail?name=Acme Ltd")
+    body = resp.data.decode()
+    assert "Not configured" in body
+    assert "COMPANIES_HOUSE_API_KEY" in body
+
+
+def test_detail_page_shows_company_record_when_found(app, monkeypatch):
+    import dataclasses
+
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "A Buyer", "Fintech", "Acme Ltd", "10000 GBP")
+    app.config["SAVVY_SCOUT_SETTINGS"] = dataclasses.replace(
+        app.config["SAVVY_SCOUT_SETTINGS"], companies_house_api_key="test-key"
+    )
+
+    def fake_get_company_info(conn, supplier_name, api_key):
+        assert supplier_name == "Acme Ltd"
+        return {
+            "company_name": "ACME LIMITED", "company_number": "01234567",
+            "address": "1 High Street, London", "status": "active",
+        }
+
+    monkeypatch.setattr(
+        "savvy_scout.dashboard.routes.competitor_intel.get_company_info", fake_get_company_info
+    )
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel/detail?name=Acme Ltd")
+    body = resp.data.decode()
+    assert "ACME LIMITED" in body
+    assert "01234567" in body
+    assert "1 High Street, London" in body
+    assert "find-and-update.company-information.service.gov.uk/company/01234567" in body
+
+
+def test_detail_page_shows_no_match_found(app, monkeypatch):
+    import dataclasses
+
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "A Buyer", "Fintech", "Acme Ltd", "10000 GBP")
+    app.config["SAVVY_SCOUT_SETTINGS"] = dataclasses.replace(
+        app.config["SAVVY_SCOUT_SETTINGS"], companies_house_api_key="test-key"
+    )
+    monkeypatch.setattr(
+        "savvy_scout.dashboard.routes.competitor_intel.get_company_info", lambda conn, name, key: None
+    )
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel/detail?name=Acme Ltd")
+    assert b"No Companies House match found" in resp.data
 
 
 class TestParseGbp:

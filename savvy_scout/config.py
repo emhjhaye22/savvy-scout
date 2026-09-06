@@ -36,6 +36,13 @@ class Settings:
     # is skipped.
     report_recipient_email: str | None = None
     reports_output_dir: str = "reports"
+    # Competitor Intel company enrichment (2026-09-06): Companies House's
+    # free public API is the only legitimate source for a competitor's
+    # registered name/number/address/status -- no source publishes personal
+    # contact details (email/phone) for company staff, so this deliberately
+    # stops at what's real. Free key, register at
+    # https://developer.company-information.service.gov.uk/.
+    companies_house_api_key: str | None = None
 
     @property
     def graph_configured(self) -> bool:
@@ -72,4 +79,5 @@ def load_settings() -> Settings:
         ms_graph_sender_upn=os.environ.get("MS_GRAPH_SENDER_UPN") or None,
         report_recipient_email=os.environ.get("REPORT_RECIPIENT_EMAIL") or None,
         reports_output_dir=os.environ.get("SAVVY_SCOUT_REPORTS_DIR", "reports"),
+        companies_house_api_key=os.environ.get("COMPANIES_HOUSE_API_KEY") or None,
     )
