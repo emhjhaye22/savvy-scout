@@ -112,6 +112,46 @@ def _competitors(conn: sqlite3.Connection):
     return out
 
 
+def possible_competitors_for_notice(conn: sqlite3.Connection, sector: str | None, buyer: str | None) -> list[dict]:
+    """For a live opportunity (2026-09-06), ranks who's most likely to also
+    bid on it: suppliers who've previously won a *relevant* award from this
+    exact buyer rank first (the strongest real signal -- an incumbent or
+    known relationship), then anyone who's won relevant work in the same
+    sector more broadly. Reuses the same Gate 2 relevance check as
+    Competitor Intel's default filter, for the same reason: a same-sector
+    but wrong-type-of-work supplier (a taxi firm at an NHS trust) isn't a
+    real bidding threat on a software tender just because the sector
+    matches. Returns at most 10, same-buyer matches first, then by award
+    count -- there's no attempt to estimate a probability, just a ranked
+    "who to watch for" list from real history."""
+    if not sector:
+        return []
+    rows = conn.execute(
+        "SELECT supplier_name, buyer, sector, indicative_value, text_blob, cpv_primary, "
+        "cpv_primary_inferred, cpv_additional, COALESCE(published_at, first_seen_at) AS win_date "
+        "FROM notices WHERE is_award = 1 AND supplier_name IS NOT NULL AND supplier_name != '' AND sector = ?",
+        (sector,),
+    ).fetchall()
+
+    by_supplier: dict[str, dict] = {}
+    for r in rows:
+        if not _is_relevant_award(conn, r):
+            continue
+        entry = by_supplier.setdefault(
+            r["supplier_name"],
+            {"supplier_name": r["supplier_name"], "award_count": 0, "last_win_date": None, "same_buyer": False},
+        )
+        entry["award_count"] += 1
+        if buyer and r["buyer"] == buyer:
+            entry["same_buyer"] = True
+        if r["win_date"] and (entry["last_win_date"] is None or r["win_date"] > entry["last_win_date"]):
+            entry["last_win_date"] = r["win_date"]
+
+    out = list(by_supplier.values())
+    out.sort(key=lambda e: (not e["same_buyer"], -e["award_count"]))
+    return out[:10]
+
+
 def _competitor_detail(conn: sqlite3.Connection, supplier_name: str) -> dict | None:
     """Per-competitor drill-down (2026-09-06 UI alignment, modeled on
     Contracts Advance's competitor detail page): the same award rows the
