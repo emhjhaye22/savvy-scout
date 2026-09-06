@@ -84,6 +84,29 @@
     text-decoration: none; color: var(--text-muted); border: 1px solid var(--border);
   }
   .sort-toggle a.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+  .bulk-toolbar {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    padding: 10px 16px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border);
+  }
+  .bulk-toolbar .bulk-count { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+  .bulk-toolbar button { margin-left: 0; }
+  .bulk-toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .opp-layout { display: flex; gap: 16px; align-items: flex-start; }
+  .opp-list { flex: 1; min-width: 0; }
+  .opp-detail {
+    width: 340px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 18px; position: sticky; top: 84px;
+  }
+  .opp-detail h3 { font-size: 15px; margin: 0 0 4px; color: var(--navy); }
+  .opp-detail .detail-ref { font-family: monospace; font-size: 11px; color: var(--text-muted); margin-bottom: 12px; }
+  .opp-detail .detail-row { margin-bottom: 10px; font-size: 12.5px; }
+  .opp-detail .detail-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 700; margin-bottom: 2px; }
+  .opp-detail .detail-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 30px 10px; }
+  .preview-btn { color: var(--text-muted); text-decoration: none; font-size: 13px; }
+  .preview-btn:hover { color: var(--primary); }
+  tr.row-selected { background: rgba(59,110,165,0.12); }
 </style>
 
 {# Summary status pills #}
@@ -134,11 +157,23 @@
   </div>
 </form>
 
-{# Main table #}
+{# Bulk actions + main table #}
+<form method="post" id="bulk-form">
+  <input type="hidden" name="next" value="{{ request.full_path }}">
+  <div class="bulk-toolbar">
+    <span class="bulk-count" id="bulk-count">0 selected</span>
+    <button type="submit" formaction="{{ url_for('queues.bulk_shortlist') }}" name="bulk_action" value="add" class="btn btn-secondary btn-sm" id="bulk-add-btn" disabled>☆ Add to Shortlist</button>
+    <button type="submit" formaction="{{ url_for('queues.bulk_shortlist') }}" name="bulk_action" value="remove" class="btn btn-secondary btn-sm" id="bulk-remove-btn" disabled>Remove from Shortlist</button>
+    <button type="submit" formaction="{{ url_for('queues.bulk_mark_docs_downloaded') }}" class="btn btn-secondary btn-sm" id="bulk-docs-btn" disabled title="Only applies to notices currently Approved or with a Capture Brief drafted">Mark docs downloaded</button>
+  </div>
+
+<div class="opp-layout">
+<div class="opp-list">
 <div class="card" style="overflow-x: auto;">
   <table class="opp-table">
     <thead>
       <tr>
+        <th><input type="checkbox" id="select-all"></th>
         <th>Priority</th>
         <th>Ref</th>
         <th>Opportunity</th>
@@ -154,14 +189,16 @@
     <tbody id="opp-tbody">
     {% if notices %}
       {% for n in notices %}
-      <tr data-search="{{ (n['title'] or '') | lower }} {{ (n['buyer'] or '') | lower }} {{ (n['ref'] or '') | lower }}">
+      <tr data-search="{{ (n['title'] or '') | lower }} {{ (n['buyer'] or '') | lower }} {{ (n['ref'] or '') | lower }}" class="{% if selected_id == n['id'] %}row-selected{% endif %}">
+        <td><input type="checkbox" name="notice_ids" value="{{ n['id'] }}" class="row-checkbox"></td>
         <td>
           {% set tier = n['priority_tier'] %}
           {% set tier_labels = {1: 'Pursue now', 2: 'Needs review', 3: 'Queued', 4: 'AI: Decline', 5: 'In progress', 6: 'Closed'} %}
           <span class="priority-badge priority-{{ tier }}">{{ tier_labels.get(tier, '—') }}</span>
         </td>
         <td class="ref-cell">
-          <a href="{{ url_for('queues.notice_detail', notice_id=n['id']) }}" title="View detail">{{ n['ref'] | truncate(20, True, '…') }}</a>
+          <a href="{{ url_for('queues.opportunities', status=status_filter, stage=stage_filter, sector=sector_filter, sort=sort_filter, selected=n['id']) }}" class="preview-btn" title="Preview here">👁</a>
+          <a href="{{ url_for('queues.notice_detail', notice_id=n['id']) }}" title="View full notice">{{ n['ref'] | truncate(20, True, '…') }}</a>
         </td>
         <td class="opp-title">
           <a href="{{ url_for('queues.notice_detail', notice_id=n['id']) }}">{{ n['title'] | truncate(70, True, '…') }}</a>
@@ -204,11 +241,40 @@
       </tr>
       {% endfor %}
     {% else %}
-    <tr><td colspan="10" style="text-align:center; padding: 40px; color: var(--text-muted);">No opportunities found.</td></tr>
+    <tr><td colspan="11" style="text-align:center; padding: 40px; color: var(--text-muted);">No opportunities found.</td></tr>
     {% endif %}
     </tbody>
   </table>
 </div>
+</div>
+
+<div class="opp-detail">
+  {% if selected_notice %}
+    <h3>{{ selected_notice['title'] }}</h3>
+    <div class="detail-ref">{{ selected_notice['ref'] }} · {{ selected_notice['source'] }}</div>
+    <div class="detail-row">
+      <div class="detail-label">Status</div>
+      <span class="status-badge status-{{ selected_notice['status'] }}">{{ selected_notice['status'] | replace('_', ' ') | replace('AWAITING ', '') }}</span>
+    </div>
+    <div class="detail-row"><div class="detail-label">Buyer</div>{{ selected_notice['buyer'] or 'UNVERIFIED' }}</div>
+    <div class="detail-row"><div class="detail-label">Sector / Owner</div>{{ selected_notice['sector'] or '—' }} {% if selected_notice['owner'] %}· {{ selected_notice['owner'] }}{% endif %}</div>
+    <div class="detail-row"><div class="detail-label">Indicative value</div>{{ selected_notice['indicative_value'] or 'Not stated' }}</div>
+    <div class="detail-row"><div class="detail-label">Deadline</div>{{ selected_notice['deadline'][:10] if selected_notice['deadline'] else '—' }}</div>
+    {% if selected_notice['headline_reason'] %}
+    <div class="detail-row"><div class="detail-label">Gate outcome</div>{{ selected_notice['headline_outcome'] }} — {{ selected_notice['headline_reason'] }}</div>
+    {% endif %}
+    {% if selected_phase2 %}
+    <div class="detail-row"><div class="detail-label">AI overall</div>{{ selected_phase2['overall_rating'] }} — {{ selected_phase2['overall_reasoning'] }}</div>
+    <div class="detail-row"><div class="detail-label">Capability fit</div>{{ selected_phase2['capability_fit_rating'] }} — {{ selected_phase2['capability_fit_reasoning'] }}</div>
+    <div class="detail-row"><div class="detail-label">Right to win</div>{{ selected_phase2['right_to_win_rating'] }} — {{ selected_phase2['right_to_win_reasoning'] }}</div>
+    {% endif %}
+    <a href="{{ url_for('queues.notice_detail', notice_id=selected_notice['id']) }}" class="btn btn-secondary btn-sm" style="margin-top:8px; display:inline-block;">View full notice →</a>
+  {% else %}
+    <div class="detail-empty">Select a notice's 👁 to preview it here.</div>
+  {% endif %}
+</div>
+</div>
+</form>
 
 {# Client-side search #}
 <script>
@@ -220,6 +286,32 @@ if (searchInput) {
       const text = row.getAttribute('data-search') || '';
       row.style.display = text.includes(q) ? '' : 'none';
     });
+  });
+}
+</script>
+
+{# Bulk-select toolbar #}
+<script>
+const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+const selectAll = document.getElementById('select-all');
+const bulkCount = document.getElementById('bulk-count');
+const bulkButtons = [
+  document.getElementById('bulk-add-btn'),
+  document.getElementById('bulk-remove-btn'),
+  document.getElementById('bulk-docs-btn'),
+];
+
+function updateBulkState() {
+  const checked = document.querySelectorAll('.row-checkbox:checked').length;
+  bulkCount.textContent = checked + ' selected';
+  bulkButtons.forEach(btn => { if (btn) btn.disabled = checked === 0; });
+}
+
+rowCheckboxes.forEach(cb => cb.addEventListener('change', updateBulkState));
+if (selectAll) {
+  selectAll.addEventListener('change', function() {
+    rowCheckboxes.forEach(cb => { cb.checked = selectAll.checked; });
+    updateBulkState();
   });
 }
 </script>

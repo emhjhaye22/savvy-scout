@@ -523,6 +523,28 @@ def opportunities():
 
     notices = conn.execute(query, params).fetchall()
 
+    # Master-detail preview pane (2026-09-06 UI alignment, modeled on
+    # Contracts Advance's "All Contracts" screen): clicking a row shows a
+    # read-only summary here instead of a full page navigation, so triaging
+    # many notices doesn't cost a page load each. It's a preview only --
+    # the full notice_detail page (all actions, documents, escalation
+    # history) is still one click away, not duplicated here.
+    selected_id = request.args.get("selected", type=int)
+    selected_notice = None
+    selected_phase2 = None
+    if selected_id is not None:
+        selected_notice = conn.execute(
+            "SELECT n.*, tr.headline_outcome, tr.headline_reason "
+            "FROM notices n LEFT JOIN triage_runs tr ON tr.id = "
+            "(SELECT MAX(id) FROM triage_runs WHERE notice_id = n.id) WHERE n.id = ?",
+            (selected_id,),
+        ).fetchone()
+        if selected_notice is not None:
+            selected_phase2 = conn.execute(
+                "SELECT * FROM phase2_assessments WHERE notice_id = ? ORDER BY id DESC LIMIT 1",
+                (selected_id,),
+            ).fetchone()
+
     # Get distinct sectors for filter dropdown
     sectors = [r[0] for r in conn.execute(
         "SELECT DISTINCT sector FROM notices WHERE sector IS NOT NULL ORDER BY sector"
@@ -553,7 +575,71 @@ def opportunities():
         sector_filter=sector_filter,
         stage_filter=stage_filter,
         sort_filter=sort_filter,
+        selected_id=selected_id,
+        selected_notice=selected_notice,
+        selected_phase2=selected_phase2,
     )
+
+
+@queues_bp.route("/opportunities/bulk-shortlist", methods=["POST"])
+@login_required
+def bulk_shortlist():
+    """Bulk add/remove selected rows to Shortlists. Deliberately kept to
+    this and mark-docs-downloaded only (2026-09-06) -- approve/reject/park
+    all carry real state-machine consequences (a required reason, or a
+    paid AI scope-read call) that shouldn't fire unattended across a
+    multi-select; shortlisting is purely a save-list toggle, safe either
+    way."""
+    conn = get_db()
+    notice_ids = request.form.getlist("notice_ids", type=int)
+    action = request.form.get("bulk_action")
+    now = datetime.now(timezone.utc).isoformat()
+    count = 0
+    for notice_id in notice_ids:
+        already = is_shortlisted(conn, notice_id)
+        if action == "add" and not already:
+            conn.execute(
+                "INSERT INTO shortlisted_notices (notice_id, added_by, added_at) VALUES (?, ?, ?)",
+                (notice_id, current_user.display_name, now),
+            )
+            count += 1
+        elif action == "remove" and already:
+            conn.execute("DELETE FROM shortlisted_notices WHERE notice_id = ?", (notice_id,))
+            count += 1
+    conn.commit()
+    if count:
+        verb = "Added" if action == "add" else "Removed"
+        flash(f"{verb} {count} notice{'s' if count != 1 else ''} {'to' if action == 'add' else 'from'} Shortlists.")
+    else:
+        flash("No notices selected.", "error")
+    return redirect(request.form.get("next") or url_for("queues.opportunities"))
+
+
+@queues_bp.route("/opportunities/bulk-mark-docs-downloaded", methods=["POST"])
+@login_required
+def bulk_mark_docs_downloaded():
+    conn = get_db()
+    notice_ids = request.form.getlist("notice_ids", type=int)
+    succeeded = 0
+    failed = 0
+    for notice_id in notice_ids:
+        try:
+            approvals.mark_docs_downloaded(
+                conn, notice_id, current_user.display_name, current_user.is_victoria
+            )
+            succeeded += 1
+        except (approvals.NotAuthorized, ValueError):
+            failed += 1
+    if succeeded:
+        flash(f"Marked {succeeded} notice{'s' if succeeded != 1 else ''} as docs downloaded.")
+    if failed:
+        flash(
+            f"Skipped {failed} notice{'s' if failed != 1 else ''} not in Approved/Capture Brief Drafted status.",
+            "error",
+        )
+    if not succeeded and not failed:
+        flash("No notices selected.", "error")
+    return redirect(request.form.get("next") or url_for("queues.opportunities"))
 
 
 @queues_bp.route("/notices/<int:notice_id>/approve", methods=["POST"])
