@@ -464,8 +464,6 @@ def index():
     uk_now = now.astimezone(LONDON)
     manila_now = now.astimezone(MANILA)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    yesterday_start = today_start - timedelta(days=1)
-    tomorrow_start = today_start + timedelta(days=1)
     # Saturday-start week (2026-08-19), matching _perf_windows below --
     # otherwise this KPI tile's "This Week" figure would disagree with the
     # Sector/Source Performance tables on what "this week" even means.
@@ -491,32 +489,6 @@ def index():
     scouting_today = _count(
         conn, f"SELECT COUNT(*) FROM notices WHERE {in_scope_where} AND first_seen_at >= ?",
         (*in_scope_params, today_start.isoformat()),
-    )
-    scouting_yesterday = _count(
-        conn,
-        f"SELECT COUNT(*) FROM notices WHERE {in_scope_where} AND first_seen_at >= ? AND first_seen_at < ?",
-        (*in_scope_params, yesterday_start.isoformat(), today_start.isoformat()),
-    )
-    swept_today = _count(
-        conn,
-        f"SELECT COUNT(*) FROM notices WHERE {in_scope_where} AND last_swept_at >= ? AND last_swept_at < ?",
-        (*in_scope_params, today_start.isoformat(), tomorrow_start.isoformat()),
-    )
-    new_today = _count(
-        conn,
-        f"SELECT COUNT(*) FROM notices WHERE {in_scope_where} AND first_seen_at >= ? AND first_seen_at < ?",
-        (*in_scope_params, today_start.isoformat(), tomorrow_start.isoformat()),
-    )
-    updated_today = _count(
-        conn,
-        f"SELECT COUNT(*) FROM notices WHERE {in_scope_where} "
-        "AND last_swept_at >= ? AND last_swept_at < ? AND first_seen_at < ?",
-        (*in_scope_params, today_start.isoformat(), tomorrow_start.isoformat(), today_start.isoformat()),
-    )
-    swept_yesterday = _count(
-        conn,
-        f"SELECT COUNT(*) FROM notices WHERE {in_scope_where} AND last_swept_at >= ? AND last_swept_at < ?",
-        (*in_scope_params, yesterday_start.isoformat(), today_start.isoformat()),
     )
 
     last_swept_row = conn.execute(
@@ -637,14 +609,6 @@ def index():
             {"label": "This Week", "value": scouting_week, "hint": f"Since {_pretty_date(week_start)}"},
             {"label": "Today", "value": scouting_today, "hint": f"Since {_pretty_date(today_start)}"},
         ],
-        "daily": {
-            "yesterday_seen": scouting_yesterday,
-            "today_seen": scouting_today,
-            "yesterday_swept": swept_yesterday,
-            "today_swept": swept_today,
-            "today_new": new_today,
-            "today_updated": updated_today,
-        },
         "sector_split": sector_split,
         "sector_pie_gradient": sector_pie_gradient,
         "triage_outcomes": triage_outcomes,

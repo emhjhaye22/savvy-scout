@@ -202,10 +202,6 @@ def test_overview_shows_scouting_report(tmp_path):
     # Tender", every _insert_notice call here) + its "Total" row = 2 more
     # (2026-08-09: both tables share the same .sector-cell row-label markup).
     assert html.count('class="sector-cell"') == 9
-    assert "Seen today" in html
-    assert "Seen yesterday" in html
-    assert "Swept today" in html
-    assert "Swept yesterday" in html
     assert "PASS" in html
     assert "FLAG" in html
     assert "MAYBE" not in html

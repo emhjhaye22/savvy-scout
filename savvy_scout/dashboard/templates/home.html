@@ -80,13 +80,7 @@
   .legend-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; font-weight: 600; color: var(--navy); }
   .legend-value { font-size: 10.5px; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
-  /* One meter-bar language, used for Sweep activity. */
-  .meter-list { display: grid; gap: 4px; }
-  .meter-row { display: grid; grid-template-columns: minmax(0, 1fr) 38px; gap: 8px; align-items: center; }
-  .meter-label { font-size: 11px; font-weight: 600; color: var(--navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 2px; }
   .meter-track { height: 7px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); overflow: hidden; }
-  .meter-fill { height: 100%; border-radius: inherit; }
-  .meter-value { font-size: 11px; font-weight: 700; color: var(--text-muted); text-align: right; font-variant-numeric: tabular-nums; }
 
   .panel-note { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted); }
   .panel-note strong { color: var(--navy); }
@@ -101,7 +95,6 @@
     {% set month_item = scouting_report.tiles[1] %}
     {% set week_item = scouting_report.tiles[2] %}
     {% set today_item = scouting_report.tiles[3] %}
-    {% set daily = scouting_report.get('daily', {}) %}
     {% set triage_outcomes = scouting_report.get('triage_outcomes', []) %}
     {% set triage_total = triage_outcomes | sum(attribute='value') %}
 
@@ -383,59 +376,30 @@
         {% endif %}
     </div>
 
-    <div class="panel-grid">
-      <div class="panel">
-        <div class="panel-head">
-          <div class="panel-title">Triage outcomes</div>
-          <div class="panel-subtitle">Latest gate result for every notice</div>
-        </div>
-        <div class="donut-wrap">
-          <div class="donut" style="background: {{ scouting_report.triage_pie_gradient }};">
-            <div class="donut-hole">
-              <div class="donut-center-value">{{ triage_total }}</div>
-              <div class="donut-center-label">Total</div>
-            </div>
-          </div>
-          <div class="legend-list">
-            {% for item in triage_outcomes %}
-            <div class="legend-item">
-              <span class="legend-swatch" style="background: {{ triage_colors.get(item.label, '#64748B') }};"></span>
-              <span class="legend-label">{{ item.label }}</span>
-              <span class="legend-value">{{ item.value }}</span>
-            </div>
-            {% endfor %}
-          </div>
-        </div>
-        <div class="panel-note">
-          <strong>{{ triage_outcomes[1].value if triage_outcomes|length > 1 else 0 }}</strong> flagged notices need review before moving on.
-        </div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Triage outcomes</div>
+        <div class="panel-subtitle">Latest gate result for every notice</div>
       </div>
-
-      <div class="panel">
-        <div class="panel-head">
-          <div class="panel-title">Sweep activity</div>
-          <div class="panel-subtitle">Seen &amp; swept, today vs yesterday</div>
+      <div class="donut-wrap">
+        <div class="donut" style="background: {{ scouting_report.triage_pie_gradient }};">
+          <div class="donut-hole">
+            <div class="donut-center-value">{{ triage_total }}</div>
+            <div class="donut-center-label">Total</div>
+          </div>
         </div>
-        {% set daily_rows = [
-          ('Seen today', daily.get('today_seen', 0), '#2563EB'),
-          ('Seen yesterday', daily.get('yesterday_seen', 0), '#93C5FD'),
-          ('Swept today', daily.get('today_swept', 0), '#10B981'),
-          ('Swept yesterday', daily.get('yesterday_swept', 0), '#6EE7B7'),
-        ] %}
-        {% set daily_max = [daily_rows[0][1], daily_rows[1][1], daily_rows[2][1], daily_rows[3][1], 1] | max %}
-        <div class="meter-list">
-          {% for label, value, color in daily_rows %}
-          <div class="meter-row">
-            <div>
-              <div class="meter-label">{{ label }}</div>
-              <div class="meter-track">
-                <div class="meter-fill" style="width: {{ (value / daily_max * 100) if daily_max else 0 }}%; background: {{ color }};"></div>
-              </div>
-            </div>
-            <div class="meter-value">{{ value }}</div>
+        <div class="legend-list">
+          {% for item in triage_outcomes %}
+          <div class="legend-item">
+            <span class="legend-swatch" style="background: {{ triage_colors.get(item.label, '#64748B') }};"></span>
+            <span class="legend-label">{{ item.label }}</span>
+            <span class="legend-value">{{ item.value }}</span>
           </div>
           {% endfor %}
         </div>
+      </div>
+      <div class="panel-note">
+        <strong>{{ triage_outcomes[1].value if triage_outcomes|length > 1 else 0 }}</strong> flagged notices need review before moving on.
       </div>
     </div>
   </div>
