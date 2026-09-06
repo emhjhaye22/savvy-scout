@@ -16,6 +16,7 @@ from savvy_scout.dashboard.routes.competitor_intel import possible_competitors_f
 from savvy_scout.dashboard.routes.shortlists import is_shortlisted
 from savvy_scout.graph.mail import send_escalation_email as graph_send_escalation_email
 from savvy_scout.models.notice import Notice
+from savvy_scout.notifications import APPROACHING_DAYS, URGENT_DAYS
 from savvy_scout.sources.ocds_parser import ParsedNotice
 from savvy_scout.sweep.dedupe import upsert_notice
 from savvy_scout.triage.gates import triage_notice
@@ -186,6 +187,51 @@ def add_notice_manual():
     return render_template("add_notice_manual.html")
 
 
+def _deadline_class(deadline: str | None) -> str:
+    """CSS class for the Approval Queue's deadline chip -- same URGENT_DAYS/
+    APPROACHING_DAYS thresholds as the email digest (savvy_scout.
+    notifications._deadline_urgency), so "urgent" means the same thing
+    everywhere in the app. Added 2026-09-06: queue.html has defined
+    .deadline-chip.urgent/.warning since the Approval Queue was first built,
+    but every row hardcoded the "ok" (green) class regardless of how close
+    the deadline actually was -- a notice due tomorrow and one due in three
+    months looked identical."""
+    if not deadline:
+        return "ok"
+    try:
+        dt = datetime.fromisoformat(deadline)
+    except ValueError:
+        return "ok"
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    days_left = (dt - datetime.now(timezone.utc)).days
+    if days_left < 0:
+        return "ok"
+    if days_left <= URGENT_DAYS:
+        return "urgent"
+    if days_left <= APPROACHING_DAYS:
+        return "warning"
+    return "ok"
+
+
+def _with_deadline_class(rows) -> list[dict]:
+    return [{**dict(r), "deadline_class": _deadline_class(r["deadline"])} for r in rows]
+
+
+# Same tiering idea as PRIORITY_TIER_SQL further down (importance first, then
+# deadline) -- added 2026-09-06 after direct feedback that the queue only
+# ever sorted by deadline, silently ignoring the AI rating sitting right
+# there in the same query. A DECLINE-rated notice due tomorrow doesn't need
+# to outrank a PURSUE-rated one due next week.
+RATING_TIER_SQL = """
+    CASE
+        WHEN {rating_col} = 'PURSUE' THEN 1
+        WHEN {rating_col} = 'DECLINE' THEN 3
+        ELSE 2
+    END
+"""
+
+
 @queues_bp.route("/queue")
 @login_required
 def index():
@@ -228,9 +274,14 @@ def index():
           AND n.owner = ?
         ORDER BY n.deadline IS NULL, n.deadline ASC
     """, (*in_scope_params, current_user.display_name)).fetchall()
+    phase1_rows = _with_deadline_class(phase1_rows)
 
     # Phase 2 queue: scope read done (or manually advanced), awaiting owner
-    # confirmation. Same owner-only filter as Phase 1 above.
+    # confirmation. Same owner-only filter as Phase 1 above. Ordered by AI
+    # rating tier first (PURSUE, then FLAG/no rating, then DECLINE last),
+    # deadline breaks ties within a tier -- same idea as Phase 1 has no
+    # rating to sort by yet, so it stays deadline-only.
+    phase2_tier_sql = RATING_TIER_SQL.format(rating_col="p.overall_rating")
     phase2_rows = conn.execute(f"""
         SELECT n.id, n.ref, n.title, n.buyer, n.owner, n.sector,
                n.indicative_value, n.deadline, n.uk_stage,
@@ -243,8 +294,9 @@ def index():
         WHERE n.status = 'AWAITING_PHASE2_APPROVAL'
           AND {in_scope_where}
           AND n.owner = ?
-        ORDER BY n.deadline IS NULL, n.deadline ASC
+        ORDER BY {phase2_tier_sql}, n.deadline IS NULL, n.deadline ASC
     """, (*in_scope_params, current_user.display_name)).fetchall()
+    phase2_rows = _with_deadline_class(phase2_rows)
 
     escalated_rows = []
     if current_user.is_victoria:
@@ -255,6 +307,7 @@ def index():
         # escalated -- so phase2_assessment and docx_path are never missing
         # here. Surfacing the Phase 2 rating (PURSUE/FLAG/DECLINE) so Victoria
         # can see it without opening each notice.
+        escalated_tier_sql = RATING_TIER_SQL.format(rating_col="p.overall_rating")
         escalated_rows = conn.execute(f"""
             SELECT n.id, n.ref, n.title, n.buyer, n.owner, n.sector,
                    n.indicative_value, n.deadline, n.uk_stage,
@@ -274,8 +327,9 @@ def index():
             )
             WHERE n.status = 'ESCALATED_TO_VICTORIA'
               AND {in_scope_where}
-            ORDER BY n.deadline IS NULL, n.deadline ASC
+            ORDER BY {escalated_tier_sql}, n.deadline IS NULL, n.deadline ASC
         """, tuple(in_scope_params)).fetchall()
+        escalated_rows = _with_deadline_class(escalated_rows)
 
     return render_template(
         "queue.html",
