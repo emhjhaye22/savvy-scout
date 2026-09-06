@@ -54,7 +54,8 @@ def _batched_release():
             {"id": "org-2", "name": "GR Taxis", "roles": ["supplier"],
              "address": {"streetAddress": "Bankhead House", "locality": "Tranent"}},
             {"id": "org-61", "name": "Harvey Nash Limited", "roles": ["supplier"],
-             "address": {"streetAddress": "1 Recruitment Row", "locality": "Edinburgh"}},
+             "address": {"streetAddress": "1 Recruitment Row", "locality": "Edinburgh"},
+             "contactPoint": {"name": "Ria Newham", "email": "ria.newham@harveynash.com", "telephone": "+44 131 555 0100"}},
         ],
         "buyer": {"name": "Care Inspectorate", "id": "org-1"},
         "tender": {"id": "tender-1", "title": "Interim HR Business Partner", "description": ""},
@@ -98,3 +99,26 @@ def test_parse_release_uses_award_scoped_supplier_end_to_end():
     parsed = parse_release(release, source="Public Contracts Scotland")
     assert parsed.notice.supplier_name == "Harvey Nash Limited"
     assert "Edinburgh" in (parsed.notice.supplier_address or "")
+
+
+def test_parse_release_extracts_supplier_contact_details():
+    """2026-09-06: real data already published as part of the official
+    award notice -- not scraped, not fabricated."""
+    release = _batched_release()
+    parsed = parse_release(release, source="Public Contracts Scotland")
+    assert parsed.notice.supplier_contact_name == "Ria Newham"
+    assert parsed.notice.supplier_contact_email == "ria.newham@harveynash.com"
+    assert parsed.notice.supplier_contact_phone == "+44 131 555 0100"
+
+
+def test_parse_release_supplier_contact_fields_none_when_absent():
+    release = {
+        "id": "rls-3-TEST",
+        "tender": {"id": "tender-1", "title": "A tender"},
+        "parties": [{"id": "org-1", "name": "A Supplier Ltd", "roles": ["supplier"]}],
+        "awards": [{"id": "awd-1", "suppliers": [{"name": "A Supplier Ltd", "id": "org-1"}]}],
+    }
+    parsed = parse_release(release, source="Find a Tender")
+    assert parsed.notice.supplier_contact_name is None
+    assert parsed.notice.supplier_contact_email is None
+    assert parsed.notice.supplier_contact_phone is None

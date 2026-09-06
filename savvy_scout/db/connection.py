@@ -81,6 +81,51 @@ def _apply_migrations(conn: sqlite3.Connection) -> None:
             if url:
                 conn.execute("UPDATE notices SET notice_url = ? WHERE id = ?", (url, row["id"]))
 
+    # Supplier contact details (2026-09-06): the winning supplier's own
+    # contactPoint, when the buyer's award notice actually included one --
+    # real data already published as part of the official award notice, not
+    # scraped or fabricated. Backfilled from raw_json using the same
+    # award-scoped supplier lookup as the parser itself (not the first
+    # release-wide "supplier"-tagged party -- see _find_award_supplier's
+    # docstring for the "GR Taxis" mis-attribution bug this also fixes for
+    # supplier_name/supplier_address on any row not yet corrected).
+    supplier_contact_cols = ["supplier_contact_name", "supplier_contact_email", "supplier_contact_phone"]
+    missing_supplier_contact_cols = [c for c in supplier_contact_cols if c not in notice_cols]
+    for col in missing_supplier_contact_cols:
+        conn.execute(f"ALTER TABLE notices ADD COLUMN {col} TEXT")
+
+    if missing_supplier_contact_cols:
+        rows_missing_supplier_data = conn.execute(
+            "SELECT id, raw_json FROM notices WHERE raw_json IS NOT NULL AND raw_json != ''"
+        ).fetchall()
+        if rows_missing_supplier_data:
+            import json as _json
+
+            from savvy_scout.sources.ocds_parser import _find_award_supplier, _format_address
+
+            for row in rows_missing_supplier_data:
+                try:
+                    release = _json.loads(row["raw_json"])
+                except ValueError:
+                    continue
+                if not isinstance(release, dict) or "parties" not in release:
+                    continue
+                supplier_name, supplier_party = _find_award_supplier(release)
+                contact = (supplier_party or {}).get("contactPoint") or {}
+                conn.execute(
+                    "UPDATE notices SET supplier_name = ?, supplier_address = ?, "
+                    "supplier_contact_name = ?, supplier_contact_email = ?, supplier_contact_phone = ? "
+                    "WHERE id = ?",
+                    (
+                        supplier_name,
+                        _format_address(supplier_party),
+                        contact.get("name"),
+                        contact.get("email"),
+                        contact.get("telephone"),
+                        row["id"],
+                    ),
+                )
+
     # Additional OCDS fields (award criteria, submission instructions,
     # contract start/extension dates, buyer PPON/website/org type, etc.),
     # 2026-07-30: present in raw_json all along, never parsed out before.

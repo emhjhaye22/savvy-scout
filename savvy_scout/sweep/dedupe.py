@@ -80,7 +80,8 @@ def _insert_notice(conn, notice, parsed, cpv_additional_json, lot_statuses_json,
     columns = (
         "ref, ocid, title, buyer, source, notice_type, uk_stage, status, "
         "indicative_value, cpv_primary, cpv_primary_inferred, cpv_additional, deadline, "
-        "cpv_primary_description, supplier_name, supplier_address, buyer_address, "
+        "cpv_primary_description, supplier_name, supplier_address, "
+        "supplier_contact_name, supplier_contact_email, supplier_contact_phone, buyer_address, "
         "buyer_contact_email, buyer_region, procurement_method, procurement_method_details, notice_url, "
         f"{', '.join(additional_cols)}, "
         "text_blob, tender_status, lot_statuses, tender_period_end, pme_due_date, "
@@ -107,6 +108,9 @@ def _insert_notice(conn, notice, parsed, cpv_additional_json, lot_statuses_json,
             notice.cpv_primary_description,
             notice.supplier_name,
             notice.supplier_address,
+            notice.supplier_contact_name,
+            notice.supplier_contact_email,
+            notice.supplier_contact_phone,
             notice.buyer_address,
             notice.buyer_contact_email,
             notice.buyer_region,
@@ -184,6 +188,7 @@ def upsert_notice(conn: sqlite3.Connection, parsed: ParsedNotice, actor: str = "
         "ocid = ?, title = ?, buyer = ?, notice_type = ?, uk_stage = ?, "
         "indicative_value = ?, cpv_primary = ?, cpv_primary_inferred = ?, cpv_additional = ?, "
         "deadline = ?, cpv_primary_description = ?, supplier_name = ?, supplier_address = ?, "
+        "supplier_contact_name = ?, supplier_contact_email = ?, supplier_contact_phone = ?, "
         "buyer_address = ?, buyer_contact_email = ?, buyer_region = ?, procurement_method = ?, "
         "procurement_method_details = ?, notice_url = ?, "
         f"{', '.join(f'{c} = ?' for c in additional_cols)}, "
@@ -205,6 +210,9 @@ def upsert_notice(conn: sqlite3.Connection, parsed: ParsedNotice, actor: str = "
             notice.cpv_primary_description,
             notice.supplier_name,
             notice.supplier_address,
+            notice.supplier_contact_name,
+            notice.supplier_contact_email,
+            notice.supplier_contact_phone,
             notice.buyer_address,
             notice.buyer_contact_email,
             notice.buyer_region,

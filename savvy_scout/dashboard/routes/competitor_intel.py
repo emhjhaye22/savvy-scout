@@ -186,6 +186,7 @@ def _competitor_detail(conn: sqlite3.Connection, supplier_name: str) -> dict | N
     rows = conn.execute(
         """
         SELECT ref, title, buyer, sector, indicative_value,
+               supplier_contact_name, supplier_contact_email, supplier_contact_phone,
                COALESCE(published_at, first_seen_at) AS win_date
         FROM notices
         WHERE is_award = 1 AND supplier_name = ?
@@ -202,13 +203,27 @@ def _competitor_detail(conn: sqlite3.Connection, supplier_name: str) -> dict | N
     monthly: dict[tuple[int, int], float] = {}
     priced_total = 0.0
     priced_count = 0
+    # Most recent non-null contact across all this supplier's awards (rows
+    # are already ordered newest-first) -- shown once at the top as "best
+    # known contact," alongside every award's own contact in the table
+    # below, since different awards can carry different contacts over time.
+    latest_contact = None
 
     for r in rows:
         parsed = _parse_gbp(r["indicative_value"])
+        if latest_contact is None and (r["supplier_contact_name"] or r["supplier_contact_email"] or r["supplier_contact_phone"]):
+            latest_contact = {
+                "name": r["supplier_contact_name"],
+                "email": r["supplier_contact_email"],
+                "phone": r["supplier_contact_phone"],
+            }
         contracts.append(
             {
                 "ref": r["ref"], "title": r["title"], "buyer": r["buyer"],
                 "sector": r["sector"], "indicative_value": r["indicative_value"],
+                "contact_name": r["supplier_contact_name"],
+                "contact_email": r["supplier_contact_email"],
+                "contact_phone": r["supplier_contact_phone"],
                 "win_date": r["win_date"],
             }
         )
@@ -248,13 +263,22 @@ def _competitor_detail(conn: sqlite3.Connection, supplier_name: str) -> dict | N
         "by_sector": sorted(by_sector.values(), key=lambda x: x["count"], reverse=True),
         "chart": chart,
         "watched": supplier_name in _watched_names(conn),
+        "latest_contact": latest_contact,
     }
 
 
 def _buyers(conn: sqlite3.Connection):
+    """Same relevance principle as _competitors() (2026-09-06): a buyer is
+    only "relevant" if at least one of their notices -- award or not, since
+    a buyer who's only ever published genuinely digital/software tenders
+    but hasn't awarded one yet is still a real prospect -- is itself
+    Trifork's type of work. Without this, the tab listed every buyer who's
+    ever published anything in a tracked sector, the same noise problem
+    Competitors had before this fix."""
     rows = conn.execute(
         """
-        SELECT buyer, sector, COALESCE(published_at, first_seen_at) AS activity_date
+        SELECT ref, buyer, sector, cpv_primary, cpv_primary_inferred, cpv_additional, text_blob,
+               COALESCE(published_at, first_seen_at) AS activity_date
         FROM notices
         WHERE buyer IS NOT NULL AND buyer != '' AND sector IS NOT NULL
         """
@@ -264,12 +288,15 @@ def _buyers(conn: sqlite3.Connection):
     for r in rows:
         entry = by_buyer.setdefault(
             r["buyer"],
-            {"buyer": r["buyer"], "notice_count": 0, "sectors": set(), "last_activity": None},
+            {"buyer": r["buyer"], "notice_count": 0, "sectors": set(), "last_activity": None, "relevant": False},
         )
         entry["notice_count"] += 1
         entry["sectors"].add(r["sector"])
         if r["activity_date"] and (entry["last_activity"] is None or r["activity_date"] > entry["last_activity"]):
             entry["last_activity"] = r["activity_date"]
+        if not entry["relevant"] and _is_relevant_award(conn, r):
+            entry["relevant"] = True
+    conn.commit()  # one commit for the whole batch of relevance-cache writes, not one per row
 
     out = []
     for entry in by_buyer.values():
@@ -285,13 +312,19 @@ def index():
     conn = get_db()
     tab = request.args.get("tab", "competitors")
     show_all = request.args.get("show") == "all"
+
     all_competitors = _competitors(conn) if tab != "buyers" else []
     irrelevant_count = sum(1 for c in all_competitors if not c["relevant"])
     competitors = all_competitors if show_all else [c for c in all_competitors if c["relevant"]]
-    buyers = _buyers(conn) if tab == "buyers" else []
+
+    all_buyers = _buyers(conn) if tab == "buyers" else []
+    irrelevant_buyer_count = sum(1 for b in all_buyers if not b["relevant"])
+    buyers = all_buyers if show_all else [b for b in all_buyers if b["relevant"]]
+
     return render_template(
         "competitor_intel.html", tab=tab, competitors=competitors, buyers=buyers,
         show_all=show_all, irrelevant_count=irrelevant_count,
+        irrelevant_buyer_count=irrelevant_buyer_count,
     )
 
 

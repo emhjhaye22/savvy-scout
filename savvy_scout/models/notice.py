@@ -138,6 +138,14 @@ class Notice:
     cpv_primary_description: str | None = None
     supplier_name: str | None = None
     supplier_address: str | None = None
+    # 2026-09-06: the winning supplier's own contactPoint, when the buyer's
+    # award notice actually included one -- real data already published as
+    # part of the official award notice (not scraped, not fabricated). No
+    # website field exists in the source data at all, so there's no
+    # supplier_website to add alongside these.
+    supplier_contact_name: str | None = None
+    supplier_contact_email: str | None = None
+    supplier_contact_phone: str | None = None
     buyer_address: str | None = None
     buyer_contact_email: str | None = None
     buyer_region: str | None = None

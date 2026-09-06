@@ -175,6 +175,33 @@ def test_competitor_relevant_if_any_award_is_relevant(app):
     assert b"Mixed Supplier Ltd" in resp.data
 
 
+def test_buyers_tab_filters_out_irrelevant_buyers_by_default(app):
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "Relevant Buyer", "Fintech", "Acme Ltd", "10000 GBP")
+    _insert_irrelevant_award(conn, "REF-B", "Taxi-Only Council", "NHS and Healthcare", "GR Taxis")
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel?tab=buyers")
+    body = resp.data.decode()
+    assert "Relevant Buyer" in body
+    assert "Taxi-Only Council" not in body
+    assert "Show all buyers (+1 filtered out)" in body
+
+
+def test_buyers_tab_show_all_reveals_irrelevant_buyers(app):
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "Relevant Buyer", "Fintech", "Acme Ltd", "10000 GBP")
+    _insert_irrelevant_award(conn, "REF-B", "Taxi-Only Council", "NHS and Healthcare", "GR Taxis")
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel?tab=buyers&show=all")
+    body = resp.data.decode()
+    assert "Relevant Buyer" in body
+    assert "Taxi-Only Council" in body
+    assert "Not Trifork's type of work" in body
+    assert "Show likely-relevant buyers only" in body
+
+
 def _insert_award_with_date(conn, ref, buyer, sector, supplier_name, indicative_value, first_seen_at):
     conn.execute(
         "INSERT INTO notices (ref, title, buyer, sector, cpv_primary, indicative_value, status, "
@@ -214,6 +241,44 @@ def test_competitor_detail_shows_stats_and_tabs(app):
     assert "Fintech" in body
     assert "Aviation" in body
     assert "All Contracts" in body and "Buyers" in body and "Sectors" in body
+
+
+def _insert_award_with_contact(conn, ref, buyer, sector, supplier_name, contact_name, contact_email, contact_phone):
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "INSERT INTO notices (ref, title, buyer, sector, cpv_primary, indicative_value, status, "
+        "source, uk_stage, raw_json, first_seen_at, last_swept_at, created_at, updated_at, is_award, "
+        "supplier_name, supplier_contact_name, supplier_contact_email, supplier_contact_phone) "
+        "VALUES (?, 'An awarded contract', ?, ?, '72500000', '10000 GBP', 'ACTIVE', 'Find a Tender', 'UK5', "
+        "'{}', ?, ?, ?, ?, 1, ?, ?, ?, ?)",
+        (ref, buyer, sector, now, now, now, now, supplier_name, contact_name, contact_email, contact_phone),
+    )
+    conn.commit()
+
+
+def test_competitor_detail_shows_contact_from_award_notice(app):
+    conn = _db(app)
+    _insert_award_with_contact(
+        conn, "REF-A", "A Buyer", "Fintech", "Acme Ltd",
+        "Ria Newham", "ria.newham@acme.example", "+44 131 555 0100",
+    )
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel/detail?name=Acme Ltd")
+    body = resp.data.decode()
+    assert "Ria Newham" in body
+    assert "ria.newham@acme.example" in body
+    assert "+44 131 555 0100" in body
+    assert "from the buyer's own award notice" in body.lower()
+
+
+def test_competitor_detail_shows_no_contact_message_when_absent(app):
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "A Buyer", "Fintech", "Acme Ltd", "10000 GBP")
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel/detail?name=Acme Ltd")
+    assert b"None of this supplier" in resp.data
 
 
 def test_competitor_detail_chart_buckets_by_month(app):

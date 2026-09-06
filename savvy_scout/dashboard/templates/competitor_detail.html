@@ -55,9 +55,32 @@
 </div>
 
 <div class="card" style="padding: 16px 18px; margin-bottom: 20px;">
+  <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); font-weight:700; margin-bottom:10px;">Contact (from award notice)</div>
+  {% if latest_contact %}
+    <div class="cd-company-card">
+      <div class="cd-company-field">
+        <div class="cd-company-label">Name</div>
+        <div class="cd-company-value">{{ latest_contact.name or '—' }}</div>
+      </div>
+      <div class="cd-company-field">
+        <div class="cd-company-label">Email</div>
+        <div class="cd-company-value">{% if latest_contact.email %}<a href="mailto:{{ latest_contact.email }}">{{ latest_contact.email }}</a>{% else %}—{% endif %}</div>
+      </div>
+      <div class="cd-company-field">
+        <div class="cd-company-label">Phone</div>
+        <div class="cd-company-value">{{ latest_contact.phone or '—' }}</div>
+      </div>
+    </div>
+    <p style="color:var(--text-muted); font-size:11.5px; margin-top:6px;">From the buyer's own award notice for this supplier's most recent win — not scraped, not looked up. Self-reported at the time of that award, so it may be out of date or tied to a specific bid rather than a general enquiries contact.</p>
+  {% else %}
+    <p style="color:var(--text-muted); font-size:13px;">None of this supplier's award notices included a contact person, email, or phone number.</p>
+  {% endif %}
+</div>
+
+<div class="card" style="padding: 16px 18px; margin-bottom: 20px;">
   <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); font-weight:700; margin-bottom:10px;">Company record (Companies House)</div>
   {% if not companies_house_configured %}
-    <p style="color:var(--text-muted); font-size:13px;">Not configured -- set COMPANIES_HOUSE_API_KEY to look up registered company details. No source publishes personal contact details (email/phone) for company staff; this only ever shows the public company record.</p>
+    <p style="color:var(--text-muted); font-size:13px;">Not configured -- set COMPANIES_HOUSE_API_KEY to look up registered company details.</p>
   {% elif company_info %}
     <div class="cd-company-card">
       <div class="cd-company-field">
@@ -128,7 +151,7 @@
 <div class="card" style="overflow-x: auto;">
   <div class="cd-pane active" id="pane-contracts">
     <table class="cd-table">
-      <thead><tr><th>Ref</th><th>Title</th><th>Buyer</th><th>Sector</th><th>Value</th><th>Won</th></tr></thead>
+      <thead><tr><th>Ref</th><th>Title</th><th>Buyer</th><th>Sector</th><th>Value</th><th>Won</th><th>Contact</th></tr></thead>
       <tbody>
         {% for c in contracts %}
         <tr>
@@ -138,6 +161,11 @@
           <td>{% if c.sector %}<span style="font-size:11px; padding:2px 6px; border-radius:4px; background:var(--surface-alt); color:var(--text);">{{ c.sector }}</span>{% endif %}</td>
           <td style="color:var(--text-muted); white-space:nowrap;">{{ c.indicative_value or '—' }}</td>
           <td style="color:var(--text-muted); white-space:nowrap;">{{ c.win_date[:10] if c.win_date else '—' }}</td>
+          <td style="color:var(--text-muted); font-size:12px;">
+            {% if c.contact_name or c.contact_email or c.contact_phone %}
+              {{ c.contact_name or '' }}{% if c.contact_email %}{% if c.contact_name %}<br>{% endif %}<a href="mailto:{{ c.contact_email }}">{{ c.contact_email }}</a>{% endif %}
+            {% else %}—{% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

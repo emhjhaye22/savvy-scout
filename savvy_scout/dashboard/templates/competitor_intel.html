@@ -44,7 +44,11 @@
 <div class="ci-note">
   <strong>What this is:</strong> aggregated directly from award notices and buyer names already captured by the sweep — no data partnership or external source involved.
   <strong>Value figures are honest, not complete:</strong> only about a quarter of award notices carry a recorded contract value in the source data, so each competitor's value figure states exactly how many of their awards it's based on rather than implying a full total.
-  {% if tab != 'buyers' %}<strong>Relevance filter:</strong> a supplier only appears by default if at least one of their wins is itself Trifork's type of work (the same Gate 2 check used in real triage) — not just any award in a tracked sector. This is what keeps e.g. taxi firms winning NHS patient-transport contracts out of the default list.{% endif %}
+  {% if tab != 'buyers' %}
+  <strong>Relevance filter:</strong> a supplier only appears by default if at least one of their wins is itself Trifork's type of work (the same Gate 2 check used in real triage) — not just any award in a tracked sector. This is what keeps e.g. taxi firms winning NHS patient-transport contracts out of the default list.
+  {% else %}
+  <strong>Relevance filter:</strong> a buyer only appears by default if at least one of their notices (award or not) is itself Trifork's type of work — not just any buyer active in a tracked sector.
+  {% endif %}
 </div>
 
 <div class="ci-tabs">
@@ -97,6 +101,13 @@
     </table>
   </div>
 {% else %}
+  <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+    {% if show_all %}
+      <a href="{{ url_for('competitor_intel.index', tab='buyers') }}" class="btn btn-secondary btn-sm">Show likely-relevant buyers only</a>
+    {% else %}
+      <a href="{{ url_for('competitor_intel.index', tab='buyers', show='all') }}" class="btn btn-secondary btn-sm">Show all buyers{% if irrelevant_buyer_count %} (+{{ irrelevant_buyer_count }} filtered out){% endif %}</a>
+    {% endif %}
+  </div>
   <div class="card" style="overflow-x: auto;">
     <table class="buyer-table">
       <thead>
@@ -106,7 +117,10 @@
         {% if buyers %}
           {% for b in buyers %}
           <tr>
-            <td style="font-weight:600;">{{ b.buyer }}</td>
+            <td style="font-weight:600;">
+              {{ b.buyer }}
+              {% if show_all and not b.relevant %}<div style="font-size:10px; color:var(--text-muted); font-weight:400; margin-top:2px;">Not Trifork's type of work</div>{% endif %}
+            </td>
             <td>{% for s in b.sectors %}<span class="ci-sector-chip">{{ s }}</span>{% endfor %}</td>
             <td style="color:var(--text-muted);">{{ b.notice_count }}</td>
             <td style="color:var(--text-muted); white-space:nowrap;">{{ b.last_activity[:10] if b.last_activity else '—' }}</td>
