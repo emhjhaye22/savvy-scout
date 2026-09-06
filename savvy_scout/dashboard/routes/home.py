@@ -354,7 +354,7 @@ def _build_approval_rate_by_owner(conn, in_scope_where, in_scope_params) -> list
     return [r for r in result if r["total"] > 0]
 
 
-def _build_top_buyers(conn, in_scope_where, in_scope_params, limit=8) -> list[dict]:
+def _build_top_buyers(conn, in_scope_where, in_scope_params, limit=5) -> list[dict]:
     rows = conn.execute(
         f"""
         SELECT buyer, COUNT(*) AS cnt
@@ -370,7 +370,7 @@ def _build_top_buyers(conn, in_scope_where, in_scope_params, limit=8) -> list[di
     return [{"buyer": r["buyer"], "count": r["cnt"], "pct": round(r["cnt"] / max_count * 100, 1)} for r in rows]
 
 
-def _build_top_competitors(conn, limit=8) -> list[dict]:
+def _build_top_competitors(conn, limit=5) -> list[dict]:
     """Mirrors _build_top_buyers, but for Competitor Intel's own aggregation
     (2026-09-06) rather than a fresh query -- reuses _is_relevant_award(), the
     same purpose-built relevance check Competitor Intel's default filter uses

@@ -7,22 +7,22 @@
 
 <style>
   body { overflow-y: auto; }
-  .content { padding: 10px 18px; overflow: visible; }
+  .content { padding: 6px 14px; overflow: visible; }
   .page-wrapper { overflow: visible; }
 
   .report-card { margin-top: 0; margin-bottom: 0; }
-  .report-card .card-body { padding: 10px 12px; }
+  .report-card .card-body { padding: 6px 10px; }
 
   /* One KPI strip for point-in-time totals -- these numbers appear here ONLY.
      Grid with minmax(0,1fr) columns always stays a single row: columns shrink to
      fit the available width exactly, they never wrap and never force page overflow. */
-  .kpi-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-bottom: 6px; }
-  .kpi-card { min-width: 0; border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; background: var(--surface); }
-  .kpi-card .stat-value { font-size: 18px; font-weight: 900; color: var(--navy); line-height: 1.1; }
-  .kpi-card .stat-label { margin-top: 2px; font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .kpi-card .hint { margin-top: 1px; font-size: 10.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 3px; }
+  .kpi-card { min-width: 0; border: 1px solid var(--border); border-radius: 10px; padding: 4px 8px; background: var(--surface); }
+  .kpi-card .stat-value { font-size: 16px; font-weight: 900; color: var(--navy); line-height: 1.1; }
+  .kpi-card .stat-label { margin-top: 1px; font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kpi-card .hint { margin-top: 1px; font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  .kpi-row-3 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 6px; }
+  .kpi-row-3 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 3px; }
   .kpi-card-link { text-decoration: none; display: block; }
   .kpi-card-link .kpi-card { transition: border-color 0.15s; }
   .kpi-card-link:hover .kpi-card { border-color: var(--primary); }
@@ -47,7 +47,7 @@
      tracks at this width, not the 3 assumed when picking .span-2). dense
      lets the browser fill earlier gaps with later, smaller items --
      the standard fix for this exact masonry-style packing case. */
-  .overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); grid-auto-flow: dense; gap: 10px; margin-bottom: 6px; align-items: start; }
+  .overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); grid-auto-flow: dense; gap: 6px; margin-bottom: 3px; align-items: start; }
   .overview-grid > .panel { min-width: 0; }
   .overview-grid > .span-2 { grid-column: span 2; }
   /* Show daily breakdown adds ~8 extra day columns to a table that only
@@ -58,19 +58,19 @@
      sacrificing the compact packed layout for the common case. */
   .overview-grid > .panel.show-daily { grid-column: 1 / -1; }
 
-  .panel { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.04); padding: 9px 12px; }
-  .panel-head { margin-bottom: 5px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .panel { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.04); padding: 7px 10px; }
+  .panel-head { margin-bottom: 3px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 
   .daily-toggle-btn {
-    flex-shrink: 0; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
-    background: var(--surface-alt); color: var(--text-muted); font-size: 11.5px; font-weight: 600;
+    flex-shrink: 0; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface-alt); color: var(--text-muted); font-size: 11px; font-weight: 600;
     cursor: pointer; white-space: nowrap;
   }
   .daily-toggle-btn:hover { border-color: var(--primary); color: var(--primary); }
   .daily-col { display: none; }
   .panel.show-daily .daily-col { display: table-cell; }
-  .panel-title { font-size: 12.5px; font-weight: 800; color: var(--navy); }
-  .panel-subtitle { margin-top: 1px; font-size: 10.5px; color: var(--text-muted); }
+  .panel-title { font-size: 12px; font-weight: 800; color: var(--navy); }
+  .panel-subtitle { margin-top: 1px; font-size: 10px; color: var(--text-muted); }
 
   /* Sector performance table: rows = sector, then "In Sector (total)" and
      "Total Swept (all sources)", columns = Mon-Fri this week + rolling
@@ -87,9 +87,9 @@
      with a big dead gap between (found 2026-09-06: real screenshot showed
      this on both "Sector performance" and "Notices by source"). */
   .perf-table { width: auto; min-width: 320px; border-collapse: collapse; font-size: 11px; }
-  .perf-table th { text-align: right; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-muted); padding: 3px 5px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .perf-table th { text-align: right; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-muted); padding: 2px 5px; border-bottom: 1px solid var(--border); white-space: nowrap; }
   .perf-table th:first-child, .perf-table td:first-child { text-align: left; }
-  .perf-table td { padding: 3px 5px; text-align: right; font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--border); }
+  .perf-table td { padding: 1px 5px; line-height: 1.15; text-align: right; font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--border); }
   .perf-table tbody tr:last-child td { border-bottom: none; }
   .perf-table .sector-cell { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
   .perf-swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
@@ -97,12 +97,12 @@
   .perf-table tr.grand-total-row td { color: var(--text-muted); }
 
   /* Donut + legend language, reused for Sector mix and Triage outcomes. */
-  .donut-wrap { display: flex; align-items: center; gap: 12px; }
-  .donut { position: relative; width: 82px; height: 82px; border-radius: 50%; flex-shrink: 0; }
+  .donut-wrap { display: flex; align-items: center; gap: 10px; }
+  .donut { position: relative; width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; }
   .donut-hole { position: absolute; inset: 20%; background: var(--surface); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  .donut-center-value { font-size: 14px; font-weight: 800; color: var(--navy); line-height: 1; }
-  .donut-center-label { font-size: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 1px; }
-  .legend-list { flex: 1; min-width: 0; display: grid; gap: 3px; }
+  .donut-center-value { font-size: 12px; font-weight: 800; color: var(--navy); line-height: 1; }
+  .donut-center-label { font-size: 7px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 1px; }
+  .legend-list { flex: 1; min-width: 0; display: grid; gap: 2px; }
   /* Top buyers/Top competitors have no donut sharing the row, so plain
      .legend-list stretches across the whole panel width -- same dead-gap
      issue as .perf-table above, just via flex instead of a table. Capped so
@@ -116,10 +116,10 @@
 
   .meter-track { height: 7px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); overflow: hidden; }
 
-  .panel-note { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted); }
+  .panel-note { margin-top: 3px; padding-top: 3px; border-top: 1px solid var(--border); font-size: 10.5px; color: var(--text-muted); }
   .panel-note strong { color: var(--navy); }
 
-  .mini-empty { font-size: 11.5px; color: var(--text-muted); padding: 8px 4px; }
+  .mini-empty { font-size: 11px; color: var(--text-muted); padding: 4px 4px; }
 
   /* Market size by sector only has as many bars as there are sectors (6
      today) -- base.html's shared .bar-chart-col flex-grows to fill the
@@ -128,8 +128,8 @@
      this panel rather than changed globally in base.html, since Signals
      and the Competitor detail page reuse the same component with more
      columns (12 months) where that hasn't been checked. */
-  .bar-chart-compact { justify-content: flex-start; }
-  .bar-chart-compact .bar-chart-col { flex: 0 0 72px; }
+  .bar-chart-compact { justify-content: flex-start; height: 90px; }
+  .bar-chart-compact .bar-chart-col { flex: 0 0 64px; }
 
 </style>
 
@@ -362,34 +362,34 @@
       {% set priced_sectors = sector_spend | selectattr('value', 'gt', 0) | list %}
       {% if priced_sectors %}
       <div class="bar-chart bar-chart-compact">
-        {% for s in sector_spend %}
+        {% for s in priced_sectors %}
         <div class="bar-chart-col">
-          <div class="bar-chart-value">{{ '£{:,.0f}'.format(s.value) if s.value else '—' }}</div>
+          <div class="bar-chart-value">{{ '£{:,.0f}'.format(s.value) }}</div>
           <div class="bar-chart-bar" style="height: {{ s.pct }}%;"></div>
           <div class="bar-chart-label">{{ s.label | truncate(12, True, '') }}</div>
         </div>
         {% endfor %}
       </div>
-      <p style="color:var(--text-muted); font-size:12px; margin-top:10px;">Based on {{ priced_sectors | length }} of {{ sector_spend | length }} sectors with at least one priced award notice.</p>
+      <p style="color:var(--text-muted); font-size:11px; margin-top:6px;">Based on {{ priced_sectors | length }} of {{ sector_spend | length }} sectors with at least one priced award notice.</p>
       {% else %}
       <div class="mini-empty">No sectors have a priced award notice yet.</div>
       {% endif %}
     </div>
 
-    <div class="panel" style="margin-bottom: 6px;">
+    <div class="panel">
       <div class="panel-head">
         <div class="panel-title">Approved vs Rejected</div>
         <div class="panel-subtitle">Of every notice that reached a decision, how many went each way</div>
       </div>
         {% if approval_rate.total %}
-        <div style="display:flex; gap:28px; padding: 6px 0 12px;">
+        <div style="display:flex; gap:28px; padding: 4px 0 8px;">
           <div>
-            <div style="font-size:22px; font-weight:900; color:#10B981; line-height:1.1;">{{ approval_rate.approved_pct }}%</div>
-            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px;">Approved ({{ approval_rate.approved }})</div>
+            <div style="font-size:18px; font-weight:900; color:#10B981; line-height:1.1;">{{ approval_rate.approved_pct }}%</div>
+            <div style="font-size:10.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px;">Approved ({{ approval_rate.approved }})</div>
           </div>
           <div>
-            <div style="font-size:22px; font-weight:900; color:#DC2626; line-height:1.1;">{{ approval_rate.rejected_pct }}%</div>
-            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px;">Rejected ({{ approval_rate.rejected }})</div>
+            <div style="font-size:18px; font-weight:900; color:#DC2626; line-height:1.1;">{{ approval_rate.rejected_pct }}%</div>
+            <div style="font-size:10.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px;">Rejected ({{ approval_rate.rejected }})</div>
           </div>
         </div>
         <div class="meter-track" style="display:flex;">
@@ -401,10 +401,10 @@
         {% endif %}
 
         {% if approval_rate_by_owner %}
-        <div style="margin-top:14px; padding-top:10px; border-top:1px solid var(--border);">
-          <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px;">By owner</div>
+        <div style="margin-top:8px; padding-top:6px; border-top:1px solid var(--border);">
+          <div style="font-size:10.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:5px;">By owner</div>
           {% for row in approval_rate_by_owner %}
-          <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
             <div style="width:70px; font-size:12px; font-weight:600; color:var(--text); flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ row.owner }}</div>
             <div class="meter-track" style="display:flex; flex:1;">
               <div style="height:100%; width: {{ row.approved_pct }}%; background:#10B981;"></div>
