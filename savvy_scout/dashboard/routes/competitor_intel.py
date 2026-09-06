@@ -166,13 +166,15 @@ def possible_competitors_for_notice(conn: sqlite3.Connection, sector: str | None
     bid on it: suppliers who've previously won a *relevant* award from this
     exact buyer rank first (the strongest real signal -- an incumbent or
     known relationship), then anyone who's won relevant work in the same
-    sector more broadly. Reuses the same Gate 2 relevance check as
-    Competitor Intel's default filter, for the same reason: a same-sector
-    but wrong-type-of-work supplier (a taxi firm at an NHS trust) isn't a
-    real bidding threat on a software tender just because the sector
-    matches. Returns at most 10, same-buyer matches first, then by award
-    count -- there's no attempt to estimate a probability, just a ranked
-    "who to watch for" list from real history."""
+    sector more broadly. Reuses _is_relevant_award(), the same purpose-built
+    relevance check Competitor Intel's default filter uses (tightened
+    2026-09-06 to a stricter standard than real Gate 2 triage, since
+    neither screen has a human-review step to catch a false positive) --
+    a same-sector but wrong-type-of-work supplier (a taxi firm at an NHS
+    trust) isn't a real bidding threat on a software tender just because
+    the sector matches. Returns at most 10, same-buyer matches first, then
+    by award count -- there's no attempt to estimate a probability, just a
+    ranked "who to watch for" list from real history."""
     if not sector:
         return []
     rows = conn.execute(

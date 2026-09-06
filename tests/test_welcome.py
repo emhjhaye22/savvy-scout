@@ -110,14 +110,14 @@ def test_welcome_page_shows_clients_section_for_admin_with_trifork_first(app):
     assert "Trifork" in html
     assert "Full workspace" in html
     assert "Acme Construction" in html
-    assert "Matches only" in html
+    assert "Filter + shortlist" in html
     assert html.index("Trifork") < html.index("Acme Construction")
 
 
 def test_welcome_page_hides_clients_section_for_non_admin(app):
     client = _logged_in_client(app, "victoria")
     html = client.get("/welcome").get_data(as_text=True)
-    assert "Matches only" not in html
+    assert "Filter + shortlist" not in html
     assert "Full workspace" not in html
 
 

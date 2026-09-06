@@ -372,8 +372,10 @@ def _build_top_buyers(conn, in_scope_where, in_scope_params, limit=8) -> list[di
 
 def _build_top_competitors(conn, limit=8) -> list[dict]:
     """Mirrors _build_top_buyers, but for Competitor Intel's own aggregation
-    (2026-09-06) rather than a fresh query -- reuses the same relevance
-    filter (Gate 2, not just sector match) so this doesn't reintroduce the
+    (2026-09-06) rather than a fresh query -- reuses _is_relevant_award(), the
+    same purpose-built relevance check Competitor Intel's default filter uses
+    (tightened 2026-09-06 to be stricter than real Gate 2 triage, since
+    neither screen has a human-review step), so this doesn't reintroduce the
     "taxi firm outranking real competitors" noise Competitor Intel itself
     already fixed. Deliberately NOT scoped by in_scope_filter_sql: award
     notices are UK5, which that filter excludes by design, same reasoning

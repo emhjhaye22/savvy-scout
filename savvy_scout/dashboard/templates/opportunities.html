@@ -280,13 +280,15 @@
 <script>
 const searchInput = document.getElementById('search-input');
 if (searchInput) {
-  searchInput.addEventListener('input', function() {
-    const q = this.value.toLowerCase();
+  function applySearchFilter() {
+    const q = searchInput.value.toLowerCase();
     document.querySelectorAll('#opp-tbody tr').forEach(row => {
       const text = row.getAttribute('data-search') || '';
       row.style.display = text.includes(q) ? '' : 'none';
     });
-  });
+  }
+  searchInput.addEventListener('input', applySearchFilter);
+  if (searchInput.value) applySearchFilter();
 }
 </script>
 

@@ -124,8 +124,8 @@
     <a class="welcome-card" href="{{ url_for('admin.client_matches', client_id=client.id) }}">
       <span class="welcome-card-icon">🏢</span>
       <div>
-        <div class="welcome-card-label">{{ client.name }}<span class="welcome-client-badge">Matches only</span></div>
-        <div class="welcome-card-desc">Structured filter, no workflow yet</div>
+        <div class="welcome-card-label">{{ client.name }}<span class="welcome-client-badge">Filter + shortlist</span></div>
+        <div class="welcome-card-desc">Structured filter, shortlist/reject triage -- no Phase 2 AI or reports yet</div>
       </div>
     </a>
     {% endif %}

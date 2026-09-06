@@ -45,7 +45,7 @@
   <strong>What this is:</strong> aggregated directly from award notices and buyer names already captured by the sweep — no data partnership or external source involved.
   <strong>Value figures are honest, not complete:</strong> only about a quarter of award notices carry a recorded contract value in the source data, so each competitor's value figure states exactly how many of their awards it's based on rather than implying a full total.
   {% if tab != 'buyers' %}
-  <strong>Relevance filter:</strong> a supplier only appears by default if at least one of their wins is itself Trifork's type of work (the same Gate 2 check used in real triage) — not just any award in a tracked sector. This is what keeps e.g. taxi firms winning NHS patient-transport contracts out of the default list.
+  <strong>Relevance filter:</strong> a supplier only appears by default if at least one of their wins is itself Trifork's type of work (a stricter, purpose-built check than real Gate 2 triage, since there's no human review here to catch a false positive) — not just any award in a tracked sector. This is what keeps e.g. taxi firms winning NHS patient-transport contracts out of the default list.
   {% else %}
   <strong>Relevance filter:</strong> a buyer only appears by default if at least one of their notices (award or not) is itself Trifork's type of work — not just any buyer active in a tracked sector.
   {% endif %}
@@ -76,6 +76,7 @@
             <td>
               <form method="post" action="{{ url_for('competitor_intel.toggle_watch') }}">
                 <input type="hidden" name="supplier_name" value="{{ c.supplier_name }}">
+                <input type="hidden" name="next" value="{{ url_for('competitor_intel.index', tab='competitors', show=('all' if show_all else none)) }}">
                 <button type="submit" class="ci-watch-cell-btn {% if c.watched %}watched{% endif %}" title="{% if c.watched %}Watching{% else %}Watch this competitor{% endif %}">{% if c.watched %}★{% else %}☆{% endif %}</button>
               </form>
             </td>

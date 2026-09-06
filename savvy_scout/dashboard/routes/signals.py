@@ -48,7 +48,14 @@ def _renewals_by_month(signals: list[dict], months_ahead: int = 12) -> list[dict
     return bar_chart_series(buckets)
 
 
-def _urgency(review_date_str: str, end_date_str: str) -> str:
+def _urgency(review_date_str: str) -> str:
+    """Tiers by proximity to the review date, not the contract end date.
+    review_date is always end_date minus a fixed 6-month lead
+    (sweep.expiry_radar.REVIEW_LEAD_DAYS, the only writer of contract_expiry
+    rows), so an end_date-relative threshold can never fire independently of
+    the review_date one -- fixed 2026-09-06 after an audit found "Due soon"
+    was unreachable with real data (any row close enough to end_date to
+    qualify was always already past its review_date, i.e. "due_now")."""
     now = datetime.now(timezone.utc)
     try:
         review_date = datetime.fromisoformat(review_date_str)
@@ -56,16 +63,10 @@ def _urgency(review_date_str: str, end_date_str: str) -> str:
             review_date = review_date.replace(tzinfo=timezone.utc)
     except (TypeError, ValueError):
         return "upcoming"
-    try:
-        end_date = datetime.fromisoformat(end_date_str)
-        if end_date.tzinfo is None:
-            end_date = end_date.replace(tzinfo=timezone.utc)
-    except (TypeError, ValueError):
-        end_date = None
 
     if review_date <= now:
         return "due_now"
-    if end_date and end_date <= now + timedelta(days=90):
+    if review_date <= now + timedelta(days=30):
         return "due_soon"
     return "upcoming"
 
@@ -98,7 +99,7 @@ def index():
                 "value_amount_gross": row["value_amount_gross"],
                 "end_date": row["end_date"],
                 "review_date": row["review_date"],
-                "urgency": _urgency(row["review_date"], row["end_date"]),
+                "urgency": _urgency(row["review_date"]),
             }
         )
 

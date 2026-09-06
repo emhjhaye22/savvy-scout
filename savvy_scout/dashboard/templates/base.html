@@ -625,7 +625,7 @@
     </ul>
   </div>
 
-  {% if current_user.is_victoria or current_user.is_admin %}
+  {% if current_user.display_name in ('Victoria', 'Mark') or current_user.is_admin %}
   <div class="sidebar-divider"></div>
   <div class="sidebar-section">
     <div class="sidebar-section-label">Administration</div>

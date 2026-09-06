@@ -84,11 +84,16 @@
   <div class="settings-section">
     <h2 style="font-size:15px; margin:0 0 10px; color: var(--navy);">Draft a Q&A answer</h2>
     <div class="card" style="margin-bottom:20px;">
+      {% if scope_read_ready %}
       <form method="post" action="{{ url_for('draft_assist.draft') }}">
         <input type="hidden" name="notice_id" value="{{ notice['id'] }}">
         <textarea name="question_text" rows="3" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:13px;" placeholder="Paste the selection-questionnaire or bid-response question here..." required></textarea>
         <button type="submit" class="btn btn-sm" style="margin-top:10px; background: var(--primary); color: white;">Draft answer (PROVISIONAL)</button>
       </form>
+      {% else %}
+      <textarea rows="3" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:13px;" placeholder="Paste the selection-questionnaire or bid-response question here..." disabled></textarea>
+      <button type="button" class="btn btn-sm" style="margin-top:10px;" disabled>AI Drafting Unavailable</button>
+      {% endif %}
     </div>
 
     {% for item in draft_items %}

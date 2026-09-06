@@ -163,7 +163,7 @@
           <td style="color:var(--text-muted); white-space:nowrap;">{{ c.win_date[:10] if c.win_date else '—' }}</td>
           <td style="color:var(--text-muted); font-size:12px;">
             {% if c.contact_name or c.contact_email or c.contact_phone %}
-              {{ c.contact_name or '' }}{% if c.contact_email %}{% if c.contact_name %}<br>{% endif %}<a href="mailto:{{ c.contact_email }}">{{ c.contact_email }}</a>{% endif %}
+              {{ c.contact_name or '' }}{% if c.contact_email %}{% if c.contact_name %}<br>{% endif %}<a href="mailto:{{ c.contact_email }}">{{ c.contact_email }}</a>{% endif %}{% if c.contact_phone %}{% if c.contact_name or c.contact_email %}<br>{% endif %}{{ c.contact_phone }}{% endif %}
             {% else %}—{% endif %}
           </td>
         </tr>

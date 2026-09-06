@@ -213,7 +213,8 @@ def index():
     # can still browse everything read-only via /opportunities.
     # 2026-07-30: also scoped to in_scope_filter_sql, consistent with the
     # Overview/sidebar/Opportunities -- by explicit choice, even though a
-    # text-only Gate 2 fail with an out-of-range CPV won't show here.
+    # text-only Gate 5 (sector boundary) fail with an out-of-range CPV
+    # won't show here.
     phase1_rows = conn.execute(f"""
         SELECT n.id, n.ref, n.title, n.buyer, n.owner, n.sector,
                n.indicative_value, n.deadline, n.uk_stage, n.cpv_primary,
@@ -467,8 +468,8 @@ def opportunities():
     # 2026-07-30: scoped to in_scope_filter_sql throughout (real sector, CPV
     # within that sector's scope, UK1-4), consistent with the Overview,
     # sidebar, and notifications -- by explicit choice, even for the active
-    # queues, even though a text-only Gate 2 fail with an out-of-range CPV
-    # won't show here.
+    # queues, even though a text-only Gate 5 (sector boundary) fail with an
+    # out-of-range CPV won't show here.
     in_scope_where, in_scope_params = in_scope_filter_sql(conn)
 
     query = f"""

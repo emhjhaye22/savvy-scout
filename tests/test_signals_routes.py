@@ -98,21 +98,24 @@ def test_signals_shows_a_renewal_with_notice_link(app):
 
 
 def test_signals_urgency_buckets_and_counts(app):
+    # end_date is always review_date + the expiry radar's fixed 180-day
+    # lead (sweep.expiry_radar.REVIEW_LEAD_DAYS) in real data -- kept
+    # consistent here rather than picked independently.
     conn = _db(app)
     now = datetime.now(timezone.utc)
     _insert_notice_and_expiry(
         conn, "REF-DUE-NOW", "Fintech",
-        end_date=(now + timedelta(days=30)).isoformat(),
+        end_date=(now + timedelta(days=179)).isoformat(),
         review_date=(now - timedelta(days=1)).isoformat(),
     )
     _insert_notice_and_expiry(
         conn, "REF-DUE-SOON", "Fintech",
-        end_date=(now + timedelta(days=60)).isoformat(),
+        end_date=(now + timedelta(days=190)).isoformat(),
         review_date=(now + timedelta(days=10)).isoformat(),
     )
     _insert_notice_and_expiry(
         conn, "REF-UPCOMING", "Fintech",
-        end_date=(now + timedelta(days=300)).isoformat(),
+        end_date=(now + timedelta(days=280)).isoformat(),
         review_date=(now + timedelta(days=100)).isoformat(),
     )
     client = _logged_in_client(app)
@@ -128,20 +131,17 @@ class TestUrgencyHelper:
     def test_review_date_passed_is_due_now(self):
         now = datetime.now(timezone.utc)
         past_review = (now - timedelta(days=1)).isoformat()
-        far_end = (now + timedelta(days=200)).isoformat()
-        assert _urgency(past_review, far_end) == "due_now"
+        assert _urgency(past_review) == "due_now"
 
-    def test_end_date_within_90_days_is_due_soon(self):
+    def test_review_date_within_30_days_is_due_soon(self):
         now = datetime.now(timezone.utc)
-        future_review = (now + timedelta(days=10)).isoformat()
-        near_end = (now + timedelta(days=60)).isoformat()
-        assert _urgency(future_review, near_end) == "due_soon"
+        near_review = (now + timedelta(days=10)).isoformat()
+        assert _urgency(near_review) == "due_soon"
 
-    def test_far_out_end_date_is_upcoming(self):
+    def test_far_out_review_date_is_upcoming(self):
         now = datetime.now(timezone.utc)
-        future_review = (now + timedelta(days=100)).isoformat()
-        far_end = (now + timedelta(days=300)).isoformat()
-        assert _urgency(future_review, far_end) == "upcoming"
+        far_review = (now + timedelta(days=100)).isoformat()
+        assert _urgency(far_review) == "upcoming"
 
     def test_missing_review_date_defaults_to_upcoming(self):
-        assert _urgency(None, None) == "upcoming"
+        assert _urgency(None) == "upcoming"

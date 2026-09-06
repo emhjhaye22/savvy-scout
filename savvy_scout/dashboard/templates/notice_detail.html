@@ -164,11 +164,11 @@
     {% elif s == 'PHASE2_SCOPED' %}
     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 16px; background: rgba(139,92,246,0.1); border-radius: 8px; border: 1px solid rgba(139,92,246,0.3); margin-top: 8px;">
       <strong style="font-size: 13px; color: var(--navy); margin-right: 8px;">Waiting for Phase 2 scope read.</strong>
-      <span style="font-size: 12px; color: var(--text-muted);">Run the AI scope read (Phase 2 tab of the Approval Queue) before this notice can be reviewed.</span>
+      <span style="font-size: 12px; color: var(--text-muted);">Run the AI scope read (Phase 2 section of the Approval Queue) before this notice can be reviewed.</span>
     </div>
     {% elif s == 'ESCALATED_TO_VICTORIA' and current_user.is_victoria %}
     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 16px; background: rgba(245,158,11,0.1); border-radius: 8px; border: 1px solid rgba(245,158,11,0.3); margin-top: 8px;">
-      <strong style="font-size: 13px; color: #FBBF24; margin-right: 8px;">⬆ Victoria's Decision:</strong>
+      <strong style="font-size: 13px; color: var(--navy); margin-right: 8px;">⬆ Victoria's Decision:</strong>
       <form method="post" action="{{ url_for('queues.victoria_decision', notice_id=notice['id']) }}" style="display:inline-flex; align-items:center; gap: 8px;">
         <select name="decision" style="padding: 7px 10px; font-size: 13px;">
           <option value="approve">Approve</option>
