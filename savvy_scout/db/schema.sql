@@ -463,6 +463,18 @@ CREATE TABLE IF NOT EXISTS company_lookups (
     looked_up_at TEXT NOT NULL
 );
 
+-- Competitor Intel relevance filter cache (2026-09-06 urgent perf fix):
+-- _is_relevant_award() runs a full Gate 2 keyword/CPV evaluation per award
+-- notice, which took 50+ seconds on the live database's ~9,500 award
+-- notices when computed fresh on every single page load. A notice's own
+-- text/CPV/sector never change once swept, so this result never changes
+-- either -- caching it by ref turns every load after the first into a
+-- cheap indexed read instead of re-running Gate 2 thousands of times.
+CREATE TABLE IF NOT EXISTS award_relevance_cache (
+    ref TEXT PRIMARY KEY,
+    relevant INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_notices_ref ON notices(ref);
 CREATE INDEX IF NOT EXISTS idx_notices_status ON notices(status);
 CREATE INDEX IF NOT EXISTS idx_gate_results_notice ON gate_results(notice_id);

@@ -1,4 +1,9 @@
-from savvy_scout.sources.ocds_parser import parse_release_package
+from savvy_scout.sources.ocds_parser import (
+    _find_award_supplier,
+    _find_supplier_name,
+    parse_release,
+    parse_release_package,
+)
 
 
 def test_parses_real_sample_notice(sample_ocds_package):
@@ -32,3 +37,64 @@ def test_parses_real_sample_notice(sample_ocds_package):
 
     assert "legacy infrastructure support" in parsed.text_blob
     assert notice.raw_json  # full release JSON retained as an evidence snapshot
+
+
+def _batched_release():
+    """Mimics the real live bug (2026-09-06): a Public Contracts Scotland
+    release batches many unrelated awards' parties into one shared list --
+    "GR Taxis" happens to be first with role "supplier" here, even though
+    this specific release's own award was won by someone else entirely."""
+    return {
+        "id": "rls-1-TEST",
+        "ocid": "ocds-test-0001",
+        "tag": ["award"],
+        "date": "2026-08-10T12:00:00Z",
+        "parties": [
+            {"id": "org-1", "name": "East Lothian Council", "roles": ["buyer"]},
+            {"id": "org-2", "name": "GR Taxis", "roles": ["supplier"],
+             "address": {"streetAddress": "Bankhead House", "locality": "Tranent"}},
+            {"id": "org-61", "name": "Harvey Nash Limited", "roles": ["supplier"],
+             "address": {"streetAddress": "1 Recruitment Row", "locality": "Edinburgh"}},
+        ],
+        "buyer": {"name": "Care Inspectorate", "id": "org-1"},
+        "tender": {"id": "tender-1", "title": "Interim HR Business Partner", "description": ""},
+        "awards": [
+            {"id": "awd-1", "suppliers": [{"name": "Harvey Nash Limited", "id": "org-61"}]},
+        ],
+    }
+
+
+def test_find_supplier_name_prefers_award_scoped_supplier_over_batched_parties():
+    release = _batched_release()
+    assert _find_supplier_name(release) == "Harvey Nash Limited"
+
+
+def test_find_award_supplier_returns_matching_party_for_address():
+    release = _batched_release()
+    name, party = _find_award_supplier(release)
+    assert name == "Harvey Nash Limited"
+    assert party["id"] == "org-61"
+    assert party["address"]["locality"] == "Edinburgh"
+
+
+def test_find_supplier_name_falls_back_to_party_role_scan_when_no_award_yet():
+    """A pre-award tender/planning release has no awards[] at all -- this
+    must still fall back to the old release-wide role scan rather than
+    returning None outright."""
+    release = {
+        "id": "rls-2-TEST",
+        "tender": {"id": "tender-1", "title": "A future tender"},
+        "parties": [
+            {"id": "org-1", "name": "East Lothian Council", "roles": ["buyer"]},
+            {"id": "org-2", "name": "A Tenderer Ltd", "roles": ["tenderer"]},
+        ],
+        "awards": [],
+    }
+    assert _find_supplier_name(release) == "A Tenderer Ltd"
+
+
+def test_parse_release_uses_award_scoped_supplier_end_to_end():
+    release = _batched_release()
+    parsed = parse_release(release, source="Public Contracts Scotland")
+    assert parsed.notice.supplier_name == "Harvey Nash Limited"
+    assert "Edinburgh" in (parsed.notice.supplier_address or "")

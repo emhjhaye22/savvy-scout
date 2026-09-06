@@ -71,15 +71,38 @@ def _format_address(party: dict | None) -> str | None:
     return ", ".join(parts) if parts else None
 
 
-def _find_supplier_name(release: dict) -> str | None:
-    supplier_party = _find_party_by_role(release, "supplier") or _find_party_by_role(release, "tenderer")
-    if supplier_party and supplier_party.get("name"):
-        return supplier_party["name"]
+def _find_award_supplier(release: dict) -> tuple[str | None, dict | None]:
+    """Returns (name, matching party-or-None) for the actual winning
+    supplier of THIS award. award.suppliers[] is scoped to the specific
+    award this release represents -- release-level parties[] is not: some
+    sources (2026-09-06 finding, Public Contracts Scotland) batch many
+    unrelated awards into one release, sharing a single combined parties
+    list across all of them. Picking "the first party tagged supplier" out
+    of that shared list attributes the wrong company to notices that have
+    nothing to do with it (confirmed live: dozens of Scottish Government
+    research/staffing awards were all mis-attributed to "GR Taxis", a real
+    East Lothian taxi firm that happened to be first in that batch's
+    parties array). award.suppliers[] doesn't have this problem -- it's
+    only ever populated with the supplier(s) of that specific award.
+    Falls back to a release-wide role scan only when there's no award-level
+    supplier at all (e.g. a pre-award tender/planning release, where there
+    is no award yet to be scoped to)."""
     for award in release.get("awards", []) or []:
         for supplier in award.get("suppliers", []) or []:
-            if supplier.get("name"):
-                return supplier["name"]
-    return None
+            name = supplier.get("name")
+            if name:
+                party = next(
+                    (p for p in release.get("parties", []) or [] if p.get("id") == supplier.get("id")),
+                    None,
+                )
+                return name, party
+    party = _find_party_by_role(release, "supplier") or _find_party_by_role(release, "tenderer")
+    return (party.get("name") if party else None), party
+
+
+def _find_supplier_name(release: dict) -> str | None:
+    name, _ = _find_award_supplier(release)
+    return name
 
 
 def _find_cpv_description(tender: dict, cpv_code: str | None) -> str | None:
@@ -356,6 +379,7 @@ def parse_release(release: dict, source: str) -> ParsedNotice:
     buyer_party = _find_party_by_role(release, "buyer")
     cpv_primary_description = _find_cpv_description(tender, primary_cpv)
     additional_fields = extract_additional_fields(release)
+    supplier_name, supplier_party = _find_award_supplier(release)
 
     notice = Notice(
         ref=ref,
@@ -372,8 +396,8 @@ def parse_release(release: dict, source: str) -> ParsedNotice:
         cpv_additional=additional_cpvs,
         deadline=deadline,
         cpv_primary_description=cpv_primary_description,
-        supplier_name=_find_supplier_name(release),
-        supplier_address=_format_address(_find_party_by_role(release, "supplier")),
+        supplier_name=supplier_name,
+        supplier_address=_format_address(supplier_party),
         buyer_address=_format_address(buyer_party),
         buyer_contact_email=((buyer_party or {}).get("contactPoint") or {}).get("email"),
         buyer_region=((buyer_party or {}).get("address") or {}).get("region"),

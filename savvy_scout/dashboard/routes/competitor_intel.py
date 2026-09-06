@@ -60,7 +60,24 @@ def _is_relevant_award(conn: sqlite3.Connection, row: sqlite3.Row) -> bool:
     patient-transport contract -- the sector matches, the type of work
     doesn't. Award notices skip Gate 2 in the real triage pipeline (Gate 3
     fails every UK5 outright, before Gate 2 runs), so this calls it
-    directly rather than reading a stored (and likely absent) result."""
+    directly rather than reading a stored (and likely absent) result.
+
+    Cached by ref (2026-09-06 urgent perf fix): a full Gate 2 evaluation per
+    award, computed fresh on every page load, took 50+ seconds against the
+    live database's ~9,500 award notices. A notice's own text/CPV/sector
+    never change once swept, so the result never changes either -- this
+    turns every load after the first into a cheap indexed cache read.
+    Deliberately does NOT commit here -- committing once per uncached row
+    (potentially thousands, on a first/cold load) turned out to be the
+    larger share of that 50+ seconds, each commit a separate disk sync on
+    Render's persistent disk. Callers commit once after their whole loop
+    finishes instead."""
+    cached = conn.execute(
+        "SELECT relevant FROM award_relevance_cache WHERE ref = ?", (row["ref"],)
+    ).fetchone()
+    if cached is not None:
+        return bool(cached["relevant"])
+
     cpv_additional = json.loads(row["cpv_additional"]) if row["cpv_additional"] else []
     result = gate2_type_of_work(
         conn,
@@ -70,13 +87,18 @@ def _is_relevant_award(conn: sqlite3.Connection, row: sqlite3.Row) -> bool:
         cpv_additional=cpv_additional,
         sector=row["sector"],
     )
-    return result.outcome == "PASS"
+    relevant = result.outcome == "PASS"
+    conn.execute(
+        "INSERT OR REPLACE INTO award_relevance_cache (ref, relevant) VALUES (?, ?)",
+        (row["ref"], int(relevant)),
+    )
+    return relevant
 
 
 def _competitors(conn: sqlite3.Connection):
     rows = conn.execute(
         """
-        SELECT supplier_name, sector, indicative_value, text_blob, cpv_primary,
+        SELECT ref, supplier_name, sector, indicative_value, text_blob, cpv_primary,
                cpv_primary_inferred, cpv_additional,
                COALESCE(published_at, first_seen_at) AS win_date
         FROM notices
@@ -101,6 +123,7 @@ def _competitors(conn: sqlite3.Connection):
             entry["last_win_date"] = r["win_date"]
         if not entry["relevant"] and _is_relevant_award(conn, r):
             entry["relevant"] = True
+    conn.commit()  # one commit for the whole batch of relevance-cache writes, not one per row
 
     watched = _watched_names(conn)
     out = []
@@ -127,7 +150,7 @@ def possible_competitors_for_notice(conn: sqlite3.Connection, sector: str | None
     if not sector:
         return []
     rows = conn.execute(
-        "SELECT supplier_name, buyer, sector, indicative_value, text_blob, cpv_primary, "
+        "SELECT ref, supplier_name, buyer, sector, indicative_value, text_blob, cpv_primary, "
         "cpv_primary_inferred, cpv_additional, COALESCE(published_at, first_seen_at) AS win_date "
         "FROM notices WHERE is_award = 1 AND supplier_name IS NOT NULL AND supplier_name != '' AND sector = ?",
         (sector,),
@@ -146,6 +169,7 @@ def possible_competitors_for_notice(conn: sqlite3.Connection, sector: str | None
             entry["same_buyer"] = True
         if r["win_date"] and (entry["last_win_date"] is None or r["win_date"] > entry["last_win_date"]):
             entry["last_win_date"] = r["win_date"]
+    conn.commit()  # one commit for the whole batch of relevance-cache writes, not one per row
 
     out = list(by_supplier.values())
     out.sort(key=lambda e: (not e["same_buyer"], -e["award_count"]))

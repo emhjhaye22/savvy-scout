@@ -146,7 +146,8 @@
 
     .sidebar-nav a .nav-label,
     .sidebar-stages,
-    .sidebar-logo .tagline {
+    .sidebar-logo .tagline,
+    .sidebar-logo .brand .wordmark {
       display: none;
     }
 
@@ -191,6 +192,11 @@
     .sidebar:focus-within .sidebar-nav a .nav-label,
     .sidebar:focus-within .sidebar-stages {
       display: block;
+    }
+
+    .sidebar:hover .sidebar-logo .brand .wordmark,
+    .sidebar:focus-within .sidebar-logo .brand .wordmark {
+      display: inline;
     }
 
     .sidebar:hover .sidebar-user,

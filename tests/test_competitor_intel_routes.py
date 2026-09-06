@@ -5,7 +5,7 @@ from werkzeug.security import generate_password_hash
 
 from savvy_scout.config import Settings
 from savvy_scout.dashboard import create_app
-from savvy_scout.dashboard.routes.competitor_intel import _parse_gbp
+from savvy_scout.dashboard.routes.competitor_intel import _is_relevant_award, _parse_gbp
 from savvy_scout.db.connection import get_connection, init_db
 from savvy_scout.db.seed_config import seed_all
 
@@ -301,6 +301,37 @@ def test_detail_page_shows_no_match_found(app, monkeypatch):
     client = _logged_in_client(app)
     resp = client.get("/competitor-intel/detail?name=Acme Ltd")
     assert b"No Companies House match found" in resp.data
+
+
+def test_is_relevant_award_caches_by_ref(app, monkeypatch):
+    """2026-09-06 urgent perf fix: a full Gate 2 evaluation per award,
+    recomputed on every single page load, took 50+ seconds against the live
+    database's ~9,500 award notices. Confirms a second call for the same
+    ref hits the cache instead of calling gate2_type_of_work again."""
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "A Buyer", "Fintech", "Acme Ltd", "10000 GBP")
+    row = conn.execute("SELECT * FROM notices WHERE ref = 'REF-A'").fetchone()
+
+    calls = []
+    import savvy_scout.dashboard.routes.competitor_intel as ci_module
+
+    real_gate2 = ci_module.gate2_type_of_work
+
+    def spy_gate2(*args, **kwargs):
+        calls.append(1)
+        return real_gate2(*args, **kwargs)
+
+    monkeypatch.setattr(ci_module, "gate2_type_of_work", spy_gate2)
+
+    first = _is_relevant_award(conn, row)
+    second = _is_relevant_award(conn, row)
+
+    assert first == second
+    assert len(calls) == 1
+
+    cached = conn.execute("SELECT relevant FROM award_relevance_cache WHERE ref = 'REF-A'").fetchone()
+    assert cached is not None
+    assert cached["relevant"] == int(first)
 
 
 class TestParseGbp:
