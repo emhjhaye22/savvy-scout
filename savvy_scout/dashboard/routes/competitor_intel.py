@@ -16,7 +16,6 @@ The real award value lives in the free-text indicative_value field
 below is explicit about how many awards it's actually based on, rather
 than presenting a total as more complete than it is."""
 
-import json
 import re
 import sqlite3
 from datetime import datetime, timezone
@@ -27,7 +26,8 @@ from flask_login import current_user, login_required
 from savvy_scout.dashboard.auth import get_db
 from savvy_scout.dashboard.charts import MONTH_LABELS, bar_chart_series
 from savvy_scout.dashboard.companies_house import COMPANY_URL_TEMPLATE, get_company_info
-from savvy_scout.triage.gates import gate2_type_of_work
+from savvy_scout.triage.gates import _lookup_cpv
+from savvy_scout.triage.sector_classifier import contains_keyword
 
 competitor_intel_bp = Blueprint("competitor_intel", __name__)
 
@@ -51,18 +51,34 @@ def _watched_names(conn: sqlite3.Connection) -> set[str]:
 
 
 def _is_relevant_award(conn: sqlite3.Connection, row: sqlite3.Row) -> bool:
-    """Reuses the exact same Gate 2 "type of work" logic already vetted for
-    real Phase 1 triage (2026-09-06), rather than inventing a new relevance
-    heuristic: a supplier only counts as a real Trifork competitor if at
-    least one of their wins is itself the kind of work Trifork does (a
-    PASS), not just any award in a tracked sector. This is what separates a
-    genuine competitor from noise like a taxi firm winning an NHS
-    patient-transport contract -- the sector matches, the type of work
-    doesn't. Award notices skip Gate 2 in the real triage pipeline (Gate 3
-    fails every UK5 outright, before Gate 2 runs), so this calls it
-    directly rather than reading a stored (and likely absent) result.
+    """Purpose-built relevance check for historical award data (2026-09-06,
+    tightened same day) -- deliberately NOT a call to the real
+    gate2_type_of_work, even though it started as one. That function is
+    correctly lenient for its real job (Phase 1 triage of live tenders,
+    where a human reviews the result afterward): a bare "coupling term"
+    match, on its own, is enough for PASS -- Mark's 15 August 2026
+    correction removed the requirement that it be paired with real
+    generic/digital language. Reusing that exact leniency here produced a
+    live false positive: SKYLINE TAXIS's actual notices are literally
+    "provision of transport services" for home-to-school taxi runs (CPV
+    60120000, Taxi services) -- gate2_type_of_work PASSed them purely
+    because the word "transport" is a coupling term (added for the Rail
+    and Transport sector), with no real digital/software signal anywhere
+    in the text. That leniency assumes a human catches the false positive
+    afterward; this filter has no such human-review step, so it needs a
+    stricter standard than the real Gate 2 does:
+      - a fail-term match, or a CPV disqualifier, still fails outright
+        (same as gate2_type_of_work).
+      - PASS requires either a real unconditional_pass/generic_needs_coupling
+        term match (actual digital/software language, not just a sector
+        product-name coupling term on its own), or a genuine
+        _lookup_cpv PASS/INFERRED_FIT (an explicit, vetted CPV list entry)
+        -- not gate2_type_of_work's weaker "CPV unclassified but happens to
+        fall within the sector's broad configured range" fallback, which
+        is corroboration-grade evidence, not proof, for an unsupervised
+        filter with nothing else checking its work.
 
-    Cached by ref (2026-09-06 urgent perf fix): a full Gate 2 evaluation per
+    Cached by ref (2026-09-06 urgent perf fix): a full evaluation per
     award, computed fresh on every page load, took 50+ seconds against the
     live database's ~9,500 award notices. A notice's own text/CPV/sector
     never change once swept, so the result never changes either -- this
@@ -78,16 +94,26 @@ def _is_relevant_award(conn: sqlite3.Connection, row: sqlite3.Row) -> bool:
     if cached is not None:
         return bool(cached["relevant"])
 
-    cpv_additional = json.loads(row["cpv_additional"]) if row["cpv_additional"] else []
-    result = gate2_type_of_work(
-        conn,
-        row["text_blob"] or "",
-        cpv_primary=row["cpv_primary"],
-        cpv_primary_inferred=bool(row["cpv_primary_inferred"]),
-        cpv_additional=cpv_additional,
-        sector=row["sector"],
+    text_blob = row["text_blob"] or ""
+    cpv_primary = row["cpv_primary"]
+
+    terms = conn.execute("SELECT term, category FROM config_gate2_terms").fetchall()
+    has_fail_term = any(t["category"] == "fail" and contains_keyword(text_blob, t["term"]) for t in terms)
+    has_strong_text_signal = any(
+        t["category"] in ("unconditional_pass", "generic_needs_coupling") and contains_keyword(text_blob, t["term"])
+        for t in terms
     )
-    relevant = result.outcome == "PASS"
+
+    cpv_disqualified = False
+    cpv_strong_pass = False
+    if cpv_primary:
+        cpv_outcome, _ = _lookup_cpv(conn, cpv_primary, text_blob)
+        if cpv_outcome == "FAIL":
+            cpv_disqualified = True
+        elif cpv_outcome in ("PASS", "INFERRED_FIT"):
+            cpv_strong_pass = True
+
+    relevant = not has_fail_term and not cpv_disqualified and (has_strong_text_signal or cpv_strong_pass)
     conn.execute(
         "INSERT OR REPLACE INTO award_relevance_cache (ref, relevant) VALUES (?, ?)",
         (row["ref"], int(relevant)),

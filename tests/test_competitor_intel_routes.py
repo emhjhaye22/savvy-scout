@@ -136,6 +136,41 @@ def _insert_irrelevant_award(conn, ref, buyer, sector, supplier_name):
     conn.commit()
 
 
+def _insert_award_bare_coupling_term_only(conn, ref, buyer, sector, supplier_name):
+    """Reproduces the exact live false-positive (2026-09-06): CPV 60120000
+    (Taxi services) isn't a Gate 2 CPV disqualifier, and "transport" is a
+    real coupling term (added for the Rail and Transport sector) that
+    appears in completely generic taxi-contract boilerplate -- no actual
+    digital/software signal anywhere in the text. The real
+    gate2_type_of_work PASSes this (a bare coupling-term match is
+    sufficient there, correctly, for its own human-reviewed use case);
+    _is_relevant_award must not."""
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "INSERT INTO notices (ref, title, buyer, sector, cpv_primary, indicative_value, status, "
+        "source, uk_stage, text_blob, raw_json, first_seen_at, last_swept_at, created_at, updated_at, "
+        "is_award, supplier_name) "
+        "VALUES (?, 'Home to school transport', ?, ?, '60120000', NULL, 'ACTIVE', "
+        "'Find a Tender', 'UK5', 'this contract is for the provision of transport services, awarded "
+        "following a mini competition under the councils dynamic purchasing system', '{}', "
+        "?, ?, ?, ?, 1, ?)",
+        (ref, buyer, sector, now, now, now, now, supplier_name),
+    )
+    conn.commit()
+
+
+def test_bare_coupling_term_match_is_not_relevant(app):
+    conn = _db(app)
+    _insert_award_bare_coupling_term_only(conn, "REF-A", "A Council", "Central and Local Government", "SKYLINE TAXIS")
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel")
+    assert b"SKYLINE TAXIS" not in resp.data
+
+    resp_all = client.get("/competitor-intel?show=all")
+    assert b"SKYLINE TAXIS" in resp_all.data
+
+
 def test_competitors_tab_filters_out_irrelevant_suppliers_by_default(app):
     conn = _db(app)
     _insert_award(conn, "REF-A", "A Buyer", "Fintech", "Acme Ltd", "10000 GBP")
@@ -369,10 +404,11 @@ def test_detail_page_shows_no_match_found(app, monkeypatch):
 
 
 def test_is_relevant_award_caches_by_ref(app, monkeypatch):
-    """2026-09-06 urgent perf fix: a full Gate 2 evaluation per award,
+    """2026-09-06 urgent perf fix: a full relevance evaluation per award,
     recomputed on every single page load, took 50+ seconds against the live
     database's ~9,500 award notices. Confirms a second call for the same
-    ref hits the cache instead of calling gate2_type_of_work again."""
+    ref hits the cache instead of recomputing (spying on _lookup_cpv, the
+    DB-querying step _is_relevant_award actually calls)."""
     conn = _db(app)
     _insert_award(conn, "REF-A", "A Buyer", "Fintech", "Acme Ltd", "10000 GBP")
     row = conn.execute("SELECT * FROM notices WHERE ref = 'REF-A'").fetchone()
@@ -380,13 +416,13 @@ def test_is_relevant_award_caches_by_ref(app, monkeypatch):
     calls = []
     import savvy_scout.dashboard.routes.competitor_intel as ci_module
 
-    real_gate2 = ci_module.gate2_type_of_work
+    real_lookup_cpv = ci_module._lookup_cpv
 
-    def spy_gate2(*args, **kwargs):
+    def spy_lookup_cpv(*args, **kwargs):
         calls.append(1)
-        return real_gate2(*args, **kwargs)
+        return real_lookup_cpv(*args, **kwargs)
 
-    monkeypatch.setattr(ci_module, "gate2_type_of_work", spy_gate2)
+    monkeypatch.setattr(ci_module, "_lookup_cpv", spy_lookup_cpv)
 
     first = _is_relevant_award(conn, row)
     second = _is_relevant_award(conn, row)
