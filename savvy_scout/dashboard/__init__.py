@@ -12,7 +12,7 @@ from savvy_scout.config import Settings
 from savvy_scout.dashboard.auth import auth_bp, get_db, login_manager
 from savvy_scout.dashboard.notifications import get_notification_context, get_sidebar_stage_counts
 from savvy_scout.dashboard.routes.admin import admin_bp
-from savvy_scout.dashboard.routes.competitor_intel import competitor_intel_bp
+from savvy_scout.dashboard.routes.competitor_intel import _parse_gbp, competitor_intel_bp
 from savvy_scout.dashboard.routes.draft_assist import draft_assist_bp
 from savvy_scout.dashboard.routes.home import home_bp
 from savvy_scout.dashboard.routes.queues import queues_bp
@@ -53,6 +53,23 @@ def create_app(settings: Settings) -> Flask:
             return json.loads(value)
         except (ValueError, TypeError):
             return []
+
+    @app.template_filter("gbp")
+    def gbp_filter(value):
+        """Formats an indicative_value string ("250000 GBP", "833156.96
+        GBP") as "£250,000", the same way Competitor Intel/Draft assist/the
+        Overview already show money -- found 2026-09-06: Approval Queue,
+        All Opportunities, notice detail, Shortlists, and Admin's client
+        matches all dumped the raw OCDS-style string instead. Returns the
+        original value unchanged if it doesn't parse (still shows real
+        data rather than hiding it), or None if there's nothing to show so
+        templates' existing `{{ ... or '—' }}` fallback keeps working."""
+        if not value:
+            return None
+        parsed = _parse_gbp(value)
+        if parsed is None:
+            return value
+        return f"£{parsed:,.0f}"
 
     login_manager.init_app(app)
     app.register_blueprint(auth_bp)

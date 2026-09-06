@@ -159,7 +159,7 @@
           <td>{{ c.title | truncate(50, True, '…') }}</td>
           <td style="color:var(--text-muted);">{{ c.buyer or '—' }}</td>
           <td>{% if c.sector %}<span style="font-size:11px; padding:2px 6px; border-radius:4px; background:var(--surface-alt); color:var(--text);">{{ c.sector }}</span>{% endif %}</td>
-          <td style="color:var(--text-muted); white-space:nowrap;">{{ c.indicative_value or '—' }}</td>
+          <td style="color:var(--text-muted); white-space:nowrap;">{{ (c.indicative_value | gbp) or '—' }}</td>
           <td style="color:var(--text-muted); white-space:nowrap;">{{ c.win_date[:10] if c.win_date else '—' }}</td>
           <td style="color:var(--text-muted); font-size:12px;">
             {% if c.contact_name or c.contact_email or c.contact_phone %}

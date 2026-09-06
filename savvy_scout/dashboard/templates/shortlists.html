@@ -49,7 +49,7 @@
           <td style="font-size:12px; color:var(--text-muted); max-width:180px;">{{ item.buyer or 'UNVERIFIED' }}</td>
           <td style="font-size:12px;">{% if item.sector %}<span style="font-size:11px; padding:2px 6px; border-radius:4px; background:var(--surface-alt); color:var(--text);">{{ item.sector }}</span>{% else %}—{% endif %}</td>
           <td style="font-size:12px; white-space:nowrap;">{{ item.status }}</td>
-          <td style="font-size:12px; color:var(--text-muted); white-space:nowrap;">{{ item.indicative_value or 'Not stated' }}</td>
+          <td style="font-size:12px; color:var(--text-muted); white-space:nowrap;">{{ (item.indicative_value | gbp) or 'Not stated' }}</td>
           <td style="font-size:12px; white-space:nowrap;">{{ item.deadline[:10] if item.deadline else '—' }}</td>
           <td style="font-size:12px; color:var(--text-muted); white-space:nowrap;">{{ item.added_at[:10] }}</td>
           <td>

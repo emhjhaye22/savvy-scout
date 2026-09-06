@@ -88,7 +88,7 @@
       </div>
       <div class="meta-item">
         <div class="meta-label">Indicative Value</div>
-        <div class="meta-value">{{ notice['indicative_value'] or 'Not stated' }}</div>
+        <div class="meta-value">{{ (notice['indicative_value'] | gbp) or 'Not stated' }}</div>
       </div>
       <div class="meta-item">
         <div class="meta-label">Deadline</div>
@@ -294,7 +294,7 @@
       <div class="cb-num">2</div>
       <div>
         <div class="cb-title">Key Terms</div>
-        <div class="cb-body">Indicative Value: {{ notice['indicative_value'] or 'Not stated' }}{% if notice['value_amount_gross'] %} ({{ notice['value_amount_gross'] }} inc. VAT){% endif %}</div>
+        <div class="cb-body">Indicative Value: {{ (notice['indicative_value'] | gbp) or 'Not stated' }}{% if notice['value_amount_gross'] %} ({{ notice['value_amount_gross'] }} inc. VAT){% endif %}</div>
         <div class="cb-body">Deadline: {{ notice['deadline'][:10] if notice['deadline'] else '—' }}</div>
         <div class="cb-body">Tender Status: {{ notice['tender_status'] or '—' }}</div>
         <div class="cb-body">Above Threshold: {{ 'Yes' if notice['above_threshold'] else ('No' if notice['above_threshold'] is not none else '—') }} · Category: {{ notice['main_procurement_category'] or '—' }}</div>

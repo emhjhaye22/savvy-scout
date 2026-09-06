@@ -152,7 +152,7 @@
           <span class="notice-ref"><a href="{{ url_for('queues.notice_detail', notice_id=n['id']) }}" title="View full detail">{{ n['ref'] }}</a></span>
           {{ gate_badge(outcome) }}
           {% if n['uk_stage'] and n['uk_stage'] != 'UNVERIFIED' %}<span class="badge badge-stage">{{ n['uk_stage'] }}</span>{% endif %}
-          {% if n['indicative_value'] %}<span class="meta-chip">{{ n['indicative_value'] }}</span>{% endif %}
+          {% if n['indicative_value'] %}<span class="meta-chip">{{ n['indicative_value'] | gbp }}</span>{% endif %}
         </div>
         <div class="notice-title">
           <a href="{{ url_for('queues.notice_detail', notice_id=n['id']) }}">{{ n['title'] }}</a>
@@ -227,7 +227,7 @@
         <div class="notice-meta">
           <span class="meta-chip buyer">{{ n['buyer'] or 'UNVERIFIED' }}</span>
           {% if n['sector'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['sector'] }}</span>{% endif %}
-          {% if n['indicative_value'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['indicative_value'] }}</span>{% endif %}
+          {% if n['indicative_value'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['indicative_value'] | gbp }}</span>{% endif %}
           {% if n['deadline'] %}<span class="meta-sep">·</span><span class="deadline-chip {{ n['deadline_class'] }}">🗓 {{ n['deadline'][:10] }}</span>{% endif %}
         </div>
         {% if n['overall_rating'] %}
@@ -293,7 +293,7 @@
         <div class="notice-meta">
           <span class="meta-chip buyer">{{ n['buyer'] or 'UNVERIFIED' }}</span>
           {% if n['owner'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['owner'] }}</span>{% endif %}
-          {% if n['indicative_value'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['indicative_value'] }}</span>{% endif %}
+          {% if n['indicative_value'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['indicative_value'] | gbp }}</span>{% endif %}
           {% if n['deadline'] %}<span class="meta-sep">·</span><span class="deadline-chip {{ n['deadline_class'] }}">🗓 {{ n['deadline'][:10] }}</span>{% endif %}
         </div>
         {% if n['overall_reasoning'] %}

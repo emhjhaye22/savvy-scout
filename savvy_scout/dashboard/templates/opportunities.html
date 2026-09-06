@@ -215,7 +215,7 @@
           </div>
         </td>
         <td style="font-size: 12px; max-width: 160px; color: var(--text-muted);">{{ n['buyer'] | truncate(35, True, '…') if n['buyer'] else 'UNVERIFIED' }}</td>
-        <td style="font-size: 12px; white-space: nowrap; color: var(--text-muted);">{{ n['indicative_value'] or '—' }}</td>
+        <td style="font-size: 12px; white-space: nowrap; color: var(--text-muted);">{{ (n['indicative_value'] | gbp) or '—' }}</td>
         <td>
           {% if n['uk_stage'] and n['uk_stage'] != 'UNVERIFIED' %}
             <span class="badge badge-stage">{{ n['uk_stage'] }}</span>
@@ -258,7 +258,7 @@
     </div>
     <div class="detail-row"><div class="detail-label">Buyer</div>{{ selected_notice['buyer'] or 'UNVERIFIED' }}</div>
     <div class="detail-row"><div class="detail-label">Sector / Owner</div>{{ selected_notice['sector'] or '—' }} {% if selected_notice['owner'] %}· {{ selected_notice['owner'] }}{% endif %}</div>
-    <div class="detail-row"><div class="detail-label">Indicative value</div>{{ selected_notice['indicative_value'] or 'Not stated' }}</div>
+    <div class="detail-row"><div class="detail-label">Indicative value</div>{{ (selected_notice['indicative_value'] | gbp) or 'Not stated' }}</div>
     <div class="detail-row"><div class="detail-label">Deadline</div>{{ selected_notice['deadline'][:10] if selected_notice['deadline'] else '—' }}</div>
     {% if selected_notice['headline_reason'] %}
     <div class="detail-row"><div class="detail-label">Gate outcome</div>{{ selected_notice['headline_outcome'] }} — {{ selected_notice['headline_reason'] }}</div>

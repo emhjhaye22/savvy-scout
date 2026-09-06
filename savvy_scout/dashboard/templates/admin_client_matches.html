@@ -53,7 +53,7 @@
           <td style="color:var(--text-muted);">{{ m['buyer'] or '—' }}</td>
           <td style="font-family:monospace; font-size:12px; color:var(--text-muted);">{{ m['cpv_primary'] or '—' }}</td>
           <td>{{ m['uk_stage'] }}</td>
-          <td style="color:var(--text-muted); white-space:nowrap;">{{ m['indicative_value'] or 'Not stated' }}</td>
+          <td style="color:var(--text-muted); white-space:nowrap;">{{ (m['indicative_value'] | gbp) or 'Not stated' }}</td>
           <td style="color:var(--text-muted); white-space:nowrap;">{{ m['evaluated_at'][:10] }}</td>
           <td>
             <span class="cna-status-badge cna-status-{{ m['action_status'] }}">{{ m['action_status'].title() }}</span>
