@@ -118,6 +118,77 @@ def test_watch_toggle_round_trips(app):
     assert row is None
 
 
+def _insert_award_with_date(conn, ref, buyer, sector, supplier_name, indicative_value, first_seen_at):
+    conn.execute(
+        "INSERT INTO notices (ref, title, buyer, sector, cpv_primary, indicative_value, status, "
+        "source, uk_stage, raw_json, first_seen_at, last_swept_at, created_at, updated_at, is_award, supplier_name) "
+        "VALUES (?, 'An awarded contract', ?, ?, '72500000', ?, 'ACTIVE', 'Find a Tender', 'UK5', "
+        "'{}', ?, ?, ?, ?, 1, ?)",
+        (ref, buyer, sector, indicative_value, first_seen_at, first_seen_at, first_seen_at, first_seen_at, supplier_name),
+    )
+    conn.commit()
+
+
+def test_competitor_detail_requires_login(app):
+    client = app.test_client()
+    resp = client.get("/competitor-intel/detail?name=Acme Ltd")
+    assert resp.status_code in (302, 401)
+
+
+def test_competitor_detail_404s_for_unknown_supplier(app):
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel/detail?name=Nobody Ever Won As This")
+    assert resp.status_code == 404
+
+
+def test_competitor_detail_shows_stats_and_tabs(app):
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "Buyer One", "Fintech", "Acme Ltd", "250000 GBP")
+    _insert_award(conn, "REF-B", "Buyer Two", "Aviation", "Acme Ltd", "150000 GBP")
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel/detail?name=Acme Ltd")
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    assert "Acme Ltd" in body
+    assert "£400,000" in body  # 250000 + 150000
+    assert "Buyer One" in body
+    assert "Buyer Two" in body
+    assert "Fintech" in body
+    assert "Aviation" in body
+    assert "All Contracts" in body and "Buyers" in body and "Sectors" in body
+
+
+def test_competitor_detail_chart_buckets_by_month(app):
+    conn = _db(app)
+    _insert_award_with_date(conn, "REF-A", "Buyer One", "Fintech", "Acme Ltd", "100000 GBP", "2026-01-15T00:00:00+00:00")
+    _insert_award_with_date(conn, "REF-B", "Buyer Two", "Fintech", "Acme Ltd", "50000 GBP", "2026-01-20T00:00:00+00:00")
+    _insert_award_with_date(conn, "REF-C", "Buyer Three", "Fintech", "Acme Ltd", "75000 GBP", "2026-03-01T00:00:00+00:00")
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel/detail?name=Acme Ltd")
+    body = resp.data.decode()
+    assert "Jan 2026" in body
+    assert "Mar 2026" in body
+    assert "£150,000" in body  # Jan bucket: 100000 + 50000
+    assert "£75,000" in body  # Mar bucket
+
+
+def test_competitor_detail_watch_toggle_links_back_to_detail_page(app):
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "A Buyer", "Fintech", "Acme Ltd", "10000 GBP")
+    client = _logged_in_client(app)
+
+    resp = client.post(
+        "/competitor-intel/watch",
+        data={"supplier_name": "Acme Ltd", "next": "/competitor-intel/detail?name=Acme Ltd"},
+    )
+    assert resp.status_code == 302
+    assert resp.headers["Location"] == "/competitor-intel/detail?name=Acme%20Ltd"
+    row = conn.execute("SELECT * FROM watched_competitors WHERE supplier_name = 'Acme Ltd'").fetchone()
+    assert row is not None
+
+
 class TestParseGbp:
     def test_parses_plain_integer(self):
         assert _parse_gbp("250000 GBP") == 250000.0

@@ -11,14 +11,9 @@ from flask import Blueprint, render_template
 from flask_login import login_required
 
 from savvy_scout.dashboard.auth import get_db
-from savvy_scout.dashboard.charts import bar_chart_series
+from savvy_scout.dashboard.charts import MONTH_LABELS, bar_chart_series
 
 signals_bp = Blueprint("signals", __name__)
-
-MONTH_LABELS = (
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-)
 
 
 def _renewals_by_month(signals: list[dict], months_ahead: int = 12) -> list[dict]:

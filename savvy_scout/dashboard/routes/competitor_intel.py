@@ -20,10 +20,11 @@ import re
 import sqlite3
 from datetime import datetime, timezone
 
-from flask import Blueprint, redirect, render_template, request, url_for
+from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from savvy_scout.dashboard.auth import get_db
+from savvy_scout.dashboard.charts import MONTH_LABELS, bar_chart_series
 
 competitor_intel_bp = Blueprint("competitor_intel", __name__)
 
@@ -82,6 +83,81 @@ def _competitors(conn: sqlite3.Connection):
     return out
 
 
+def _competitor_detail(conn: sqlite3.Connection, supplier_name: str) -> dict | None:
+    """Per-competitor drill-down (2026-09-06 UI alignment, modeled on
+    Contracts Advance's competitor detail page): the same award rows the
+    main grid already aggregates, cut three ways -- by buyer, by sector,
+    and by month -- plus a real chart instead of just totals. Returns None
+    if this supplier has no award notices, so the route can 404 rather
+    than render an empty page for a typo'd or stale name."""
+    rows = conn.execute(
+        """
+        SELECT ref, title, buyer, sector, indicative_value,
+               COALESCE(published_at, first_seen_at) AS win_date
+        FROM notices
+        WHERE is_award = 1 AND supplier_name = ?
+        ORDER BY win_date DESC
+        """,
+        (supplier_name,),
+    ).fetchall()
+    if not rows:
+        return None
+
+    contracts = []
+    by_buyer: dict[str, dict] = {}
+    by_sector: dict[str, dict] = {}
+    monthly: dict[tuple[int, int], float] = {}
+    priced_total = 0.0
+    priced_count = 0
+
+    for r in rows:
+        parsed = _parse_gbp(r["indicative_value"])
+        contracts.append(
+            {
+                "ref": r["ref"], "title": r["title"], "buyer": r["buyer"],
+                "sector": r["sector"], "indicative_value": r["indicative_value"],
+                "win_date": r["win_date"],
+            }
+        )
+        if parsed is not None:
+            priced_total += parsed
+            priced_count += 1
+
+        if r["buyer"]:
+            b = by_buyer.setdefault(r["buyer"], {"buyer": r["buyer"], "count": 0, "priced_total": 0.0})
+            b["count"] += 1
+            b["priced_total"] += parsed or 0.0
+        if r["sector"]:
+            s = by_sector.setdefault(r["sector"], {"sector": r["sector"], "count": 0, "priced_total": 0.0})
+            s["count"] += 1
+            s["priced_total"] += parsed or 0.0
+        if r["win_date"]:
+            try:
+                d = datetime.fromisoformat(r["win_date"])
+                key = (d.year, d.month)
+                monthly[key] = monthly.get(key, 0.0) + (parsed or 0.0)
+            except ValueError:
+                pass
+
+    chart = []
+    if monthly:
+        chart = bar_chart_series(
+            [(f"{MONTH_LABELS[month - 1]} {year}", monthly[(year, month)]) for year, month in sorted(monthly)]
+        )
+
+    return {
+        "supplier_name": supplier_name,
+        "contracts": contracts,
+        "award_count": len(rows),
+        "priced_total": priced_total,
+        "priced_count": priced_count,
+        "by_buyer": sorted(by_buyer.values(), key=lambda x: x["count"], reverse=True),
+        "by_sector": sorted(by_sector.values(), key=lambda x: x["count"], reverse=True),
+        "chart": chart,
+        "watched": supplier_name in _watched_names(conn),
+    }
+
+
 def _buyers(conn: sqlite3.Connection):
     rows = conn.execute(
         """
@@ -122,6 +198,17 @@ def index():
     )
 
 
+@competitor_intel_bp.route("/competitor-intel/detail")
+@login_required
+def detail():
+    conn = get_db()
+    supplier_name = request.args.get("name", "")
+    detail_data = _competitor_detail(conn, supplier_name)
+    if detail_data is None:
+        abort(404)
+    return render_template("competitor_detail.html", **detail_data)
+
+
 @competitor_intel_bp.route("/competitor-intel/watch", methods=["POST"])
 @login_required
 def toggle_watch():
@@ -141,4 +228,4 @@ def toggle_watch():
             (supplier_name, current_user.display_name, datetime.now(timezone.utc).isoformat()),
         )
     conn.commit()
-    return redirect(url_for("competitor_intel.index", tab="competitors"))
+    return redirect(request.form.get("next") or url_for("competitor_intel.index", tab="competitors"))

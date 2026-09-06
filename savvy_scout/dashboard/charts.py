@@ -6,6 +6,12 @@ and meter-fill bar already in home.html. This module only computes
 normalized heights; the template renders a flex row of divs."""
 
 
+MONTH_LABELS = (
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+)
+
+
 def bar_chart_series(buckets: list[tuple[str, float]]) -> list[dict]:
     """buckets: [(label, value), ...] in display order. Returns
     [{"label", "value", "pct"}, ...] where pct is that bucket's value as a

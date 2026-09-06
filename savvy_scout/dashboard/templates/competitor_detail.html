@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}{{ supplier_name }} — Competitor Intel — Savvy Scout{% endblock %}
+{% block page_title %}Competitor Intel{% endblock %}
+{% block page_subtitle %}<div class="topbar-subtitle">{{ supplier_name }}</div>{% endblock %}
+
+{% block content %}
+<style>
+  .cd-breadcrumb { font-size: 12.5px; color: var(--text-muted); margin-bottom: 8px; }
+  .cd-breadcrumb a { color: var(--text-muted); text-decoration: none; }
+  .cd-breadcrumb a:hover { color: var(--primary); }
+  .cd-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .cd-header h2 { font-size: 19px; color: var(--navy); }
+  .cd-watch-btn {
+    padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface-alt); color: var(--text-muted); cursor: pointer; font-size: 13px;
+  }
+  .cd-watch-btn.watched { background: rgba(59,110,165,0.15); border-color: var(--primary); color: var(--primary); }
+
+  .cd-stat-row { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+  .cd-stat-card { flex: 1; min-width: 160px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .cd-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 700; margin-bottom: 6px; }
+  .cd-stat-value { font-size: 18px; font-weight: 700; color: var(--text); }
+
+  .cd-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .cd-tab { padding: 9px 16px; font-size: 13px; font-weight: 600; color: var(--text-muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
+  .cd-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .cd-pane { display: none; }
+  .cd-pane.active { display: block; }
+
+  .cd-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cd-table thead th {
+    padding: 10px 14px; background: var(--surface-alt); border-bottom: 2px solid var(--border);
+    text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--text-muted);
+  }
+  .cd-table tbody tr { border-bottom: 1px solid var(--border); }
+  .cd-table td { padding: 10px 14px; }
+</style>
+
+<div class="cd-breadcrumb"><a href="{{ url_for('competitor_intel.index') }}">Competitor Intel</a> &rsaquo; {{ supplier_name }}</div>
+
+<div class="cd-header">
+  <h2>{{ supplier_name }}</h2>
+  <form method="post" action="{{ url_for('competitor_intel.toggle_watch') }}">
+    <input type="hidden" name="supplier_name" value="{{ supplier_name }}">
+    <input type="hidden" name="next" value="{{ url_for('competitor_intel.detail', name=supplier_name) }}">
+    <button type="submit" class="cd-watch-btn {% if watched %}watched{% endif %}">{% if watched %}★ Watching{% else %}☆ Watch this competitor{% endif %}</button>
+  </form>
+</div>
+
+<div class="cd-stat-row">
+  <div class="cd-stat-card">
+    <div class="cd-stat-label">Total awards</div>
+    <div class="cd-stat-value">{{ award_count }}</div>
+  </div>
+  <div class="cd-stat-card">
+    <div class="cd-stat-label">Recorded value</div>
+    <div class="cd-stat-value">{% if priced_count %}£{{ "{:,.0f}".format(priced_total) }}{% else %}—{% endif %}</div>
+    {% if priced_count %}<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">across {{ priced_count }} of {{ award_count }} award{{ 's' if award_count != 1 else '' }} with a recorded value</div>{% endif %}
+  </div>
+  <div class="cd-stat-card">
+    <div class="cd-stat-label">Buyers won from</div>
+    <div class="cd-stat-value">{{ by_buyer | length }}</div>
+  </div>
+  <div class="cd-stat-card">
+    <div class="cd-stat-label">Sectors active in</div>
+    <div class="cd-stat-value">{{ by_sector | length }}</div>
+  </div>
+</div>
+
+{% if chart %}
+<div class="card" style="padding: 18px 18px 6px;">
+  <div style="font-size:13px; font-weight:700; color:var(--navy); margin-bottom:4px;">Value of contracts (£) by month won</div>
+  <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Based on awards with a recorded value and a known date</div>
+  <div class="bar-chart">
+    {% for m in chart %}
+    <div class="bar-chart-col">
+      <div class="bar-chart-value">{% if m.value %}£{{ "{:,.0f}".format(m.value) }}{% endif %}</div>
+      <div class="bar-chart-bar" style="height: {{ m.pct }}%;"></div>
+      <div class="bar-chart-label">{{ m.label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="cd-tabs">
+  <a class="cd-tab active" data-pane="contracts">All Contracts</a>
+  <a class="cd-tab" data-pane="buyers">Buyers</a>
+  <a class="cd-tab" data-pane="sectors">Sectors</a>
+</div>
+
+<div class="card" style="overflow-x: auto;">
+  <div class="cd-pane active" id="pane-contracts">
+    <table class="cd-table">
+      <thead><tr><th>Ref</th><th>Title</th><th>Buyer</th><th>Sector</th><th>Value</th><th>Won</th></tr></thead>
+      <tbody>
+        {% for c in contracts %}
+        <tr>
+          <td style="font-family:monospace; font-size:11px; color:var(--text-muted);">{{ c.ref }}</td>
+          <td>{{ c.title | truncate(50, True, '…') }}</td>
+          <td style="color:var(--text-muted);">{{ c.buyer or '—' }}</td>
+          <td>{% if c.sector %}<span style="font-size:11px; padding:2px 6px; border-radius:4px; background:var(--surface-alt); color:var(--text);">{{ c.sector }}</span>{% endif %}</td>
+          <td style="color:var(--text-muted); white-space:nowrap;">{{ c.indicative_value or '—' }}</td>
+          <td style="color:var(--text-muted); white-space:nowrap;">{{ c.win_date[:10] if c.win_date else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="cd-pane" id="pane-buyers">
+    <table class="cd-table">
+      <thead><tr><th>Buyer</th><th>Awards</th><th>Recorded value</th></tr></thead>
+      <tbody>
+        {% for b in by_buyer %}
+        <tr>
+          <td>{{ b.buyer }}</td>
+          <td>{{ b.count }}</td>
+          <td style="color:var(--text-muted);">{% if b.priced_total %}£{{ "{:,.0f}".format(b.priced_total) }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="cd-pane" id="pane-sectors">
+    <table class="cd-table">
+      <thead><tr><th>Sector</th><th>Awards</th><th>Recorded value</th></tr></thead>
+      <tbody>
+        {% for s in by_sector %}
+        <tr>
+          <td>{{ s.sector }}</td>
+          <td>{{ s.count }}</td>
+          <td style="color:var(--text-muted);">{% if s.priced_total %}£{{ "{:,.0f}".format(s.priced_total) }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.cd-tab').forEach(tab => {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.cd-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.cd-pane').forEach(p => p.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById('pane-' + this.getAttribute('data-pane')).classList.add('active');
+  });
+});
+</script>
+{% endblock %}

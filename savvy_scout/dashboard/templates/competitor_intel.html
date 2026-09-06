@@ -63,7 +63,7 @@
     {% for c in competitors %}
     <div class="ci-card">
       <div class="ci-card-top">
-        <div class="ci-card-name">{{ c.supplier_name }}</div>
+        <a class="ci-card-name" href="{{ url_for('competitor_intel.detail', name=c.supplier_name) }}" style="text-decoration:none; color:var(--navy);">{{ c.supplier_name }}</a>
         <form method="post" action="{{ url_for('competitor_intel.toggle_watch') }}">
           <input type="hidden" name="supplier_name" value="{{ c.supplier_name }}">
           <button type="submit" class="ci-watch-btn {% if c.watched %}watched{% endif %}" title="{% if c.watched %}Watching{% else %}Watch this competitor{% endif %}">{% if c.watched %}★{% else %}☆{% endif %}</button>
