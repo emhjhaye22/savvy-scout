@@ -27,13 +27,20 @@
   .kpi-card-link .kpi-card { transition: border-color 0.15s; }
   .kpi-card-link:hover .kpi-card { border-color: var(--primary); }
 
-  /* Row of 2 panels, table (wider) + donut (narrower). */
-  .panel-grid-wide { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 10px; margin-bottom: 6px; align-items: stretch; }
-  .panel-grid-wide > .panel { min-width: 0; }
-
-  /* Row of 2 equal panels. */
-  .panel-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 0; }
-  .panel-grid > .panel { min-width: 0; }
+  /* Every panel below the KPI rows packs into one grid instead of each
+     stacking full-width one after another (direct feedback 2026-09-06:
+     the page was too "elongated" -- wanted 3-4 panels per row, not a long
+     single column). auto-fit + minmax lets the browser fit as many
+     ~300px+ columns as the viewport allows (typically 3-4 on a laptop,
+     more on a wide monitor) without a fixed column count that would
+     either cram or under-fill different screen widths. align-items:start
+     so a short panel (a donut) doesn't stretch to match a tall neighbor
+     (a table) -- panels keep their own natural height. .span-2 is for the
+     three panels with real width needs (two tables, one 6-bar chart);
+     everything else takes one column. */
+  .overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; margin-bottom: 6px; align-items: start; }
+  .overview-grid > .panel { min-width: 0; }
+  .overview-grid > .span-2 { grid-column: span 2; }
 
   .panel { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.04); padding: 9px 12px; }
   .panel-head { margin-bottom: 5px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
@@ -178,8 +185,8 @@
       </a>
     </div>
 
-    <div class="panel-grid-wide">
-      <div class="panel" id="panel-sector-performance">
+    <div class="overview-grid">
+      <div class="panel span-2" id="panel-sector-performance">
         <div class="panel-head">
           <div>
             <div class="panel-title">Sector performance</div>
@@ -247,9 +254,8 @@
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="panel" style="margin-bottom: 6px;" id="panel-notices-by-source">
+      <div class="panel span-2" id="panel-notices-by-source">
       <div class="panel-head">
         <div>
           <div class="panel-title">Notices by source</div>
@@ -294,7 +300,6 @@
       </div>
     </div>
 
-    <div class="panel-grid">
       <div class="panel">
         <div class="panel-head">
           <div class="panel-title">Top buyers</div>
@@ -332,11 +337,10 @@
           {% endif %}
         </div>
       </div>
-    </div>
 
-    <div class="panel" style="margin-bottom: 6px;">
-      <div class="panel-head">
-        <div class="panel-title">Market size by sector</div>
+      <div class="panel span-2">
+        <div class="panel-head">
+          <div class="panel-title">Market size by sector</div>
         <div class="panel-subtitle">Aggregated award value across every tracked sector</div>
       </div>
       {% set priced_sectors = sector_spend | selectattr('value', 'gt', 0) | list %}
@@ -422,6 +426,7 @@
       <div class="panel-note">
         <strong>{{ triage_outcomes[1].value if triage_outcomes|length > 1 else 0 }}</strong> flagged notices need review before moving on.
       </div>
+    </div>
     </div>
   </div>
 </div>
