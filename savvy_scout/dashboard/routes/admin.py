@@ -3,6 +3,7 @@ log. Restricted to Victoria and Mark, the sole scouting desk since Kanvesh
 and Hammad were consolidated out on 2026-09-01. A bare-bones version now;
 SPEC.md C5 (source tier management, email whitelist) completes it later."""
 
+import json
 import secrets
 from datetime import datetime, timezone
 
@@ -12,6 +13,7 @@ from werkzeug.security import generate_password_hash
 
 from savvy_scout.dashboard.auth import get_db
 from savvy_scout.logging_util import log_audit
+from savvy_scout.triage.client_filter import run_client_triage
 from savvy_scout.workflow.approvals import bring_back_escalated_for_gate_retriage
 from savvy_scout.notifications import NotificationError, send_account_invite_email
 
@@ -118,6 +120,23 @@ def index():
     else:
         tables, editable_columns, corrections = {}, {}, []
     users = conn.execute("SELECT * FROM users ORDER BY display_name").fetchall() if is_admin else []
+    # Clients (2026-09-06): multi-client onboarding, is_admin-only (Mark),
+    # deliberately not has_correction_authority -- Victoria's remit is
+    # Trifork's own rule-correction, not which clients exist on the
+    # platform. Trifork itself has a row (seeded) but no filter to edit
+    # here; its triage is gates.py, untouched by this section.
+    clients = []
+    if is_admin:
+        client_rows = conn.execute("SELECT * FROM clients WHERE name != 'Trifork' ORDER BY name").fetchall()
+        for c in client_rows:
+            filter_row = conn.execute(
+                "SELECT * FROM client_filters WHERE client_id = ?", (c["id"],)
+            ).fetchone()
+            match_count = conn.execute(
+                "SELECT COUNT(*) FROM client_triage_results WHERE client_id = ? AND outcome = 'PASS'",
+                (c["id"],),
+            ).fetchone()[0]
+            clients.append({"client": c, "filter": filter_row, "match_count": match_count})
     # Sectors & Owners row (2026-08-09): the owner picker needs every
     # existing user's name regardless of is_admin -- assigning an *existing*
     # person as a sector's owner is a correction-authority action, only
@@ -155,6 +174,7 @@ def index():
         owner_choices=owner_choices,
         owner_contacts=owner_contacts,
         can_create_users=is_admin,
+        clients=clients,
     )
 
 
@@ -693,6 +713,149 @@ def delete_user(user_id):
 
     flash(f"Removed {row['display_name']}'s account.")
     return redirect(url_for("admin.users_index"))
+
+
+def _client_filter_from_form() -> dict:
+    """Comma-separated free-text fields, not dynamic chip-style inputs --
+    same "keep it simple" principle as the filter design itself. Notice
+    types come from a fixed checkbox list (UK1-UK5), the only field with a
+    real fixed vocabulary."""
+    def _csv_list(field: str) -> list[str]:
+        raw = request.form.get(field, "")
+        return [item.strip() for item in raw.split(",") if item.strip()]
+
+    return {
+        "cpv_prefixes": _csv_list("cpv_prefixes"),
+        "keywords": _csv_list("keywords"),
+        "notice_types": request.form.getlist("notice_types"),
+        "regions": _csv_list("regions"),
+        "min_value": request.form.get("min_value") or None,
+        "max_value": request.form.get("max_value") or None,
+    }
+
+
+@admin_bp.route("/clients/add", methods=["POST"])
+@login_required
+def add_client():
+    if not _is_super_admin():
+        flash("Only the admin account can manage clients.", "error")
+        return redirect(url_for("queues.index"))
+
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Client name is required.", "error")
+        return redirect(url_for("admin.index") + "#group-clients")
+    if name == "Trifork":
+        flash('"Trifork" is reserved for the existing account.', "error")
+        return redirect(url_for("admin.index") + "#group-clients")
+
+    conn = get_db()
+    existing = conn.execute("SELECT 1 FROM clients WHERE name = ?", (name,)).fetchone()
+    if existing:
+        flash(f'A client named "{name}" already exists.', "error")
+        return redirect(url_for("admin.index") + "#group-clients")
+
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "INSERT INTO clients (name, is_active, created_at, created_by) VALUES (?, 1, ?, ?)",
+        (name, now, current_user.display_name),
+    )
+    client_id = conn.execute("SELECT id FROM clients WHERE name = ?", (name,)).fetchone()["id"]
+
+    f = _client_filter_from_form()
+    conn.execute(
+        "INSERT INTO client_filters (client_id, cpv_prefixes, keywords, notice_types, regions, "
+        "min_value, max_value, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            client_id, json.dumps(f["cpv_prefixes"]), json.dumps(f["keywords"]),
+            json.dumps(f["notice_types"]), json.dumps(f["regions"]),
+            f["min_value"], f["max_value"], now, current_user.display_name,
+        ),
+    )
+    conn.commit()
+
+    matched = run_client_triage(conn, client_id)
+    flash(f'Added "{name}" and evaluated {matched} existing notices against its filter.')
+    return redirect(url_for("admin.index") + "#group-clients")
+
+
+@admin_bp.route("/clients/<int:client_id>/update-filter", methods=["POST"])
+@login_required
+def update_client_filter(client_id):
+    if not _is_super_admin():
+        flash("Only the admin account can manage clients.", "error")
+        return redirect(url_for("queues.index"))
+
+    conn = get_db()
+    client = conn.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
+    if client is None or client["name"] == "Trifork":
+        flash("Client not found.", "error")
+        return redirect(url_for("admin.index") + "#group-clients")
+
+    now = datetime.now(timezone.utc).isoformat()
+    f = _client_filter_from_form()
+    conn.execute(
+        "UPDATE client_filters SET cpv_prefixes = ?, keywords = ?, notice_types = ?, regions = ?, "
+        "min_value = ?, max_value = ?, updated_at = ?, updated_by = ? WHERE client_id = ?",
+        (
+            json.dumps(f["cpv_prefixes"]), json.dumps(f["keywords"]), json.dumps(f["notice_types"]),
+            json.dumps(f["regions"]), f["min_value"], f["max_value"], now, current_user.display_name,
+            client_id,
+        ),
+    )
+    conn.commit()
+
+    matched = run_client_triage(conn, client_id)
+    flash(f'Updated "{client["name"]}"\'s filter and re-evaluated every notice -- {matched} matched or checked.')
+    return redirect(url_for("admin.index") + "#group-clients")
+
+
+@admin_bp.route("/clients/<int:client_id>/toggle-active", methods=["POST"])
+@login_required
+def toggle_client_active(client_id):
+    if not _is_super_admin():
+        flash("Only the admin account can manage clients.", "error")
+        return redirect(url_for("queues.index"))
+
+    conn = get_db()
+    client = conn.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
+    if client is None or client["name"] == "Trifork":
+        flash("Client not found.", "error")
+        return redirect(url_for("admin.index") + "#group-clients")
+
+    conn.execute("UPDATE clients SET is_active = ? WHERE id = ?", (0 if client["is_active"] else 1, client_id))
+    conn.commit()
+    flash(f'{"Paused" if client["is_active"] else "Reactivated"} "{client["name"]}".')
+    return redirect(url_for("admin.index") + "#group-clients")
+
+
+@admin_bp.route("/clients/<int:client_id>/matches")
+@login_required
+def client_matches(client_id):
+    """Read-only proof that a client's filter actually works, against real
+    swept notices -- deliberately not a full Approval Queue/workflow like
+    Trifork has. A brand-new client doesn't need that depth on day one;
+    this exists to validate the filter before ever investing in it."""
+    if not _is_super_admin():
+        flash("Only the admin account can manage clients.", "error")
+        return redirect(url_for("queues.index"))
+
+    conn = get_db()
+    client = conn.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
+    if client is None or client["name"] == "Trifork":
+        flash("Client not found.", "error")
+        return redirect(url_for("admin.index") + "#group-clients")
+
+    matches = conn.execute(
+        "SELECT n.id, n.ref, n.title, n.buyer, n.cpv_primary, n.uk_stage, n.buyer_region, "
+        "n.indicative_value, r.reason, r.evaluated_at "
+        "FROM client_triage_results r JOIN notices n ON n.id = r.notice_id "
+        "WHERE r.client_id = ? AND r.outcome = 'PASS' "
+        "ORDER BY r.evaluated_at DESC LIMIT 500",
+        (client_id,),
+    ).fetchall()
+
+    return render_template("admin_client_matches.html", client=client, matches=matches)
 
 
 @admin_bp.route("/retriage-escalated", methods=["POST"])

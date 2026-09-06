@@ -15,6 +15,7 @@ from savvy_scout.sources.etendersni import sweep_etendersni
 from savvy_scout.sources.find_a_tender import sweep_find_a_tender
 from savvy_scout.sources.public_contracts_scotland import sweep_public_contracts_scotland
 from savvy_scout.sources.sell2wales import sweep_sell2wales
+from savvy_scout.triage.client_filter import run_client_triage_for_notice
 from savvy_scout.triage.gates import triage_notice
 
 logger = logging.getLogger(__name__)
@@ -165,4 +166,15 @@ def triage_pending(conn: sqlite3.Connection) -> int:
             # a single failure (2026-07-30: found ~289 stuck this way after
             # the scheduled sweep ran alongside other DB activity).
             logger.exception("Triage failed for notice %s; continuing with remaining notices", notice_id)
+
+        try:
+            notice_row = conn.execute("SELECT * FROM notices WHERE id = ?", (notice_id,)).fetchone()
+            if notice_row is not None:
+                run_client_triage_for_notice(conn, notice_row)
+        except Exception:
+            # Multi-client triage (2026-09-06) is a completely separate,
+            # additive evaluation -- a failure here must never affect
+            # Trifork's own triage result above, which has already
+            # committed by this point.
+            logger.exception("Client-filter triage failed for notice %s", notice_id)
     return triaged

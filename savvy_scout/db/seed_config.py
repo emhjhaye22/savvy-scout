@@ -640,6 +640,21 @@ def seed_capability_profile(conn: sqlite3.Connection) -> None:
     )
 
 
+def seed_clients(conn: sqlite3.Connection) -> None:
+    """Trifork gets a row in the new clients table too (2026-09-06), so
+    "which clients exist" has one source of truth -- but its notices are
+    never evaluated through client_filter.py, only through the existing
+    gates.py pipeline. See schema.sql's clients table comment."""
+    if not _table_empty(conn, "clients"):
+        return
+    now = _now()
+    conn.execute(
+        "INSERT INTO clients (name, is_active, created_at, created_by) VALUES ('Trifork', 1, ?, ?)",
+        (now, SEEDED_BY),
+    )
+    conn.commit()
+
+
 def seed_sources(conn: sqlite3.Connection) -> None:
     if not _table_empty(conn, "config_sources"):
         return
@@ -728,3 +743,4 @@ def seed_all(conn: sqlite3.Connection) -> None:
     seed_sources(conn)
     seed_exclusion_terms(conn)
     seed_sector_cpv_scope(conn)
+    seed_clients(conn)

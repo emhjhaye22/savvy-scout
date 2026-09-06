@@ -50,6 +50,7 @@
   {% endif %}
   {% if is_super_admin %}
   <a href="#group-users">Manage Users</a>
+  <a href="#group-clients">Clients</a>
   {% endif %}
 </div>
 
@@ -287,6 +288,131 @@
           {% endif %}
         </td>
       </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{% if is_super_admin %}
+<h3 class="admin-group-title" id="group-clients">Clients</h3>
+
+<div class="card">
+  <div class="card-body">
+    <p style="font-size: 13px; color: var(--text-muted);">
+      A new client gets a simple structured filter (CPV codes, keywords, notice types, regions, value
+      range) evaluated against every notice already swept, and every new notice going forward -- the
+      same shape as a portal's own advanced search. This is completely separate from Trifork's own
+      5-gate + AI system above, which stays exactly as it is. Every configured field must match
+      (AND); any one value within a field is enough (OR). Leave a field blank for "no constraint."
+    </p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2>Add a client</h2>
+  </div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('admin.add_client') }}" style="display: flex; flex-direction: column; gap: 12px;">
+      <div>
+        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Client name</label>
+        <input type="text" name="name" placeholder="e.g. Acme Construction" required style="width: 260px;">
+      </div>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">CPV prefixes (comma-separated)</label>
+          <input type="text" name="cpv_prefixes" placeholder="e.g. 45, 71" style="width: 220px;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Keywords (comma-separated)</label>
+          <input type="text" name="keywords" placeholder="e.g. construction, building works" style="width: 260px;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Regions (comma-separated)</label>
+          <input type="text" name="regions" placeholder="e.g. London, North West" style="width: 220px;">
+        </div>
+      </div>
+      <div>
+        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Notice types</label>
+        <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+          {% for stage in ['UK1', 'UK2', 'UK3', 'UK4', 'UK5'] %}
+          <label style="display: flex; align-items: center; gap: 5px; font-size: 13px;">
+            <input type="checkbox" name="notice_types" value="{{ stage }}"> {{ stage }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: flex-end;">
+        <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Min value (£)</label>
+          <input type="number" name="min_value" step="0.01" style="width: 140px;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Max value (£)</label>
+          <input type="number" name="max_value" step="0.01" style="width: 140px;">
+        </div>
+        <button type="submit" class="btn btn-approve">+ Add client</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2>Clients</h2>
+    <span class="badge badge-count" style="background: var(--info);">{{ clients | length }}</span>
+  </div>
+  <div style="overflow-x: auto;">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Matched notices</th>
+        <th>Filter</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for entry in clients %}
+      <tr>
+        <td style="font-weight: 600;">{{ entry.client.name }}</td>
+        <td>
+          {% if entry.client.is_active %}<span class="badge badge-strong">Active</span>{% else %}<span class="badge badge-unknown">Paused</span>{% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('admin.client_matches', client_id=entry.client.id) }}">{{ entry.match_count }} matched</a>
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('admin.update_client_filter', client_id=entry.client.id) }}" style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <input type="text" name="cpv_prefixes" value="{{ entry.filter.cpv_prefixes | from_json | join(', ') if entry.filter else '' }}" placeholder="CPV prefixes" style="font-size: 12px; padding: 4px 6px; width: 140px;">
+              <input type="text" name="keywords" value="{{ entry.filter.keywords | from_json | join(', ') if entry.filter else '' }}" placeholder="Keywords" style="font-size: 12px; padding: 4px 6px; width: 160px;">
+              <input type="text" name="regions" value="{{ entry.filter.regions | from_json | join(', ') if entry.filter else '' }}" placeholder="Regions" style="font-size: 12px; padding: 4px 6px; width: 140px;">
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+              {% set configured_types = entry.filter.notice_types | from_json if entry.filter else [] %}
+              {% for stage in ['UK1', 'UK2', 'UK3', 'UK4', 'UK5'] %}
+              <label style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                <input type="checkbox" name="notice_types" value="{{ stage }}" {% if stage in configured_types %}checked{% endif %}> {{ stage }}
+              </label>
+              {% endfor %}
+              <input type="number" name="min_value" value="{{ entry.filter.min_value if entry.filter and entry.filter.min_value is not none else '' }}" step="0.01" placeholder="Min £" style="font-size: 12px; padding: 4px 6px; width: 90px;">
+              <input type="number" name="max_value" value="{{ entry.filter.max_value if entry.filter and entry.filter.max_value is not none else '' }}" step="0.01" placeholder="Max £" style="font-size: 12px; padding: 4px 6px; width: 90px;">
+              <button type="submit" class="btn btn-secondary btn-sm">Save &amp; re-evaluate</button>
+            </div>
+          </form>
+        </td>
+        <td class="actions-col">
+          <form method="post" action="{{ url_for('admin.toggle_client_active', client_id=entry.client.id) }}">
+            <button type="submit" class="btn btn-secondary btn-sm">{{ 'Pause' if entry.client.is_active else 'Reactivate' }}</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No clients added yet.</td></tr>
     {% endfor %}
     </tbody>
   </table>

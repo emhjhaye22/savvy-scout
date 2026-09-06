@@ -478,6 +478,58 @@ CREATE TABLE IF NOT EXISTS award_relevance_cache (
     relevant INTEGER NOT NULL
 );
 
+-- Multi-client (2026-09-06): Trifork's own 5-gate + AI capability-fit
+-- system stays exactly as it is, driven by the config_* tables above --
+-- this is deliberately NOT a generalisation of that system. A new client
+-- gets a much simpler structured filter instead (CPV/keywords/notice
+-- type/region/value, the same shape as Find a Tender's own advanced
+-- search), evaluated by triage/client_filter.py, completely independent
+-- of gates.py. Trifork itself gets a row here too (name='Trifork') so
+-- "which clients exist" has one source of truth, but its own notices are
+-- never evaluated through client_filter.py -- see run_client_triage()'s
+-- explicit skip.
+CREATE TABLE IF NOT EXISTS clients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    created_by TEXT NOT NULL
+);
+
+-- One filter row per client. Each field is a JSON array (or NULL/empty to
+-- mean "no constraint on this dimension"); matching is OR within a field
+-- (e.g. any one of several CPV prefixes) and AND across fields (e.g. CPV
+-- match AND region match), same combining rule as a portal's own advanced
+-- search filters.
+CREATE TABLE IF NOT EXISTS client_filters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL UNIQUE REFERENCES clients(id),
+    cpv_prefixes TEXT,
+    keywords TEXT,
+    notice_types TEXT,
+    regions TEXT,
+    min_value REAL,
+    max_value REAL,
+    updated_at TEXT NOT NULL,
+    updated_by TEXT NOT NULL
+);
+
+-- Per-client-per-notice result -- a notice can be in scope for one client
+-- and out of scope for another, so (unlike Trifork's single global
+-- triage_runs row per notice) this needs one row per client per notice.
+CREATE TABLE IF NOT EXISTS client_triage_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL REFERENCES clients(id),
+    notice_id INTEGER NOT NULL REFERENCES notices(id),
+    outcome TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    evaluated_at TEXT NOT NULL,
+    UNIQUE(client_id, notice_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_client_triage_results_client ON client_triage_results(client_id);
+CREATE INDEX IF NOT EXISTS idx_client_triage_results_notice ON client_triage_results(notice_id);
+
 CREATE INDEX IF NOT EXISTS idx_notices_ref ON notices(ref);
 CREATE INDEX IF NOT EXISTS idx_notices_status ON notices(status);
 CREATE INDEX IF NOT EXISTS idx_gate_results_notice ON gate_results(notice_id);

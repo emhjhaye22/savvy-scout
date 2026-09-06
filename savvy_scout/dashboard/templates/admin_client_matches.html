@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ client['name'] }} — Matched notices — Savvy Scout{% endblock %}
+{% block page_title %}Clients{% endblock %}
+{% block page_subtitle %}<div class="topbar-subtitle">{{ client['name'] }} — matched notices</div>{% endblock %}
+
+{% block content %}
+<div class="cd-breadcrumb" style="font-size:12.5px; color:var(--text-muted); margin-bottom:12px;">
+  <a href="{{ url_for('admin.index') }}#group-clients" style="color:var(--text-muted); text-decoration:none;">Admin &rsaquo; Clients</a> &rsaquo; {{ client['name'] }}
+</div>
+
+<div class="ci-note" style="background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; font-size: 12.5px; color: var(--text-muted); line-height: 1.5;">
+  <strong>What this is:</strong> every notice that currently passes {{ client['name'] }}'s filter, most recently evaluated first. This is a read-only proof the filter works -- no approval workflow or reports yet, unlike Trifork's own pipeline.
+</div>
+
+<div class="card" style="overflow-x: auto;">
+  <table class="buyer-table">
+    <thead>
+      <tr><th>Ref</th><th>Title</th><th>Buyer</th><th>CPV</th><th>Stage</th><th>Region</th><th>Value</th><th>Matched</th></tr>
+    </thead>
+    <tbody>
+      {% if matches %}
+        {% for m in matches %}
+        <tr>
+          <td style="font-family:monospace; font-size:11px; color:var(--text-muted);"><a href="{{ url_for('queues.notice_detail', notice_id=m['id']) }}">{{ m['ref'] }}</a></td>
+          <td>{{ m['title'] | truncate(60, True, '…') }}</td>
+          <td style="color:var(--text-muted);">{{ m['buyer'] or '—' }}</td>
+          <td style="font-family:monospace; font-size:12px; color:var(--text-muted);">{{ m['cpv_primary'] or '—' }}</td>
+          <td>{{ m['uk_stage'] }}</td>
+          <td style="color:var(--text-muted);">{{ m['buyer_region'] or '—' }}</td>
+          <td style="color:var(--text-muted); white-space:nowrap;">{{ m['indicative_value'] or 'Not stated' }}</td>
+          <td style="color:var(--text-muted); white-space:nowrap;">{{ m['evaluated_at'][:10] }}</td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="8" style="text-align:center; padding:40px; color:var(--text-muted);">No notices match this filter yet.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
