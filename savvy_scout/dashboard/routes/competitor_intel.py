@@ -18,6 +18,7 @@ than presenting a total as more complete than it is."""
 
 import re
 import sqlite3
+from collections import Counter
 from datetime import datetime, timezone
 
 from flask import Blueprint, abort, current_app, redirect, render_template, request, url_for
@@ -48,6 +49,18 @@ def _parse_gbp(value: str | None) -> float | None:
 
 def _watched_names(conn: sqlite3.Connection) -> set[str]:
     return {r["supplier_name"] for r in conn.execute("SELECT supplier_name FROM watched_competitors").fetchall()}
+
+
+def _normalize_name(name: str | None) -> str:
+    """Case/whitespace-insensitive grouping key for a supplier or buyer name
+    (2026-09-06, found via a live screenshot showing "Softcat Plc" and
+    "Softcat plc" listed as two separate competitors with split award
+    counts -- the same real company recorded with different capitalization
+    across different source portals). Deliberately NOT a fuzzy match: two
+    genuinely different entities that merely share a word ("Constellia
+    Limited" vs "Constellia Public Limited") must stay separate, so only
+    strings identical after case/whitespace normalization merge."""
+    return re.sub(r"\s+", " ", (name or "").strip()).casefold()
 
 
 def _is_relevant_award(conn: sqlite3.Connection, row: sqlite3.Row) -> bool:
@@ -133,12 +146,15 @@ def _competitors(conn: sqlite3.Connection):
     ).fetchall()
 
     by_supplier: dict[str, dict] = {}
+    name_variants: dict[str, Counter] = {}
     for r in rows:
+        key = _normalize_name(r["supplier_name"])
         entry = by_supplier.setdefault(
-            r["supplier_name"],
+            key,
             {"supplier_name": r["supplier_name"], "award_count": 0, "sectors": set(),
              "priced_total": 0.0, "priced_count": 0, "last_win_date": None, "relevant": False},
         )
+        name_variants.setdefault(key, Counter())[r["supplier_name"]] += 1
         entry["award_count"] += 1
         entry["sectors"].add(r["sector"])
         parsed = _parse_gbp(r["indicative_value"])
@@ -151,11 +167,14 @@ def _competitors(conn: sqlite3.Connection):
             entry["relevant"] = True
     conn.commit()  # one commit for the whole batch of relevance-cache writes, not one per row
 
-    watched = _watched_names(conn)
+    watched = {_normalize_name(w) for w in _watched_names(conn)}
     out = []
-    for entry in by_supplier.values():
+    for key, entry in by_supplier.items():
+        # Display the most common exact-casing variant seen, not just
+        # whichever award row happened to be inserted first.
+        entry["supplier_name"] = name_variants[key].most_common(1)[0][0]
         entry["sectors"] = sorted(entry["sectors"])
-        entry["watched"] = entry["supplier_name"] in watched
+        entry["watched"] = key in watched
         out.append(entry)
     out.sort(key=lambda e: e["award_count"], reverse=True)
     return out
@@ -184,20 +203,27 @@ def possible_competitors_for_notice(conn: sqlite3.Connection, sector: str | None
         (sector,),
     ).fetchall()
 
+    buyer_key = _normalize_name(buyer) if buyer else None
     by_supplier: dict[str, dict] = {}
+    name_variants: dict[str, Counter] = {}
     for r in rows:
         if not _is_relevant_award(conn, r):
             continue
+        key = _normalize_name(r["supplier_name"])
         entry = by_supplier.setdefault(
-            r["supplier_name"],
+            key,
             {"supplier_name": r["supplier_name"], "award_count": 0, "last_win_date": None, "same_buyer": False},
         )
+        name_variants.setdefault(key, Counter())[r["supplier_name"]] += 1
         entry["award_count"] += 1
-        if buyer and r["buyer"] == buyer:
+        if buyer_key and _normalize_name(r["buyer"]) == buyer_key:
             entry["same_buyer"] = True
         if r["win_date"] and (entry["last_win_date"] is None or r["win_date"] > entry["last_win_date"]):
             entry["last_win_date"] = r["win_date"]
     conn.commit()  # one commit for the whole batch of relevance-cache writes, not one per row
+
+    for key, entry in by_supplier.items():
+        entry["supplier_name"] = name_variants[key].most_common(1)[0][0]
 
     out = list(by_supplier.values())
     out.sort(key=lambda e: (not e["same_buyer"], -e["award_count"]))
@@ -211,19 +237,26 @@ def _competitor_detail(conn: sqlite3.Connection, supplier_name: str) -> dict | N
     and by month -- plus a real chart instead of just totals. Returns None
     if this supplier has no award notices, so the route can 404 rather
     than render an empty page for a typo'd or stale name."""
+    # Matched by normalized name, not exact string (2026-09-06): the same
+    # real supplier can be recorded with different capitalization across
+    # source portals (e.g. "Softcat Plc" vs "Softcat plc"), which used to
+    # split one company's awards across two separate drill-down pages, same
+    # bug as _competitors()'s grouping fixed alongside this.
     rows = conn.execute(
         """
-        SELECT ref, title, buyer, sector, indicative_value,
+        SELECT ref, title, buyer, sector, indicative_value, supplier_name,
                supplier_contact_name, supplier_contact_email, supplier_contact_phone,
                COALESCE(published_at, first_seen_at) AS win_date
         FROM notices
-        WHERE is_award = 1 AND supplier_name = ?
+        WHERE is_award = 1 AND LOWER(TRIM(supplier_name)) = LOWER(TRIM(?))
         ORDER BY win_date DESC
         """,
         (supplier_name,),
     ).fetchall()
     if not rows:
         return None
+
+    display_name = Counter(r["supplier_name"] for r in rows).most_common(1)[0][0]
 
     contracts = []
     by_buyer: dict[str, dict] = {}
@@ -282,7 +315,7 @@ def _competitor_detail(conn: sqlite3.Connection, supplier_name: str) -> dict | N
         )
 
     return {
-        "supplier_name": supplier_name,
+        "supplier_name": display_name,
         "contracts": contracts,
         "award_count": len(rows),
         "priced_total": priced_total,
@@ -290,7 +323,7 @@ def _competitor_detail(conn: sqlite3.Connection, supplier_name: str) -> dict | N
         "by_buyer": sorted(by_buyer.values(), key=lambda x: x["count"], reverse=True),
         "by_sector": sorted(by_sector.values(), key=lambda x: x["count"], reverse=True),
         "chart": chart,
-        "watched": supplier_name in _watched_names(conn),
+        "watched": _normalize_name(display_name) in {_normalize_name(w) for w in _watched_names(conn)},
         "latest_contact": latest_contact,
     }
 
@@ -313,11 +346,14 @@ def _buyers(conn: sqlite3.Connection):
     ).fetchall()
 
     by_buyer: dict[str, dict] = {}
+    name_variants: dict[str, Counter] = {}
     for r in rows:
+        key = _normalize_name(r["buyer"])
         entry = by_buyer.setdefault(
-            r["buyer"],
+            key,
             {"buyer": r["buyer"], "notice_count": 0, "sectors": set(), "last_activity": None, "relevant": False},
         )
+        name_variants.setdefault(key, Counter())[r["buyer"]] += 1
         entry["notice_count"] += 1
         entry["sectors"].add(r["sector"])
         if r["activity_date"] and (entry["last_activity"] is None or r["activity_date"] > entry["last_activity"]):
@@ -327,7 +363,8 @@ def _buyers(conn: sqlite3.Connection):
     conn.commit()  # one commit for the whole batch of relevance-cache writes, not one per row
 
     out = []
-    for entry in by_buyer.values():
+    for key, entry in by_buyer.items():
+        entry["buyer"] = name_variants[key].most_common(1)[0][0]
         entry["sectors"] = sorted(entry["sectors"])
         out.append(entry)
     out.sort(key=lambda e: e["notice_count"], reverse=True)
@@ -370,7 +407,7 @@ def detail():
     # competitors, and the drill-down is where "who exactly is this" is
     # actually being asked.
     settings = current_app.config["SAVVY_SCOUT_SETTINGS"]
-    company_info = get_company_info(conn, supplier_name, settings.companies_house_api_key)
+    company_info = get_company_info(conn, detail_data["supplier_name"], settings.companies_house_api_key)
     company_url = COMPANY_URL_TEMPLATE.format(number=company_info["company_number"]) if company_info else None
 
     return render_template(

@@ -448,3 +448,73 @@ class TestParseGbp:
 
     def test_returns_none_for_unparseable(self):
         assert _parse_gbp("unknown") is None
+
+
+def test_competitor_list_merges_case_variant_supplier_names(app):
+    """Live report (2026-09-06): "Softcat Plc" and "Softcat plc" showed up
+    as two separate competitors with split award counts -- the same real
+    company recorded with different capitalization by different source
+    portals. The grouping must be case/whitespace-insensitive."""
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "NHS Buyer", "NHS and Healthcare", "Softcat Plc", "100000 GBP")
+    _insert_award(conn, "REF-B", "Another Buyer", "Fintech", "Softcat plc", "200000 GBP")
+    _insert_award(conn, "REF-C", "Third Buyer", "Fintech", "  softcat   plc  ", None)
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel")
+    table_body = resp.data.decode().split("<tbody>", 1)[1].split("</tbody>", 1)[0]
+    rows = [row for row in table_body.split("<tr>") if row.strip()]
+    matching_rows = [row.split("</tr>", 1)[0] for row in rows if "Softcat" in row]
+
+    # One row per real name variant would mean the merge didn't happen.
+    # Each row embeds the name three times (a hidden watch-form field, the
+    # detail link's href, and the visible link text) -- checked to make
+    # sure this assertion isn't trivially satisfied by an empty/missing row.
+    assert len(matching_rows) == 1
+    assert matching_rows[0].count("Softcat") == 3
+    assert ">3<" in matching_rows[0]
+    assert "300,000" in matching_rows[0]
+    assert "across 2 of 3 awards with a recorded value" in matching_rows[0]
+
+
+def test_competitor_detail_finds_awards_across_case_variants(app):
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "NHS Buyer", "NHS and Healthcare", "Softcat Plc", "100000 GBP")
+    _insert_award(conn, "REF-B", "Another Buyer", "Fintech", "Softcat plc", "200000 GBP")
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel/detail?name=Softcat Plc")
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    assert "REF-A" in body
+    assert "REF-B" in body
+    assert "300,000" in body
+
+
+def test_watch_status_carries_across_case_variants(app):
+    """Watching under one casing must still show as watched for an award
+    recorded under a different casing of the same company."""
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "NHS Buyer", "NHS and Healthcare", "Softcat Plc", "100000 GBP")
+    _insert_award(conn, "REF-B", "Another Buyer", "Fintech", "Softcat plc", "200000 GBP")
+    conn.execute(
+        "INSERT INTO watched_competitors (supplier_name, watched_by, watched_at) VALUES (?, 'Mark', ?)",
+        ("softcat plc", datetime.now(timezone.utc).isoformat()),
+    )
+    conn.commit()
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel/detail?name=Softcat Plc")
+    assert resp.status_code == 200
+    assert b"Watching" in resp.data
+
+
+def test_buyers_tab_merges_case_variant_buyer_names(app):
+    conn = _db(app)
+    _insert_award(conn, "REF-A", "County Council", "Fintech", "Acme Ltd", "10000 GBP")
+    _insert_award(conn, "REF-B", "county council", "Fintech", "Acme Ltd", "20000 GBP")
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel?tab=buyers")
+    body = resp.data.decode()
+    assert body.count("County Council") + body.count("county council") == 1
