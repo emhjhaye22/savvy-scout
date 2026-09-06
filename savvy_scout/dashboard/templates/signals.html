@@ -51,6 +51,25 @@
   {% if counts.upcoming %}<span class="summary-pill" style="border-color:#3B82F6;color:#1D4ED8;">Upcoming <span class="pill-count">({{ counts.upcoming }})</span></span>{% endif %}
 </div>
 
+<div class="card" style="padding: 18px 18px 6px;">
+  <div style="font-size:13px; font-weight:700; color:var(--navy); margin-bottom:4px;">Renewals by month</div>
+  <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Contract end dates over the next 12 months</div>
+  {% set has_any = renewals_chart | selectattr('value', 'gt', 0) | list %}
+  {% if has_any %}
+  <div class="bar-chart">
+    {% for m in renewals_chart %}
+    <div class="bar-chart-col">
+      <div class="bar-chart-value">{{ m.value if m.value else '' }}</div>
+      <div class="bar-chart-bar" style="height: {{ m.pct }}%;"></div>
+      <div class="bar-chart-label">{{ m.label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="font-size:11.5px; color:var(--text-muted); padding: 0 4px 18px;">No renewals with a dated contract end in the next 12 months.</div>
+  {% endif %}
+</div>
+
 <div class="card" style="overflow-x: auto;">
   <table class="signal-table">
     <thead>

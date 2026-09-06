@@ -21,7 +21,9 @@ from flask import Blueprint, current_app, flash, redirect, render_template, url_
 from flask_login import current_user, login_required
 
 from savvy_scout.dashboard.auth import get_db
+from savvy_scout.dashboard.charts import bar_chart_series
 from savvy_scout.dashboard.notifications import victoria_sourced_reject_sql
+from savvy_scout.dashboard.routes.competitor_intel import _parse_gbp
 from savvy_scout.dashboard.scope_filter import IN_SCOPE_UK_STAGES, in_scope_filter_sql
 from savvy_scout.sweep.runner import get_recent_sweep_runs, run_sweep
 
@@ -465,6 +467,31 @@ def _build_top_buyers(conn, in_scope_where, in_scope_params, limit=8) -> list[di
     return [{"buyer": r["buyer"], "count": r["cnt"], "pct": round(r["cnt"] / max_count * 100, 1)} for r in rows]
 
 
+def _build_sector_spend(conn) -> list[dict]:
+    """Market-size-by-sector panel named in the UI alignment build's
+    Dashboard spec (2026-09-06): aggregated award value per sector, across
+    every configured sector (config_owner_map, the same source of truth
+    admin.py uses -- not hardcoded, so it stays correct if a sector is ever
+    added/renamed) regardless of whether each has any priced awards yet --
+    a sector with no data shows a real zero bar, not an omitted one.
+    Deliberately NOT using in_scope_filter_sql: that excludes UK5
+    (awarded/closed) by design, and award notices are UK5 by definition,
+    same reasoning as Competitor Intel's aggregation."""
+    sector_order = [
+        r["sector"] for r in conn.execute("SELECT sector FROM config_owner_map ORDER BY sector").fetchall()
+    ]
+    rows = conn.execute(
+        "SELECT sector, indicative_value FROM notices WHERE is_award = 1 AND sector IS NOT NULL"
+    ).fetchall()
+    totals = {sector: 0.0 for sector in sector_order}
+    for row in rows:
+        parsed = _parse_gbp(row["indicative_value"])
+        if parsed is not None and row["sector"] in totals:
+            totals[row["sector"]] += parsed
+    buckets = [(sector, totals[sector]) for sector in sector_order]
+    return bar_chart_series(buckets)
+
+
 def _build_source_performance(conn, now_uk: datetime) -> dict:
     """Notices by Source (2026-08-09): where each swept notice actually came
     from (Find a Tender, Contracts Finder, Public Contracts Scotland,
@@ -629,6 +656,7 @@ def index():
     approval_rate = _build_approval_rate(conn, in_scope_where, in_scope_params)
     approval_rate_by_owner = _build_approval_rate_by_owner(conn, in_scope_where, in_scope_params)
     top_buyers = _build_top_buyers(conn, in_scope_where, in_scope_params)
+    sector_spend = _build_sector_spend(conn)
     sweep_history = get_recent_sweep_runs(conn)
 
     # Cross-feature tiles (2026-09-05 UI alignment): Signals, Competitor
@@ -718,6 +746,7 @@ def index():
         approval_rate=approval_rate,
         approval_rate_by_owner=approval_rate_by_owner,
         top_buyers=top_buyers,
+        sector_spend=sector_spend,
         sweep_history=sweep_history,
         renewals_due_90d=renewals_due_90d,
         new_signals_week=new_signals_week,

@@ -374,6 +374,28 @@
 
     <div class="panel" style="margin-bottom: 6px;">
       <div class="panel-head">
+        <div class="panel-title">Market size by sector</div>
+        <div class="panel-subtitle">Aggregated award value across every tracked sector</div>
+      </div>
+      {% set priced_sectors = sector_spend | selectattr('value', 'gt', 0) | list %}
+      {% if priced_sectors %}
+      <div class="bar-chart">
+        {% for s in sector_spend %}
+        <div class="bar-chart-col">
+          <div class="bar-chart-value">{{ '£{:,.0f}'.format(s.value) if s.value else '—' }}</div>
+          <div class="bar-chart-bar" style="height: {{ s.pct }}%;"></div>
+          <div class="bar-chart-label">{{ s.label | truncate(12, True, '') }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      <p style="color:var(--text-muted); font-size:12px; margin-top:10px;">Based on {{ priced_sectors | length }} of {{ sector_spend | length }} sectors with at least one priced award notice.</p>
+      {% else %}
+      <div class="mini-empty">No sectors have a priced award notice yet.</div>
+      {% endif %}
+    </div>
+
+    <div class="panel" style="margin-bottom: 6px;">
+      <div class="panel-head">
         <div class="panel-title">Pipeline funnel</div>
         <div class="panel-subtitle">Where in-scope opportunities are in the pipeline right now (cumulative)</div>
       </div>
