@@ -113,7 +113,13 @@
 
   /* Donut + legend language, reused for Sector mix and Triage outcomes. */
   .donut-wrap { display: flex; align-items: center; gap: 10px; }
-  .donut { position: relative; width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; }
+  /* Glow halo (2026-09-09): a plain conic-gradient ring read as flat/dataviz
+     next to the reference's luminous charts. box-shadow can't sample the
+     ring's own per-segment colors, so this uses a fixed purple/cyan glow
+     matching the rest of the glass theme's accent colors rather than an
+     exact per-segment match -- reads as "lit" the same way the reference's
+     charts do, without needing per-datum shadow layers. */
+  .donut { position: relative; width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 22px 2px rgba(139,92,246,0.3), 0 0 38px 10px rgba(6,182,212,0.18); }
   .donut-hole { position: absolute; inset: 20%; background: var(--surface); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   .donut-center-value { font-size: 12px; font-weight: 800; color: var(--navy); line-height: 1; }
   .donut-center-label { font-size: 7px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 1px; }
@@ -244,7 +250,7 @@
             <tr class="{% if row.get('is_total') %}total-row{% endif %}{% if row.get('is_grand_total') %} grand-total-row{% endif %}">
               <td>
                 <span class="sector-cell">
-                  {% if not row.get('is_total') %}<span class="perf-swatch" style="background: {{ sector_palette[loop.index0 % sector_palette|length] }};"></span>{% endif %}
+                  {% if not row.get('is_total') %}<span class="perf-swatch" style="background: {{ sector_palette[loop.index0 % sector_palette|length] }}; box-shadow: 0 0 5px {{ sector_palette[loop.index0 % sector_palette|length] }};"></span>{% endif %}
                   {{ row.sector }}
                 </span>
               </td>
@@ -277,7 +283,7 @@
           <div class="legend-list">
             {% for row in scouting_report.sector_split[:6] %}
             <div class="legend-item">
-              <span class="legend-swatch" style="background: {{ sector_palette[loop.index0 % sector_palette|length] }};"></span>
+              <span class="legend-swatch" style="background: {{ sector_palette[loop.index0 % sector_palette|length] }}; box-shadow: 0 0 5px {{ sector_palette[loop.index0 % sector_palette|length] }};"></span>
               <span class="legend-label">{{ row.sector }}</span>
               <span class="legend-value">{{ row.share }}%</span>
             </div>
@@ -313,7 +319,7 @@
           <tr class="{% if row.get('is_total') %}total-row{% endif %}{% if row.get('is_grand_total') %} grand-total-row{% endif %}">
             <td>
               <span class="sector-cell">
-                {% if not row.get('is_total') %}<span class="perf-swatch" style="background: {{ sector_palette[loop.index0 % sector_palette|length] }};"></span>{% endif %}
+                {% if not row.get('is_total') %}<span class="perf-swatch" style="background: {{ sector_palette[loop.index0 % sector_palette|length] }}; box-shadow: 0 0 5px {{ sector_palette[loop.index0 % sector_palette|length] }};"></span>{% endif %}
                 {{ row.sector }}
               </span>
             </td>
@@ -339,7 +345,7 @@
         <div class="legend-list legend-list-standalone">
           {% for row in top_buyers %}
           <div class="legend-item">
-            <span class="legend-swatch" style="background: {{ sector_palette[loop.index0 % sector_palette|length] }};"></span>
+            <span class="legend-swatch" style="background: {{ sector_palette[loop.index0 % sector_palette|length] }}; box-shadow: 0 0 5px {{ sector_palette[loop.index0 % sector_palette|length] }};"></span>
             <span class="legend-label">{{ row.buyer | truncate(40, True, '…') }}</span>
             <span class="legend-value">{{ row.count }}</span>
           </div>
@@ -358,7 +364,7 @@
         <div class="legend-list legend-list-standalone">
           {% for row in top_competitors %}
           <a class="legend-item" href="{{ url_for('competitor_intel.detail', name=row.supplier_name) }}" style="text-decoration:none; color:inherit;">
-            <span class="legend-swatch" style="background: {{ sector_palette[loop.index0 % sector_palette|length] }};"></span>
+            <span class="legend-swatch" style="background: {{ sector_palette[loop.index0 % sector_palette|length] }}; box-shadow: 0 0 5px {{ sector_palette[loop.index0 % sector_palette|length] }};"></span>
             <span class="legend-label">{{ row.supplier_name | truncate(40, True, '…') }}</span>
             <span class="legend-value">{{ row.count }}</span>
           </a>
@@ -447,7 +453,7 @@
         <div class="legend-list">
           {% for item in triage_outcomes %}
           <div class="legend-item">
-            <span class="legend-swatch" style="background: {{ triage_colors.get(item.label, '#64748B') }};"></span>
+            <span class="legend-swatch" style="background: {{ triage_colors.get(item.label, '#64748B') }}; box-shadow: 0 0 5px {{ triage_colors.get(item.label, '#64748B') }};"></span>
             <span class="legend-label">{{ item.label }}</span>
             <span class="legend-value">{{ item.value }}</span>
           </div>
