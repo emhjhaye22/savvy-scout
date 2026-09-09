@@ -149,7 +149,7 @@
   <input type="hidden" name="sort" value="{{ sort_filter }}">
   <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
   {% if status_filter or stage_filter or sector_filter or request.args.get('q') %}
-  <a href="{{ url_for('queues.opportunities') }}" class="btn btn-secondary btn-sm">✕ Clear</a>
+  <a href="{{ url_for('queues.opportunities') }}" class="btn btn-secondary btn-sm">Clear</a>
   {% endif %}
   <div class="sort-toggle">
     <a href="{{ url_for('queues.opportunities', status=status_filter, stage=stage_filter, sector=sector_filter, sort='priority') }}" class="{% if sort_filter != 'newest' %}active{% endif %}" title="Sorted by what needs your attention first: AI/gate-recommended pursues first, then items needing a decision, then everything else">Priority</a>
@@ -162,7 +162,7 @@
   <input type="hidden" name="next" value="{{ request.full_path }}">
   <div class="bulk-toolbar">
     <span class="bulk-count" id="bulk-count">0 selected</span>
-    <button type="submit" formaction="{{ url_for('queues.bulk_shortlist') }}" name="bulk_action" value="add" class="btn btn-secondary btn-sm" id="bulk-add-btn" disabled>☆ Add to Shortlist</button>
+    <button type="submit" formaction="{{ url_for('queues.bulk_shortlist') }}" name="bulk_action" value="add" class="btn btn-secondary btn-sm" id="bulk-add-btn" disabled>Add to Shortlist</button>
     <button type="submit" formaction="{{ url_for('queues.bulk_shortlist') }}" name="bulk_action" value="remove" class="btn btn-secondary btn-sm" id="bulk-remove-btn" disabled>Remove from Shortlist</button>
     <button type="submit" formaction="{{ url_for('queues.bulk_mark_docs_downloaded') }}" class="btn btn-secondary btn-sm" id="bulk-docs-btn" disabled title="Only applies to notices currently Approved or with a Capture Brief drafted">Mark docs downloaded</button>
   </div>
@@ -197,7 +197,7 @@
           <span class="priority-badge priority-{{ tier }}">{{ tier_labels.get(tier, '—') }}</span>
         </td>
         <td class="ref-cell">
-          <a href="{{ url_for('queues.opportunities', status=status_filter, stage=stage_filter, sector=sector_filter, sort=sort_filter, selected=n['id']) }}" class="preview-btn" title="Preview here">👁</a>
+          <a href="{{ url_for('queues.opportunities', status=status_filter, stage=stage_filter, sector=sector_filter, sort=sort_filter, selected=n['id']) }}" class="preview-btn" title="Preview here"><i class="fa-regular fa-eye"></i></a>
           <a href="{{ url_for('queues.notice_detail', notice_id=n['id']) }}" title="View full notice">{{ n['ref'] | truncate(20, True, '…') }}</a>
         </td>
         <td class="opp-title">
@@ -227,9 +227,9 @@
         </td>
         <td>
           {% set o = n['headline_outcome'] %}
-          {% if o == 'PASS' %}<span class="badge badge-pass">✓</span>
-          {% elif o == 'FAIL' %}<span class="badge badge-fail">✕</span>
-          {% elif o == 'FLAG' or o == 'MAYBE' %}<span class="badge badge-flag">⚑</span>
+          {% if o == 'PASS' %}<span class="badge badge-pass">Pass</span>
+          {% elif o == 'FAIL' %}<span class="badge badge-fail">Fail</span>
+          {% elif o == 'FLAG' or o == 'MAYBE' %}<span class="badge badge-flag">Flag</span>
           {% elif o == 'INFERRED_FIT' %}<span class="badge badge-inferred">~</span>
           {% elif o == 'MONITOR' %}<span class="badge badge-unknown">◎</span>
           {% else %}—{% endif %}
@@ -270,7 +270,7 @@
     {% endif %}
     <a href="{{ url_for('queues.notice_detail', notice_id=selected_notice['id']) }}" class="btn btn-secondary btn-sm" style="margin-top:8px; display:inline-block;">View full notice →</a>
   {% else %}
-    <div class="detail-empty">Select a notice's 👁 to preview it here.</div>
+    <div class="detail-empty">Select a notice's preview icon to view it here.</div>
   {% endif %}
 </div>
 </div>

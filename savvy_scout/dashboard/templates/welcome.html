@@ -37,61 +37,61 @@
 </style>
 
 <div class="welcome-hero">
-  <div class="welcome-greeting">👋 Welcome, {{ current_user.display_name }}!</div>
+  <div class="welcome-greeting">Welcome, {{ current_user.display_name }}!</div>
   <div class="welcome-subtitle">Where would you like to go?</div>
 
   <div class="welcome-grid">
     <a class="welcome-card" href="{{ url_for('home.index') }}">
-      <span class="welcome-card-icon">🏠</span>
+      <span class="welcome-card-icon"><i class="fa-solid fa-chart-line"></i></span>
       <div>
         <div class="welcome-card-label">Overview</div>
         <div class="welcome-card-desc">Pipeline health at a glance</div>
       </div>
     </a>
     <a class="welcome-card" href="{{ url_for('queues.index') }}">
-      <span class="welcome-card-icon">📋</span>
+      <span class="welcome-card-icon"><i class="fa-solid fa-clipboard-check"></i></span>
       <div>
         <div class="welcome-card-label">Approval Queue</div>
         <div class="welcome-card-desc">Notices waiting on a decision</div>
       </div>
     </a>
     <a class="welcome-card" href="{{ url_for('queues.opportunities') }}">
-      <span class="welcome-card-icon">🔎</span>
+      <span class="welcome-card-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
       <div>
         <div class="welcome-card-label">All Opportunities</div>
         <div class="welcome-card-desc">Every swept notice, one list</div>
       </div>
     </a>
     <a class="welcome-card" href="{{ url_for('signals.index') }}">
-      <span class="welcome-card-icon">📡</span>
+      <span class="welcome-card-icon"><i class="fa-solid fa-tower-broadcast"></i></span>
       <div>
         <div class="welcome-card-label">Signals</div>
         <div class="welcome-card-desc">Renewal &amp; expiry alerts</div>
       </div>
     </a>
     <a class="welcome-card" href="{{ url_for('competitor_intel.index') }}">
-      <span class="welcome-card-icon">🎯</span>
+      <span class="welcome-card-icon"><i class="fa-solid fa-bullseye"></i></span>
       <div>
         <div class="welcome-card-label">Competitor Intel</div>
         <div class="welcome-card-desc">Who's winning, and against whom</div>
       </div>
     </a>
     <a class="welcome-card" href="{{ url_for('shortlists.index') }}">
-      <span class="welcome-card-icon">⭐</span>
+      <span class="welcome-card-icon"><i class="fa-solid fa-star"></i></span>
       <div>
         <div class="welcome-card-label">Shortlists</div>
         <div class="welcome-card-desc">Notices you've saved for later</div>
       </div>
     </a>
     <a class="welcome-card" href="{{ url_for('draft_assist.index') }}">
-      <span class="welcome-card-icon">✍️</span>
+      <span class="welcome-card-icon"><i class="fa-solid fa-pen-to-square"></i></span>
       <div>
         <div class="welcome-card-label">Draft assist</div>
         <div class="welcome-card-desc">Q&amp;A drafting for a live bid</div>
       </div>
     </a>
     <a class="welcome-card" href="{{ url_for('settings.index') }}">
-      <span class="welcome-card-icon">⚙️</span>
+      <span class="welcome-card-icon"><i class="fa-solid fa-gear"></i></span>
       <div>
         <div class="welcome-card-label">Settings</div>
         <div class="welcome-card-desc">Whitelist, data dictionary, sweep history</div>
@@ -99,7 +99,7 @@
     </a>
     {% if current_user.is_victoria or current_user.is_admin %}
     <a class="welcome-card" href="{{ url_for('admin.index') }}">
-      <span class="welcome-card-icon">⚙️</span>
+      <span class="welcome-card-icon"><i class="fa-solid fa-shield-halved"></i></span>
       <div>
         <div class="welcome-card-label">Admin</div>
         <div class="welcome-card-desc">Rules, users, client onboarding</div>
@@ -114,7 +114,7 @@
     {% for client in clients %}
     {% if client.name == 'Trifork' %}
     <a class="welcome-card" href="{{ url_for('home.index') }}">
-      <span class="welcome-card-icon">🏢</span>
+      <span class="welcome-card-icon"><i class="fa-solid fa-building"></i></span>
       <div>
         <div class="welcome-card-label">Trifork<span class="welcome-client-badge">Full workspace</span></div>
         <div class="welcome-card-desc">5-gate triage, Approval Queue, everything above</div>
@@ -122,7 +122,7 @@
     </a>
     {% else %}
     <a class="welcome-card" href="{{ url_for('admin.client_matches', client_id=client.id) }}">
-      <span class="welcome-card-icon">🏢</span>
+      <span class="welcome-card-icon"><i class="fa-solid fa-building"></i></span>
       <div>
         <div class="welcome-card-label">{{ client.name }}<span class="welcome-client-badge">Filter + shortlist</span></div>
         <div class="welcome-card-desc">Structured filter, shortlist/reject triage -- no Phase 2 AI or reports yet</div>

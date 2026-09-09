@@ -168,7 +168,7 @@
 
 <div class="card">
   <div class="card-header" id="correction-log">
-    <h2>📜 Rule Correction Log</h2>
+    <h2>Rule Correction Log</h2>
   </div>
   <div style="overflow-x: auto;">
   <table class="data-table">
@@ -275,7 +275,7 @@
         <td class="actions-col">
           {% if user['email'] %}
           <form method="post" action="{{ url_for('admin.send_invite', user_id=user['id']) }}" style="display: inline;">
-            <button type="submit" class="btn btn-secondary btn-sm">📧 Send invite</button>
+            <button type="submit" class="btn btn-secondary btn-sm">Send invite</button>
           </form>
           {% endif %}
           <form method="post" action="{{ url_for('admin.reset_user_password', user_id=user['id']) }}" style="display: inline;">

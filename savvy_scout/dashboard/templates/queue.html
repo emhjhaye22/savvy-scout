@@ -6,11 +6,11 @@
 
 {# Gate badge macro #}
 {% macro gate_badge(outcome) %}
-  {% if outcome == 'PASS' %}<span class="badge badge-pass">✓ Pass</span>
-  {% elif outcome == 'FAIL' %}<span class="badge badge-fail">✕ Fail</span>
-  {% elif outcome in ('FLAG', 'MAYBE') %}<span class="badge badge-flag">⚑ Flag</span>
-  {% elif outcome == 'INFERRED_FIT' %}<span class="badge badge-inferred">~ Inferred</span>
-  {% elif outcome == 'MONITOR' %}<span class="badge badge-unknown">◎ Monitor</span>
+  {% if outcome == 'PASS' %}<span class="badge badge-pass">Pass</span>
+  {% elif outcome == 'FAIL' %}<span class="badge badge-fail">Fail</span>
+  {% elif outcome in ('FLAG', 'MAYBE') %}<span class="badge badge-flag">Flag</span>
+  {% elif outcome == 'INFERRED_FIT' %}<span class="badge badge-inferred">Inferred</span>
+  {% elif outcome == 'MONITOR' %}<span class="badge badge-unknown">Monitor</span>
   {% else %}<span class="badge badge-unknown">—</span>{% endif %}
 {% endmacro %}
 
@@ -137,7 +137,7 @@
 <details class="queue-section">
   <summary class="queue-header" style="cursor: pointer; list-style: none;">
     <div class="queue-heading">
-      <h2>📋 Phase 1 — Gate Review {% if phase1_rows %}<span class="count">{{ phase1_rows | length }}</span>{% endif %}</h2>
+      <h2>Phase 1 — Gate Review {% if phase1_rows %}<span class="count">{{ phase1_rows | length }}</span>{% endif %}</h2>
       <p>Double-check notices that failed a deterministic gate. Overturn to Pass or Reject.</p>
     </div>
   </summary>
@@ -163,7 +163,7 @@
           {% if n['owner'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['owner'] }}</span>{% endif %}
           {% if n['deadline'] %}
             <span class="meta-sep">·</span>
-            <span class="deadline-chip {{ n['deadline_class'] }}">🗓 {{ n['deadline'][:10] }}</span>
+            <span class="deadline-chip {{ n['deadline_class'] }}">{{ n['deadline'][:10] }}</span>
           {% endif %}
         </div>
         {% if n['headline_reason'] %}
@@ -175,9 +175,9 @@
         {# Approve — direct submit #}
         <div class="action-row">
           <form method="post" action="{{ url_for('queues.approve', notice_id=n['id']) }}" style="display:inline">
-            <button type="submit" class="btn btn-approve btn-sm">✓ Overturn to Pass</button>
+            <button type="submit" class="btn btn-approve btn-sm">Overturn to Pass</button>
           </form>
-          <button class="btn btn-reject btn-sm" onclick="showReason(this, 'r-{{ n['id'] }}')">✕ Reject</button>
+          <button class="btn btn-reject btn-sm" onclick="showReason(this, 'r-{{ n['id'] }}')">Reject</button>
         </div>
 
         <div id="r-{{ n['id'] }}" class="reason-form">
@@ -193,7 +193,7 @@
     </div>
     {% endfor %}
   {% else %}
-  <div class="empty-queue"><div class="icon">✓</div><p>No fails awaiting owner review.</p></div>
+  <div class="empty-queue"><p>No fails awaiting owner review.</p></div>
   {% endif %}
 </details>
 {% endif %}
@@ -203,7 +203,7 @@
 <div class="queue-section">
   <div class="queue-header">
     <div class="queue-heading">
-      <h2>🔍 Phase 2 — AI Scope Read Review {% if phase2_rows %}<span class="count phase2-count">{{ phase2_rows | length }}</span>{% endif %}</h2>
+      <h2>Phase 2 — AI Scope Read Review {% if phase2_rows %}<span class="count phase2-count">{{ phase2_rows | length }}</span>{% endif %}</h2>
       <p>Validate the AI assessment against the notice. Approve sends it to Victoria; Reject closes it.</p>
     </div>
   </div>
@@ -228,7 +228,7 @@
           <span class="meta-chip buyer">{{ n['buyer'] or 'UNVERIFIED' }}</span>
           {% if n['sector'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['sector'] }}</span>{% endif %}
           {% if n['indicative_value'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['indicative_value'] | gbp }}</span>{% endif %}
-          {% if n['deadline'] %}<span class="meta-sep">·</span><span class="deadline-chip {{ n['deadline_class'] }}">🗓 {{ n['deadline'][:10] }}</span>{% endif %}
+          {% if n['deadline'] %}<span class="meta-sep">·</span><span class="deadline-chip {{ n['deadline_class'] }}">{{ n['deadline'][:10] }}</span>{% endif %}
         </div>
         {% if n['overall_rating'] %}
         <div class="assessment-strip">
@@ -245,21 +245,21 @@
       <div class="notice-right">
         <div class="action-row">
           <form method="post" action="{{ url_for('queues.approve', notice_id=n['id']) }}" style="display:inline">
-            <button type="submit" class="btn btn-approve btn-sm" title="Sends to Victoria for her decision">✓ Approve</button>
+            <button type="submit" class="btn btn-approve btn-sm" title="Sends to Victoria for her decision">Approve</button>
           </form>
-          <button class="btn btn-reject btn-sm" onclick="showReason(this, 'p2r-{{ n['id'] }}')">✕ Reject</button>
+          <button class="btn btn-reject btn-sm" onclick="showReason(this, 'p2r-{{ n['id'] }}')">Reject</button>
         </div>
         <div id="p2r-{{ n['id'] }}" class="reason-form">
           <form method="post" action="{{ url_for('queues.reject', notice_id=n['id']) }}">
             <input type="text" name="reason" placeholder="Reason" required>
-            <div class="reason-form-btns"><button type="submit" class="btn btn-reject btn-sm">Reject</button><button type="button" class="btn btn-secondary btn-sm" onclick="hideReason('p2r-{{ n['id'] }}')">✕</button></div>
+            <div class="reason-form-btns"><button type="submit" class="btn btn-reject btn-sm">Reject</button><button type="button" class="btn btn-secondary btn-sm" onclick="hideReason('p2r-{{ n['id'] }}')">Cancel</button></div>
           </form>
         </div>
       </div>
     </div>
     {% endfor %}
   {% else %}
-  <div class="empty-queue"><div class="icon">🔍</div><p>No notices awaiting Phase 2 review.</p></div>
+  <div class="empty-queue"><p>No notices awaiting Phase 2 review.</p></div>
   {% endif %}
 </div>
 {% endif %}
@@ -269,7 +269,7 @@
 <div class="queue-section">
   <div class="queue-header">
     <div class="queue-heading">
-      <h2>⬆ Final Review — Victoria's Decision {% if escalated_rows %}<span class="count victoria-count">{{ escalated_rows | length }}</span>{% endif %}</h2>
+      <h2>Final Review — Victoria's Decision {% if escalated_rows %}<span class="count victoria-count">{{ escalated_rows | length }}</span>{% endif %}</h2>
       <p>Owner-approved notices awaiting the final bid decision.</p>
     </div>
   </div>
@@ -294,7 +294,7 @@
           <span class="meta-chip buyer">{{ n['buyer'] or 'UNVERIFIED' }}</span>
           {% if n['owner'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['owner'] }}</span>{% endif %}
           {% if n['indicative_value'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['indicative_value'] | gbp }}</span>{% endif %}
-          {% if n['deadline'] %}<span class="meta-sep">·</span><span class="deadline-chip {{ n['deadline_class'] }}">🗓 {{ n['deadline'][:10] }}</span>{% endif %}
+          {% if n['deadline'] %}<span class="meta-sep">·</span><span class="deadline-chip {{ n['deadline_class'] }}">{{ n['deadline'][:10] }}</span>{% endif %}
         </div>
         {% if n['overall_reasoning'] %}
         <div style="margin-top: 6px; font-size: 12px; color: var(--text-muted);">{{ n['overall_reasoning'] }}</div>
@@ -307,7 +307,7 @@
         {% if n['docx_path'] %}
         <div style="margin-top: 6px;">
           <a href="{{ url_for('queues.view_brief', notice_id=n['id'], brief_id=n['brief_id']) }}" target="_blank"
-             style="font-size: 11px; color: var(--info); font-weight: 700; text-decoration: none;">📄 View Internal Addendum</a>
+             style="font-size: 11px; color: var(--info); font-weight: 700; text-decoration: none;">View Internal Addendum</a>
         </div>
         {% endif %}
       </div>
@@ -325,16 +325,16 @@
         </form>
         {% if not n['emailed_at'] %}
         <form method="post" action="{{ url_for('queues.send_escalation_email', notice_id=n['id']) }}">
-          <button type="submit" class="btn btn-secondary btn-sm">📧 Send Brief</button>
+          <button type="submit" class="btn btn-secondary btn-sm">Send Brief</button>
         </form>
         {% else %}
-        <span style="font-size: 11px; color: var(--success);">✓ Brief sent {{ n['emailed_at'][:10] }}</span>
+        <span style="font-size: 11px; color: var(--success);">Brief sent {{ n['emailed_at'][:10] }}</span>
         {% endif %}
       </div>
     </div>
     {% endfor %}
   {% else %}
-  <div class="empty-queue"><div class="icon">⬆</div><p>No notices awaiting your decision.</p></div>
+  <div class="empty-queue"><p>No notices awaiting your decision.</p></div>
   {% endif %}
 </div>
 {% endif %}

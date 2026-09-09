@@ -48,7 +48,7 @@
   .sweep-history-sources { display: flex; gap: 6px; flex-wrap: wrap; }
   .sweep-source-badge { font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; cursor: default; }
   .sweep-source-badge.ok { background: rgba(16,185,129,0.12); color: var(--flash-success-text); }
-  .sweep-source-badge.fail { background: rgba(255,77,79,0.12); color: var(--flash-error-text); }
+  .sweep-source-badge.fail { background: rgba(239,68,68,0.12); color: var(--flash-error-text); }
 </style>
 
 <div class="settings-note">
@@ -99,7 +99,7 @@
           {% for s in run.sources %}
           <span class="sweep-source-badge {{ 'ok' if s.status == 'success' else 'fail' }}"
                 {% if s.error_message %}title="{{ s.error_message }}"{% endif %}>
-            {{ '✓' if s.status == 'success' else '✗' }} {{ s.source_name }}
+            {{ s.source_name }}
             {% if s.status == 'success' %}({{ s.pulled }}){% else %}&mdash; failed{% endif %}
           </span>
           {% endfor %}

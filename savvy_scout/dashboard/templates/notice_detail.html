@@ -150,11 +150,11 @@
       <strong style="font-size: 13px; color: var(--navy); margin-right: 8px;">Actions:</strong>
 
       <form method="post" action="{{ url_for('queues.approve', notice_id=notice['id']) }}" style="display:inline">
-        <button type="submit" class="btn btn-approve" title="{% if s == 'AWAITING_PHASE2_APPROVAL' %}Sends to Victoria for her decision{% endif %}">✓ Approve</button>
+        <button type="submit" class="btn btn-approve" title="{% if s == 'AWAITING_PHASE2_APPROVAL' %}Sends to Victoria for her decision{% endif %}">Approve</button>
       </form>
 
       <span class="action-group" style="display: inline-flex; gap: 4px; align-items: center;">
-        <button class="btn btn-reject show-input-btn" onclick="toggleAction(this, 'det-reject')">✕ Reject</button>
+        <button class="btn btn-reject show-input-btn" onclick="toggleAction(this, 'det-reject')">Reject</button>
         <form method="post" action="{{ url_for('queues.reject', notice_id=notice['id']) }}" style="display:inline">
           <input type="text" name="reason" class="action-input" id="det-reject" placeholder="Reason required" required style="width: 200px;">
           <button type="submit" class="btn btn-reject submit-btn" style="display:none">Submit</button>
@@ -168,7 +168,7 @@
     </div>
     {% elif s == 'ESCALATED_TO_VICTORIA' and current_user.is_victoria %}
     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 16px; background: rgba(245,158,11,0.1); border-radius: 8px; border: 1px solid rgba(245,158,11,0.3); margin-top: 8px;">
-      <strong style="font-size: 13px; color: var(--navy); margin-right: 8px;">⬆ Victoria's Decision:</strong>
+      <strong style="font-size: 13px; color: var(--navy); margin-right: 8px;">Victoria's Decision:</strong>
       <form method="post" action="{{ url_for('queues.victoria_decision', notice_id=notice['id']) }}" style="display:inline-flex; align-items:center; gap: 8px;">
         <select name="decision" style="padding: 7px 10px; font-size: 13px;">
           <option value="approve">Approve</option>
@@ -180,15 +180,15 @@
       </form>
       {% for artifact in brief_artifacts %}
         <a href="{{ url_for('queues.view_brief', notice_id=notice['id'], brief_id=artifact['id']) }}" target="_blank" class="btn btn-secondary">
-          📄 {{ artifact['brief_type'] | replace('_', ' ') | title }}
+          {{ artifact['brief_type'] | replace('_', ' ') | title }}
         </a>
       {% endfor %}
       {% if escalation_brief and not escalation_brief['emailed_at'] %}
         <form method="post" action="{{ url_for('queues.send_escalation_email', notice_id=notice['id']) }}" style="display:inline">
-          <button type="submit" class="btn btn-secondary">📧 Send Brief Email</button>
+          <button type="submit" class="btn btn-secondary">Send Brief Email</button>
         </form>
       {% elif escalation_brief and escalation_brief['emailed_at'] %}
-        <span style="font-size: 12px; color: var(--success);">✓ Brief emailed {{ escalation_brief['emailed_at'][:10] }}</span>
+        <span style="font-size: 12px; color: var(--success);">Brief emailed {{ escalation_brief['emailed_at'][:10] }}</span>
       {% endif %}
     </div>
     {% endif %}
@@ -212,8 +212,7 @@
                   {% else %}background: var(--surface-alt); border: 1px solid var(--border); opacity: 0.55;
                   {% endif %}">
         <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
-                    color: {% if stage.state == 'done' %}#059669{% elif stage.state == 'current' %}#1D4ED8{% elif stage.state == 'skipped' %}var(--text-muted){% else %}var(--text-muted){% endif %};">
-          {% if stage.state == 'done' %}✓{% elif stage.state == 'current' %}●{% elif stage.state == 'skipped' %}⊘{% else %}○{% endif %}
+                    color: {% if stage.state == 'done' %}var(--success){% elif stage.state == 'current' %}var(--info){% elif stage.state == 'skipped' %}var(--text-muted){% else %}var(--text-muted){% endif %};">
           {{ stage.label }}
         </div>
         {% if stage.detail %}
@@ -403,13 +402,13 @@
     <h2>Phase 1 — Gate Results</h2>
     <div>
       {% if triage_run['headline_outcome'] == 'PASS' %}
-        <span class="badge badge-pass">✓ Overall: Pass</span>
+        <span class="badge badge-pass">Overall: Pass</span>
       {% elif triage_run['headline_outcome'] == 'FAIL' %}
-        <span class="badge badge-fail">✕ Overall: Fail</span>
+        <span class="badge badge-fail">Overall: Fail</span>
       {% elif triage_run['headline_outcome'] in ('FLAG', 'MAYBE') %}
-        <span class="badge badge-flag">⚑ Overall: {{ 'FLAG' if triage_run['headline_outcome'] == 'MAYBE' else triage_run['headline_outcome'] }}</span>
+        <span class="badge badge-flag">Overall: {{ 'FLAG' if triage_run['headline_outcome'] == 'MAYBE' else triage_run['headline_outcome'] }}</span>
       {% elif triage_run['headline_outcome'] == 'INFERRED_FIT' %}
-        <span class="badge badge-inferred">~ Inferred Fit</span>
+        <span class="badge badge-inferred">Inferred Fit</span>
       {% else %}
         <span class="badge badge-unknown">{{ triage_run['headline_outcome'] }}</span>
       {% endif %}
@@ -425,8 +424,7 @@
       {% for g in gate_results %}
         <div class="gate-card {{ g['outcome'] | lower | replace('_fit', '') | replace('inferred', 'inferred') | replace('maybe', 'flag') }}">
           <div class="gate-name">{{ g['gate_number'] }} — {{ g['gate_name'] }}</div>
-          <div class="gate-outcome" style="color: {% if g['outcome'] == 'PASS' %}#059669{% elif g['outcome'] == 'FAIL' %}#DC2626{% elif g['outcome'] in ('FLAG','MAYBE') %}#D97706{% else %}#1D4ED8{% endif %}">
-            {% if g['outcome'] == 'PASS' %}✓{% elif g['outcome'] == 'FAIL' %}✕{% elif g['outcome'] in ('FLAG','MAYBE') %}⚑{% else %}~{% endif %}
+          <div class="gate-outcome" style="color: {% if g['outcome'] == 'PASS' %}var(--success){% elif g['outcome'] == 'FAIL' %}var(--danger){% elif g['outcome'] in ('FLAG','MAYBE') %}var(--warning){% else %}var(--info){% endif %}">
             {{ 'FLAG' if g['outcome'] == 'MAYBE' else g['outcome'] }}
           </div>
           {% if g['reason'] %}
@@ -477,7 +475,7 @@
         <div class="sc-reason">{{ phase2_assessment['right_to_win_reasoning'] }}</div>
       </div>
 
-      <div class="scope-card" style="{% if phase2_assessment['overall_rating'] == 'PURSUE' %}border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.08);{% elif phase2_assessment['overall_rating'] == 'DECLINE' %}border-color: rgba(255,77,79,0.4); background: rgba(255,77,79,0.08);{% else %}border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.08);{% endif %}">
+      <div class="scope-card" style="{% if phase2_assessment['overall_rating'] == 'PURSUE' %}border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.08);{% elif phase2_assessment['overall_rating'] == 'DECLINE' %}border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.08);{% else %}border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.08);{% endif %}">
         <div class="sc-label">Overall Recommendation</div>
         <div class="sc-value" style="color: {% if phase2_assessment['overall_rating'] == 'PURSUE' %}#059669{% elif phase2_assessment['overall_rating'] == 'DECLINE' %}#DC2626{% else %}#D97706{% endif %}">
           {{ phase2_assessment['overall_rating'] }}

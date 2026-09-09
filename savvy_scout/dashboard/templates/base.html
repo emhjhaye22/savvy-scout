@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Savvy Scout{% endblock %}</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/bidsavvy-mark.png') }}">
+  <!-- Minimal line icons (2026-09-09): replaces emoji nav/status icons across
+       the app -- flat, colorful emoji clash with a minimalist glass UI in a
+       way plain line icons in the current text color don't. -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Poppins:wght@600;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -414,7 +418,7 @@
     .flashes li::before { font-size: 16px; flex-shrink: 0; }
     .flashes li.success { background: rgba(16,185,129,0.1); color: var(--flash-success-text); border-left: 4px solid var(--success); }
     .flashes li.success::before { content: "✓"; }
-    .flashes li.error { background: rgba(255,77,79,0.1); color: var(--flash-error-text); border-left: 4px solid var(--danger); }
+    .flashes li.error { background: rgba(239,68,68,0.1); color: var(--flash-error-text); border-left: 4px solid var(--danger); }
     .flashes li.error::before { content: "!"; }
     .flashes li:not(.success):not(.error) { background: rgba(59,130,246,0.1); color: var(--flash-info-text); border-left: 4px solid var(--info); }
     .flashes li:not(.success):not(.error)::before { content: "i"; }
@@ -587,7 +591,7 @@
     .gate-card .gate-outcome { font-size: 13px; font-weight: 700; }
     .gate-card .gate-reason { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
     .gate-card.pass { border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.08); }
-    .gate-card.fail { border-color: rgba(255,77,79,0.4); background: rgba(255,77,79,0.08); }
+    .gate-card.fail { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.08); }
     .gate-card.flag { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.08); }
     .gate-card.inferred { border-color: rgba(59,130,246,0.4); background: rgba(59,130,246,0.08); }
 
@@ -646,36 +650,36 @@
     <div class="sidebar-section-label">Workflow</div>
     <ul class="sidebar-nav">
       <li><a href="{{ url_for('welcome.index') }}" class="{% if request.endpoint == 'welcome.index' %}active{% endif %}">
-        <span class="nav-icon">👋</span><span class="nav-label">Welcome</span>
+        <span class="nav-icon"><i class="fa-solid fa-compass"></i></span><span class="nav-label">Welcome</span>
       </a></li>
       <li><a href="{{ url_for('home.index') }}" class="{% if request.endpoint == 'home.index' %}active{% endif %}">
-        <span class="nav-icon">🏠</span><span class="nav-label">Overview</span>
+        <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span><span class="nav-label">Overview</span>
       </a></li>
       <li><a href="{{ url_for('queues.index') }}" class="{% if request.endpoint in ('queues.index', 'queues.notice_detail') %}active{% endif %}">
-        <span class="nav-icon">📋</span><span class="nav-label">Approval Queue</span>
+        <span class="nav-icon"><i class="fa-solid fa-clipboard-check"></i></span><span class="nav-label">Approval Queue</span>
       </a></li>
       <li><a href="{{ url_for('queues.opportunities') }}" class="{% if request.endpoint == 'queues.opportunities' %}active{% endif %}">
-        <span class="nav-icon">🔎</span><span class="nav-label">All Opportunities</span>
+        <span class="nav-icon"><i class="fa-solid fa-magnifying-glass"></i></span><span class="nav-label">All Opportunities</span>
       </a></li>
       <li><a href="{{ url_for('signals.index') }}" class="{% if request.endpoint == 'signals.index' %}active{% endif %}">
-        <span class="nav-icon">📡</span><span class="nav-label">Signals</span>
+        <span class="nav-icon"><i class="fa-solid fa-tower-broadcast"></i></span><span class="nav-label">Signals</span>
       </a></li>
       <li><a href="{{ url_for('competitor_intel.index') }}" class="{% if request.endpoint == 'competitor_intel.index' %}active{% endif %}">
-        <span class="nav-icon">🎯</span><span class="nav-label">Competitor Intel</span>
+        <span class="nav-icon"><i class="fa-solid fa-bullseye"></i></span><span class="nav-label">Competitor Intel</span>
       </a></li>
       <li><a href="{{ url_for('shortlists.index') }}" class="{% if request.endpoint == 'shortlists.index' %}active{% endif %}">
-        <span class="nav-icon">⭐</span><span class="nav-label">Shortlists</span>
+        <span class="nav-icon"><i class="fa-solid fa-star"></i></span><span class="nav-label">Shortlists</span>
       </a></li>
       <li><a href="{{ url_for('draft_assist.index') }}" class="{% if request.endpoint == 'draft_assist.index' %}active{% endif %}">
-        <span class="nav-icon">✍️</span><span class="nav-label">Draft assist</span>
+        <span class="nav-icon"><i class="fa-solid fa-pen-to-square"></i></span><span class="nav-label">Draft assist</span>
       </a></li>
       <li><a href="{{ url_for('settings.index') }}" class="{% if request.endpoint == 'settings.index' %}active{% endif %}">
-        <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
+        <span class="nav-icon"><i class="fa-solid fa-gear"></i></span><span class="nav-label">Settings</span>
       </a></li>
       <li>
         <form action="{{ url_for('home.sweep_now') }}" method="post">
           <button class="sidebar-sweep-button" type="submit" title="Run sweep now" aria-label="Run sweep now">
-            <span class="nav-icon" aria-hidden="true">⚡</span><span class="nav-label">Sweep now</span>
+            <span class="nav-icon" aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span><span class="nav-label">Sweep now</span>
           </button>
         </form>
         <div class="sidebar-sweep-note">
@@ -686,7 +690,7 @@
       <li>
         <form action="{{ url_for('home.generate_reports_now') }}" method="post">
           <button class="sidebar-sweep-button" type="submit" title="Generate Trifork reports now" aria-label="Generate Trifork reports now">
-            <span class="nav-icon" aria-hidden="true">📄</span><span class="nav-label">Generate reports now</span>
+            <span class="nav-icon" aria-hidden="true"><i class="fa-solid fa-file-lines"></i></span><span class="nav-label">Generate reports now</span>
           </button>
         </form>
         <div class="sidebar-sweep-note">
@@ -702,7 +706,7 @@
     <div class="sidebar-section-label">Administration</div>
     <ul class="sidebar-nav">
       <li><a href="{{ url_for('admin.index') }}" class="{% if request.endpoint and request.endpoint.startswith('admin.') %}active{% endif %}">
-        <span class="nav-icon">⚙️</span><span class="nav-label">Admin</span>
+        <span class="nav-icon"><i class="fa-solid fa-shield-halved"></i></span><span class="nav-label">Admin</span>
       </a></li>
     </ul>
   </div>
@@ -724,10 +728,10 @@
   <div class="sidebar-section" style="margin-top: auto;">
     <ul class="sidebar-nav">
       <li><a href="{{ url_for('auth.change_password') }}" class="{% if request.endpoint == 'auth.change_password' %}active{% endif %}">
-        <span class="nav-icon">🔑</span><span class="nav-label">Change Password</span>
+        <span class="nav-icon"><i class="fa-solid fa-key"></i></span><span class="nav-label">Change Password</span>
       </a></li>
       <li><a href="{{ url_for('auth.logout') }}">
-        <span class="nav-icon">🚪</span><span class="nav-label">Sign Out</span>
+        <span class="nav-icon"><i class="fa-solid fa-right-from-bracket"></i></span><span class="nav-label">Sign Out</span>
       </a></li>
     </ul>
   </div>
@@ -742,11 +746,11 @@
       {% block page_subtitle %}{% endblock %}
     </div>
     <div class="topbar-actions">
-      <button type="button" id="theme-toggle-btn" class="notif-btn" aria-label="Toggle day/night theme" title="Toggle day/night theme">🌙</button>
+      <button type="button" id="theme-toggle-btn" class="notif-btn" aria-label="Toggle day/night theme" title="Toggle day/night theme"><i class="fa-solid fa-moon"></i></button>
       {% set notif = notif|default({}) %}
       <div class="notif" data-notif="attention">
         <button type="button" class="notif-btn" aria-label="Needs attention" title="Needs attention">
-          🔔
+          <i class="fa-solid fa-bell"></i>
           {% if notif.get('attention_count') %}<span class="notif-badge">{{ notif.attention_count }}</span>{% endif %}
         </button>
         <div class="notif-panel">
@@ -757,7 +761,7 @@
               <div class="notif-row-title">{{ row['title'] }}</div>
               <div class="notif-row-meta">
                 {{ row['ref'] }} &middot; {{ row['buyer'] }}
-                {% if row['deadline'] %} &middot; 🗓 {{ row['deadline'][:10] }}{% endif %}
+                {% if row['deadline'] %} &middot; {{ row['deadline'][:10] }}{% endif %}
               </div>
             </a>
             {% endfor %}
@@ -769,7 +773,7 @@
       </div>
       <div class="notif" data-notif="activity">
         <button type="button" class="notif-btn" aria-label="Recent activity" title="Recent activity">
-          🕒
+          <i class="fa-solid fa-clock"></i>
           {% if notif.get('activity_count') %}<span class="notif-badge">{{ notif.activity_count }}</span>{% endif %}
         </button>
         <div class="notif-panel">
@@ -843,7 +847,8 @@ document.addEventListener('click', function(e) {
   const btn = document.getElementById('theme-toggle-btn');
   if (!btn) return;
   function applyIcon() {
-    btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙';
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    btn.innerHTML = '<i class="fa-solid ' + (isLight ? 'fa-sun' : 'fa-moon') + '"></i>';
   }
   applyIcon();
   btn.addEventListener('click', function () {

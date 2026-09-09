@@ -64,7 +64,7 @@
               <input type="hidden" name="status_filter" value="{{ status_filter }}">
               <input type="text" name="note" class="cna-note-input" placeholder="Note (optional)" value="{{ m['note'] or '' }}">
               <button type="submit" name="status" value="SHORTLISTED" class="btn btn-secondary btn-sm">★ Shortlist</button>
-              <button type="submit" name="status" value="REJECTED" class="btn btn-secondary btn-sm">✕ Reject</button>
+              <button type="submit" name="status" value="REJECTED" class="btn btn-secondary btn-sm">Reject</button>
               {% if m['action_status'] != 'NEW' %}<button type="submit" name="status" value="NEW" class="btn btn-secondary btn-sm">Reset</button>{% endif %}
             </form>
           </td>
