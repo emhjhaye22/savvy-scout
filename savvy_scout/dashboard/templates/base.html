@@ -61,18 +61,22 @@
          (picks up the orb hue so panels read as lit, not just dark boxes)
          plus an inset top highlight (a hairline of light catching the
          glass's top inner edge) -- one var so every glass surface gets
-         all three without repeating the set everywhere. 2026-09-09: the
-         first glass pass's orbs were too faint at 500-600px/blur(120px)/
-         alpha 0.20-0.25 to read as anything -- a screenshot comparison
-         against Mark's reference showed near-zero visible color, since a
-         Gaussian blur that wide spreads a small alpha over a huge area.
-         Bumped size/alpha below and added this shadow glow so panels away
-         from an orb's direct footprint still pick up some color. */
-      --glass-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 90px -30px rgba(139,92,246,0.4), inset 0 1px 1px rgba(255,255,255,0.15);
-      --orb-color-1: rgba(99,102,241,0.7);
-      --orb-color-2: rgba(6,182,212,0.65);
-      --orb-color-3: rgba(217,70,239,0.55);
-      --orb-color-4: rgba(59,130,246,0.5);
+         all three without repeating the set everywhere. 2026-09-09,
+         3rd revision: the "make it visible" pass overcorrected -- alpha
+         0.5-0.7 orbs read fine on short KPI/chart panels but turned into
+         a loud shifting rainbow directly behind paragraph text on
+         content-dense cards (Approval Queue's AI-assessment reasoning),
+         flagged as uncomfortable to read ("masakit sa mata") plus a
+         separate explicit ask for minimalistic, not colorful. Cut back
+         to a level that still reads as real glass (orbs are still big
+         enough at 700-950px to spread smoothly, unlike the original
+         500-600px pass that was genuinely invisible) without dominating
+         body text. */
+      --glass-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 90px -30px rgba(139,92,246,0.15), inset 0 1px 1px rgba(255,255,255,0.15);
+      --orb-color-1: rgba(99,102,241,0.18);
+      --orb-color-2: rgba(6,182,212,0.16);
+      --orb-color-3: rgba(217,70,239,0.12);
+      --orb-color-4: rgba(59,130,246,0.12);
       --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       --font-heading: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
@@ -102,11 +106,11 @@
       --flash-info-text: #1D4ED8;
       --tint-purple-text: #6D28D9;
       --hover-tint: rgba(11,31,58,0.05);
-      --glass-shadow: 0 15px 35px rgba(15,23,42,0.08), 0 0 60px -25px rgba(139,92,246,0.22), inset 0 1px 1px rgba(255,255,255,0.8);
-      --orb-color-1: rgba(99,102,241,0.24);
-      --orb-color-2: rgba(6,182,212,0.2);
-      --orb-color-3: rgba(217,70,239,0.16);
-      --orb-color-4: rgba(59,130,246,0.14);
+      --glass-shadow: 0 15px 35px rgba(15,23,42,0.08), 0 0 60px -25px rgba(139,92,246,0.08), inset 0 1px 1px rgba(255,255,255,0.8);
+      --orb-color-1: rgba(99,102,241,0.08);
+      --orb-color-2: rgba(6,182,212,0.07);
+      --orb-color-3: rgba(217,70,239,0.05);
+      --orb-color-4: rgba(59,130,246,0.05);
     }
 
     /* Glassmorphism: translucent surfaces only read as "glass" with
@@ -468,8 +472,8 @@
     /* ---- BAR CHART (2026-09-06, plain CSS, no JS/SVG library) ---- */
     .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 140px; padding: 0 4px; }
     .bar-chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
-    .bar-chart-bar { width: 100%; max-width: 28px; border-radius: 3px 3px 0 0; background: var(--primary); min-height: 2px; box-shadow: 0 0 10px rgba(59,110,165,0.5); transition: background 0.15s, box-shadow 0.15s; }
-    .bar-chart-col:hover .bar-chart-bar { background: var(--primary-dark); box-shadow: 0 0 14px rgba(59,110,165,0.7); }
+    .bar-chart-bar { width: 100%; max-width: 28px; border-radius: 3px 3px 0 0; background: var(--primary); min-height: 2px; box-shadow: 0 0 6px rgba(59,110,165,0.2); transition: background 0.15s, box-shadow 0.15s; }
+    .bar-chart-col:hover .bar-chart-bar { background: var(--primary-dark); box-shadow: 0 0 8px rgba(59,110,165,0.3); }
     .bar-chart-value { font-size: 10px; color: var(--text-muted); margin-bottom: 3px; white-space: nowrap; }
     .bar-chart-label { font-size: 10px; color: var(--text-muted); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
