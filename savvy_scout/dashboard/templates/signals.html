@@ -34,10 +34,10 @@
   .signal-title a { color: inherit; text-decoration: none; }
   .signal-title a:hover { color: var(--primary); text-decoration: underline; }
 
-  .urgency-badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
-  .urgency-due_now { background: #FEE2E2; color: #991B1B; }
-  .urgency-due_soon { background: #FEF3C7; color: #92400E; }
-  .urgency-upcoming { background: #DBEAFE; color: #1D4ED8; }
+  .urgency-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; border: 1px solid transparent; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
+  .urgency-due_now { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: var(--danger); }
+  .urgency-due_soon { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--warning); }
+  .urgency-upcoming { background: rgba(6,182,212,0.15); border-color: rgba(6,182,212,0.3); color: var(--info); }
 </style>
 
 <div class="signal-note">
@@ -46,9 +46,9 @@
 
 <div class="summary-bar">
   <span class="summary-pill active">All <span class="pill-count">({{ signals | length }})</span></span>
-  {% if counts.due_now %}<span class="summary-pill" style="border-color:#EF4444;color:#991B1B;">Review due now <span class="pill-count">({{ counts.due_now }})</span></span>{% endif %}
-  {% if counts.due_soon %}<span class="summary-pill" style="border-color:#F59E0B;color:#92400E;">Due soon <span class="pill-count">({{ counts.due_soon }})</span></span>{% endif %}
-  {% if counts.upcoming %}<span class="summary-pill" style="border-color:#3B82F6;color:#1D4ED8;">Upcoming <span class="pill-count">({{ counts.upcoming }})</span></span>{% endif %}
+  {% if counts.due_now %}<span class="summary-pill" style="border-color:var(--danger);color:var(--danger);">Review due now <span class="pill-count">({{ counts.due_now }})</span></span>{% endif %}
+  {% if counts.due_soon %}<span class="summary-pill" style="border-color:var(--warning);color:var(--warning);">Due soon <span class="pill-count">({{ counts.due_soon }})</span></span>{% endif %}
+  {% if counts.upcoming %}<span class="summary-pill" style="border-color:var(--info);color:var(--info);">Upcoming <span class="pill-count">({{ counts.upcoming }})</span></span>{% endif %}
 </div>
 
 <div class="card" style="padding: 18px 18px 6px;">

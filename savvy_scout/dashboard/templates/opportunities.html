@@ -41,22 +41,22 @@
   .opp-table td { padding: 10px 14px; vertical-align: middle; }
 
   .status-badge {
-    display: inline-block; padding: 3px 8px; border-radius: 4px;
+    display: inline-block; padding: 4px 10px; border-radius: 999px;
     font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
     white-space: nowrap;
   }
-  .status-NEW { background: #EFF6FF; color: #1D4ED8; }
-  .status-PHASE1_TRIAGED { background: #F0FDF4; color: #166534; }
-  .status-TO_REVIEW { background: #DBEAFE; color: #1D4ED8; }
-  .status-HANDOFF { background: #E0E7FF; color: #3730A3; }
-  .status-PHASE2_SCOPED, .status-AWAITING_PHASE2_APPROVAL { background: #EDE9FE; color: #5B21B6; }
-  .status-ESCALATED_TO_VICTORIA { background: #FEF3C7; color: #92400E; }
-  .status-APPROVED, .status-ACTIVE { background: #D1FAE5; color: #065F46; }
-  .status-REJECTED { background: #FEE2E2; color: #991B1B; }
-  .status-PARKED { background: #F3F4F6; color: #374151; }
-  .status-MONITORING { background: #FEF9C3; color: #713F12; }
-  .status-CAPTURE_BRIEF_DRAFTED { background: #DCFCE7; color: #166534; }
-  .status-DOCS_DOWNLOADED, .status-CALENDARED { background: #D1FAE5; color: #065F46; }
+  .status-NEW { background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3); color: var(--info); }
+  .status-PHASE1_TRIAGED { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: var(--success); }
+  .status-TO_REVIEW { background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3); color: var(--info); }
+  .status-HANDOFF { background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); color: var(--purple); }
+  .status-PHASE2_SCOPED, .status-AWAITING_PHASE2_APPROVAL { background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); color: var(--purple); }
+  .status-ESCALATED_TO_VICTORIA { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); color: var(--warning); }
+  .status-APPROVED, .status-ACTIVE { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: var(--success); }
+  .status-REJECTED { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: var(--danger); }
+  .status-PARKED { background: var(--surface-alt); border: 1px solid var(--border); color: var(--text-muted); }
+  .status-MONITORING { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); color: var(--warning); }
+  .status-CAPTURE_BRIEF_DRAFTED { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: var(--success); }
+  .status-DOCS_DOWNLOADED, .status-CALENDARED { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: var(--success); }
 
   .opp-title a { color: var(--navy); text-decoration: none; font-weight: 600; }
   .opp-title a:hover { color: var(--primary); text-decoration: underline; }
@@ -68,15 +68,15 @@
   .search-input { flex: 1; min-width: 200px; }
 
   .priority-badge {
-    display: inline-block; padding: 3px 8px; border-radius: 4px;
+    display: inline-block; padding: 4px 10px; border-radius: 999px; border: 1px solid transparent;
     font-size: 10px; font-weight: 700; white-space: nowrap;
   }
-  .priority-1 { background: rgba(59,110,165,0.15); color: var(--primary-dark); }
-  .priority-2 { background: #FEF3C7; color: #92400E; }
-  .priority-3 { background: #F3F4F6; color: #374151; }
-  .priority-4 { background: #FEE2E2; color: #991B1B; }
-  .priority-5 { background: #F3F4F6; color: #6B7280; }
-  .priority-6 { background: #F3F4F6; color: #9CA3AF; }
+  .priority-1 { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: var(--success); }
+  .priority-2 { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--warning); }
+  .priority-3 { background: var(--surface-alt); border-color: var(--border); color: var(--text-muted); }
+  .priority-4 { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: var(--danger); }
+  .priority-5 { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.3); color: var(--purple); }
+  .priority-6 { background: var(--surface-alt); border-color: var(--border); color: var(--text-muted); }
 
   .sort-toggle { display: flex; gap: 4px; margin-left: auto; }
   .sort-toggle a {
@@ -123,12 +123,12 @@
   {% set parked_c = status_counts.get('PARKED', 0) %}
   {% set monitor_c = status_counts.get('MONITORING', 0) %}
 
-  {% if phase1_c %}<a href="{{ url_for('queues.opportunities', status='TO_REVIEW') }}" class="summary-pill {% if status_filter == 'TO_REVIEW' %}active{% endif %}" style="border-color: #3B82F6; color: #1D4ED8;">To Review <span class="pill-count">({{ phase1_c }})</span></a>{% endif %}
-  {% if handoff_c %}<a href="{{ url_for('queues.opportunities', status='HANDOFF') }}" class="summary-pill {% if status_filter == 'HANDOFF' %}active{% endif %}" style="border-color: #4F46E5; color: #3730A3;">Handoff <span class="pill-count">({{ handoff_c }})</span></a>{% endif %}
-  {% if phase2_c %}<a href="{{ url_for('queues.opportunities', status='AWAITING_PHASE2_APPROVAL') }}" class="summary-pill {% if status_filter == 'AWAITING_PHASE2_APPROVAL' %}active{% endif %}" style="border-color: #8B5CF6; color: #5B21B6;">Phase 2 Queue <span class="pill-count">({{ phase2_c }})</span></a>{% endif %}
-  {% if victoria_c %}<a href="{{ url_for('queues.opportunities', status='ESCALATED_TO_VICTORIA') }}" class="summary-pill {% if status_filter == 'ESCALATED_TO_VICTORIA' %}active{% endif %}" style="border-color: #F59E0B; color: #92400E;">Escalated <span class="pill-count">({{ victoria_c }})</span></a>{% endif %}
-  {% if approved_c %}<a href="{{ url_for('queues.opportunities', status='APPROVED') }}" class="summary-pill {% if status_filter == 'APPROVED' %}active{% endif %}" style="border-color: #10B981; color: #065F46;">Approved <span class="pill-count">({{ approved_c }})</span></a>{% endif %}
-  {% if rejected_c %}<a href="{{ url_for('queues.opportunities', status='REJECTED') }}" class="summary-pill {% if status_filter == 'REJECTED' %}active{% endif %}" style="border-color: #EF4444; color: #991B1B;">Rejected <span class="pill-count">({{ rejected_c }})</span></a>{% endif %}
+  {% if phase1_c %}<a href="{{ url_for('queues.opportunities', status='TO_REVIEW') }}" class="summary-pill {% if status_filter == 'TO_REVIEW' %}active{% endif %}" style="border-color: var(--info); color: var(--info);">To Review <span class="pill-count">({{ phase1_c }})</span></a>{% endif %}
+  {% if handoff_c %}<a href="{{ url_for('queues.opportunities', status='HANDOFF') }}" class="summary-pill {% if status_filter == 'HANDOFF' %}active{% endif %}" style="border-color: var(--purple); color: var(--purple);">Handoff <span class="pill-count">({{ handoff_c }})</span></a>{% endif %}
+  {% if phase2_c %}<a href="{{ url_for('queues.opportunities', status='AWAITING_PHASE2_APPROVAL') }}" class="summary-pill {% if status_filter == 'AWAITING_PHASE2_APPROVAL' %}active{% endif %}" style="border-color: var(--purple); color: var(--purple);">Phase 2 Queue <span class="pill-count">({{ phase2_c }})</span></a>{% endif %}
+  {% if victoria_c %}<a href="{{ url_for('queues.opportunities', status='ESCALATED_TO_VICTORIA') }}" class="summary-pill {% if status_filter == 'ESCALATED_TO_VICTORIA' %}active{% endif %}" style="border-color: var(--warning); color: var(--warning);">Escalated <span class="pill-count">({{ victoria_c }})</span></a>{% endif %}
+  {% if approved_c %}<a href="{{ url_for('queues.opportunities', status='APPROVED') }}" class="summary-pill {% if status_filter == 'APPROVED' %}active{% endif %}" style="border-color: var(--success); color: var(--success);">Approved <span class="pill-count">({{ approved_c }})</span></a>{% endif %}
+  {% if rejected_c %}<a href="{{ url_for('queues.opportunities', status='REJECTED') }}" class="summary-pill {% if status_filter == 'REJECTED' %}active{% endif %}" style="border-color: var(--danger); color: var(--danger);">Rejected <span class="pill-count">({{ rejected_c }})</span></a>{% endif %}
   {% if parked_c %}<a href="{{ url_for('queues.opportunities', status='PARKED') }}" class="summary-pill {% if status_filter == 'PARKED' %}active{% endif %}">Parked <span class="pill-count">({{ parked_c }})</span></a>{% endif %}
   {% if monitor_c %}<a href="{{ url_for('queues.opportunities', status='MONITORING') }}" class="summary-pill {% if status_filter == 'MONITORING' %}active{% endif %}">Monitoring <span class="pill-count">({{ monitor_c }})</span></a>{% endif %}
 </div>

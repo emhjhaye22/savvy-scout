@@ -22,7 +22,8 @@
          at 4-5% white opacity the blurred orbs behind genuinely show
          through, rather than the surface itself reading as an opaque
          navy card that merely blurs its edges. */
-      --surface: rgba(255,255,255,0.045);
+      --surface: rgba(255,255,255,0.04);
+      --surface-hover: rgba(255,255,255,0.07);
       --surface-alt: rgba(255,255,255,0.03);
       /* Sidebar is now the same glass system as everything else rather
          than a solid two-tone navy block (an earlier, deliberate choice
@@ -38,11 +39,12 @@
       --navy: #FFFFFF;
       --border: rgba(255,255,255,0.12);
       --border-top: rgba(255,255,255,0.28);
+      --border-light: rgba(255,255,255,0.20);
       --text: #FFFFFF;
       --text-muted: #94A3B8;
       --success: #10B981;
       --warning: #F59E0B;
-      --danger: #FF4D4F;
+      --danger: #EF4444;
       --info: #06B6D4;
       --purple: #8B5CF6;
       --flash-success-text: #6EE7B7;
@@ -50,12 +52,14 @@
       --flash-info-text: #93C5FD;
       --tint-purple-text: #C4B5FD;
       --hover-tint: rgba(255,255,255,0.07);
-      --glass-blur: blur(24px) saturate(180%);
+      --glass-blur: blur(24px);
       /* Outer soft shadow (the card "floats") plus an inset top highlight
          (a hairline of light catching the glass's top inner edge) -- one
          var so every glass surface gets both without repeating the pair
          everywhere. */
-      --glass-shadow: 0 20px 50px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.15);
+      --glass-shadow: 0 20px 50px rgba(0,0,0,0.45), inset 0 1px 1px rgba(255,255,255,0.15);
+      --orb-color-1: rgba(99,102,241,0.25);
+      --orb-color-2: rgba(6,182,212,0.20);
       --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       --font-heading: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
@@ -64,15 +68,20 @@
        --success/--warning/--danger/--purple are brand/status colors, not
        theme colors, so they're deliberately untouched here. --info moved
        to cyan (matching the reference spec's "interactive trigger" accent)
-       in both themes. */
+       in both themes. Keeps this app's existing cool light palette rather
+       than the reference's separate warm "sunlight" theme -- that's a
+       distinct stylistic choice nobody's asked for yet, not a glassmorphism
+       fidelity gap; happy to build it as its own pass if wanted. */
     :root[data-theme="light"] {
       --bg: #EEF1F5;
       --surface: rgba(255,255,255,0.55);
+      --surface-hover: rgba(255,255,255,0.70);
       --surface-alt: rgba(11,31,58,0.04);
       --sidebar-bg: rgba(255,255,255,0.45);
       --navy: #0B1F3A;
       --border: rgba(11,31,58,0.1);
       --border-top: rgba(255,255,255,0.8);
+      --border-light: rgba(255,255,255,0.85);
       --text: #1F2937;
       --text-muted: #64748B;
       --flash-success-text: #047857;
@@ -80,35 +89,31 @@
       --flash-info-text: #1D4ED8;
       --tint-purple-text: #6D28D9;
       --hover-tint: rgba(11,31,58,0.05);
-      --glass-shadow: 0 20px 50px rgba(15,23,42,0.1), inset 0 1px 1px rgba(255,255,255,0.7);
+      --glass-shadow: 0 15px 35px rgba(15,23,42,0.08), inset 0 1px 1px rgba(255,255,255,0.8);
+      --orb-color-1: rgba(99,102,241,0.12);
+      --orb-color-2: rgba(6,182,212,0.10);
     }
 
     /* Glassmorphism: translucent surfaces only read as "glass" with
        something soft and colorful behind them to blur -- a flat solid
        --bg would make backdrop-filter invisible. Fixed, oversized, heavily
        blurred brand-color orbs behind everything else (z-index -1,
-       pointer-events none so they never intercept clicks). Three orbs
-       (indigo/cyan/violet), tuned dimmer in light mode where the base is
-       already bright and would otherwise wash the color out to nothing. */
-    body::before, body::after, .bg-orb-3 {
+       pointer-events none so they never intercept clicks). Exactly two
+       orbs (indigo/cyan) matching the reference spec -- a third orb here
+       was dead CSS in the previous pass (defined but never attached to
+       any element in the page, so it never actually rendered). */
+    body::before, body::after {
       content: ""; position: fixed; z-index: -1; border-radius: 50%;
-      filter: blur(120px); opacity: 0.3; pointer-events: none;
+      filter: blur(120px); pointer-events: none;
     }
     body::before {
-      top: -14%; left: -10%; width: 42vw; height: 42vw;
-      background: #6366F1;
+      width: 500px; height: 500px; top: -100px; left: 10%;
+      background: var(--orb-color-1);
     }
     body::after {
-      top: 20%; right: -12%; width: 40vw; height: 40vw;
-      background: #06B6D4;
+      width: 600px; height: 600px; bottom: -150px; right: 5%;
+      background: var(--orb-color-2);
     }
-    .bg-orb-3 {
-      bottom: -16%; left: 15%; width: 44vw; height: 44vw;
-      background: #8B5CF6;
-    }
-    :root[data-theme="light"] body::before,
-    :root[data-theme="light"] body::after,
-    :root[data-theme="light"] .bg-orb-3 { opacity: 0.14; }
 
     body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.5; display: flex; min-height: 100vh; }
 
@@ -440,33 +445,39 @@
     .bar-chart-label { font-size: 10px; color: var(--text-muted); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
     /* ---- BADGE ---- */
+    /* Translucent status pills (2026-09-09), not solid pastel blocks --
+       the old #D1FAE5-style light-mode pastels were hardcoded hex, not
+       theme-aware, so on the new near-black canvas they rendered as
+       bright opaque white-ish rectangles: exactly the kind of foreign
+       object a real glass UI can't have. Same rgba-tint-plus-colored-
+       border-and-text pattern as the buttons above. */
     .badge {
       display: inline-flex; align-items: center; gap: 4px;
-      padding: 3px 8px; border-radius: 4px;
+      padding: 4px 10px; border-radius: 999px; border: 1px solid transparent;
       font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
       text-transform: uppercase;
     }
 
-    .badge-pass    { background: #D1FAE5; color: #065F46; }
-    .badge-fail    { background: #FEE2E2; color: #991B1B; }
-    .badge-flag    { background: #FEF3C7; color: #92400E; }
-    .badge-inferred { background: #DBEAFE; color: #1E40AF; }
-    .badge-maybe   { background: #FEF3C7; color: #92400E; }
-    .badge-count   { background: #EF4444; color: white; border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+    .badge-pass    { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: var(--success); }
+    .badge-fail    { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: var(--danger); }
+    .badge-flag    { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--warning); }
+    .badge-inferred { background: rgba(6,182,212,0.15); border-color: rgba(6,182,212,0.3); color: var(--info); }
+    .badge-maybe   { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--warning); }
+    .badge-count   { background: var(--danger); color: white; border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
 
     /* Phase 2 ratings */
-    .badge-high    { background: #D1FAE5; color: #065F46; }
-    .badge-med     { background: #FEF3C7; color: #92400E; }
-    .badge-low     { background: #FEE2E2; color: #991B1B; }
-    .badge-pursue  { background: #D1FAE5; color: #065F46; }
-    .badge-decline { background: #FEE2E2; color: #991B1B; }
-    .badge-contested { background: #FEF3C7; color: #92400E; }
-    .badge-strong  { background: #D1FAE5; color: #065F46; }
-    .badge-unknown { background: #F3F4F6; color: #374151; }
-    .badge-provisional { background: #EDE9FE; color: #5B21B6; font-size: 10px; }
+    .badge-high    { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: var(--success); }
+    .badge-med     { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--warning); }
+    .badge-low     { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: var(--danger); }
+    .badge-pursue  { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: var(--success); }
+    .badge-decline { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: var(--danger); }
+    .badge-contested { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--warning); }
+    .badge-strong  { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: var(--success); }
+    .badge-unknown { background: var(--surface-alt); border-color: var(--border); color: var(--text-muted); }
+    .badge-provisional { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.3); color: var(--purple); font-size: 10px; }
 
     /* UK Stage */
-    .badge-stage   { background: #EFF6FF; color: #1D4ED8; }
+    .badge-stage   { background: rgba(6,182,212,0.15); border-color: rgba(6,182,212,0.3); color: var(--info); }
 
     /* ---- TABLE ---- */
     .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -492,23 +503,29 @@
     .data-table td .cell-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
     /* ---- BUTTONS ---- */
+    /* Translucent glass pills (2026-09-09), not solid opaque blocks -- a
+       bright solid green/red button sitting on a near-black glass panel
+       reads as a jarring foreign object; a tinted-glass pill in the same
+       status color stays legible while fitting the rest of the surface
+       language. Border/text stay full-strength color, only the fill is
+       translucent. */
     .btn {
       display: inline-flex; align-items: center; gap: 5px;
-      padding: 7px 14px; border-radius: 6px; border: none;
+      padding: 7px 14px; border-radius: 8px; border: 1px solid transparent;
       font-size: 12px; font-weight: 600; cursor: pointer;
       font-family: var(--font); transition: all 0.15s;
       text-decoration: none;
     }
     .btn:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.12); }
 
-    .btn-approve  { background: #059669; color: white; }
-    .btn-approve:hover { background: #047857; }
-    .btn-reject   { background: #DC2626; color: white; }
-    .btn-reject:hover { background: #B91C1C; }
-    .btn-park     { background: #D97706; color: white; }
-    .btn-park:hover { background: #B45309; }
-    .btn-victoria { background: #7C3AED; color: white; }
-    .btn-victoria:hover { background: #6D28D9; }
+    .btn-approve  { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.35); color: var(--success); }
+    .btn-approve:hover  { background: rgba(16,185,129,0.25); border-color: var(--success); }
+    .btn-reject   { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.35); color: var(--danger); }
+    .btn-reject:hover   { background: rgba(239,68,68,0.25); border-color: var(--danger); }
+    .btn-park     { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.35); color: var(--warning); }
+    .btn-park:hover     { background: rgba(245,158,11,0.25); border-color: var(--warning); }
+    .btn-victoria { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.35); color: var(--purple); }
+    .btn-victoria:hover { background: rgba(139,92,246,0.25); border-color: var(--purple); }
     .btn-secondary { background: var(--surface-alt); color: var(--text); border: 1px solid var(--border); }
     .btn-secondary:hover { background: var(--hover-tint); }
     .btn-sm { padding: 4px 9px; font-size: 11px; }
@@ -579,7 +596,7 @@
     .detail-meta .meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 600; }
     .detail-meta .meta-value { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 2px; }
 
-    .prov-label { display: inline-block; background: #EDE9FE; color: #5B21B6; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 3px 7px; border-radius: 4px; margin-bottom: 12px; }
+    .prov-label { display: inline-block; background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); color: var(--purple); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 4px 10px; border-radius: 999px; margin-bottom: 12px; }
 
     .cb-section { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); }
     .cb-section:last-child { border-bottom: none; padding-bottom: 0; }

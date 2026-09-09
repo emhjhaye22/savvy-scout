@@ -71,7 +71,9 @@
     border: 1px solid var(--border); border-top-color: var(--border-top); border-radius: 16px; background: var(--surface);
     backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
     box-shadow: var(--glass-shadow); padding: 7px 10px;
+    transition: background 0.2s ease, border-color 0.2s ease;
   }
+  .panel:hover { background: var(--surface-hover); border-color: var(--border-light); }
   .panel-head { margin-bottom: 3px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 
   .daily-toggle-btn {
@@ -397,17 +399,17 @@
         {% if approval_rate.total %}
         <div style="display:flex; gap:28px; padding: 4px 0 8px;">
           <div>
-            <div style="font-size:18px; font-weight:900; color:#10B981; line-height:1.1;">{{ approval_rate.approved_pct }}%</div>
+            <div style="font-size:18px; font-weight:900; color:var(--success); line-height:1.1;">{{ approval_rate.approved_pct }}%</div>
             <div style="font-size:10.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px;">Approved ({{ approval_rate.approved }})</div>
           </div>
           <div>
-            <div style="font-size:18px; font-weight:900; color:#DC2626; line-height:1.1;">{{ approval_rate.rejected_pct }}%</div>
+            <div style="font-size:18px; font-weight:900; color:var(--danger); line-height:1.1;">{{ approval_rate.rejected_pct }}%</div>
             <div style="font-size:10.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px;">Rejected ({{ approval_rate.rejected }})</div>
           </div>
         </div>
         <div class="meter-track" style="display:flex;">
-          <div style="height:100%; width: {{ approval_rate.approved_pct }}%; background:#10B981;"></div>
-          <div style="height:100%; width: {{ approval_rate.rejected_pct }}%; background:#DC2626;"></div>
+          <div style="height:100%; width: {{ approval_rate.approved_pct }}%; background:var(--success);"></div>
+          <div style="height:100%; width: {{ approval_rate.rejected_pct }}%; background:var(--danger);"></div>
         </div>
         {% else %}
         <div class="mini-empty">No notices have reached an Approved/Rejected decision yet.</div>
@@ -420,8 +422,8 @@
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
             <div style="width:70px; font-size:12px; font-weight:600; color:var(--text); flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ row.owner }}</div>
             <div class="meter-track" style="display:flex; flex:1;">
-              <div style="height:100%; width: {{ row.approved_pct }}%; background:#10B981;"></div>
-              <div style="height:100%; width: {{ row.rejected_pct }}%; background:#DC2626;"></div>
+              <div style="height:100%; width: {{ row.approved_pct }}%; background:var(--success);"></div>
+              <div style="height:100%; width: {{ row.rejected_pct }}%; background:var(--danger);"></div>
             </div>
             <div style="font-size:11px; color:var(--text-muted); white-space:nowrap; font-variant-numeric:tabular-nums;">{{ row.approved }}/{{ row.rejected }}</div>
           </div>

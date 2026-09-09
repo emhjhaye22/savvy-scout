@@ -300,7 +300,7 @@
         <div style="margin-top: 6px; font-size: 12px; color: var(--text-muted);">{{ n['overall_reasoning'] }}</div>
         {% endif %}
         {% if n['trigger_reason'] %}
-        <div style="margin-top: 6px; font-size: 11px; color: #92400E;">
+        <div style="margin-top: 6px; font-size: 11px; color: var(--warning);">
           Trigger: {{ n['trigger_reason'] | replace('gate_flag:', 'Gate ') | replace('owner_marked_victoria_decision', 'Owner escalation') }}
         </div>
         {% endif %}
