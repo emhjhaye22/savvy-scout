@@ -22,9 +22,10 @@
      fit the available width exactly, they never wrap and never force page overflow. */
   .kpi-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 3px; }
   .kpi-card {
-    min-width: 0; border: 1px solid var(--border); border-radius: 12px; padding: 4px 8px;
+    min-width: 0; border: 1px solid var(--border); border-top-color: var(--border-top); border-radius: 14px; padding: 4px 8px;
     background: var(--surface);
     backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow);
   }
   .kpi-card .stat-value { font-size: 16px; font-weight: 900; color: var(--navy); line-height: 1.1; }
   .kpi-card .stat-label { margin-top: 1px; font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -67,7 +68,7 @@
   .overview-grid > .panel.show-daily { grid-column: 1 / -1; }
 
   .panel {
-    border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+    border: 1px solid var(--border); border-top-color: var(--border-top); border-radius: 16px; background: var(--surface);
     backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
     box-shadow: var(--glass-shadow); padding: 7px 10px;
   }

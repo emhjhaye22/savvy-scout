@@ -13,46 +13,66 @@
       --sidebar-w: 84px;
       --sidebar-expanded-w: 260px;
       --topbar-h: 64px;
-      --bg: #041226;
-      --surface: rgba(15,32,58,0.55);
-      --surface-alt: rgba(255,255,255,0.05);
-      --sidebar-bg: rgba(7,20,40,0.65);
-      --sidebar-text: #9AA3AD;
+      /* Near-black neutral canvas (2026-09-09, second pass -- first pass's
+         navy-tinted #041226 competed with the glass surfaces instead of
+         receding behind them). */
+      --bg: #08090C;
+      /* Barely-there white tint, not a color-tinted pane -- this is the
+         actual difference between "translucent card" and "real glass":
+         at 4-5% white opacity the blurred orbs behind genuinely show
+         through, rather than the surface itself reading as an opaque
+         navy card that merely blurs its edges. */
+      --surface: rgba(255,255,255,0.045);
+      --surface-alt: rgba(255,255,255,0.03);
+      /* Sidebar is now the same glass system as everything else rather
+         than a solid two-tone navy block (an earlier, deliberate choice
+         from the first glass pass) -- one unified floating-glass language
+         reads as more "real" glassmorphism than a glass content area next
+         to a flat opaque rail. */
+      --sidebar-bg: rgba(255,255,255,0.04);
+      --sidebar-text: #94A3B8;
       --brand-red: #AF1F23;
       --sidebar-active: #3B6EA5;
       --primary: #3B6EA5;
       --primary-dark: #2E5680;
       --navy: #FFFFFF;
-      --border: rgba(255,255,255,0.14);
-      --text: #E5E7EB;
-      --text-muted: #9AA3AD;
+      --border: rgba(255,255,255,0.12);
+      --border-top: rgba(255,255,255,0.28);
+      --text: #FFFFFF;
+      --text-muted: #94A3B8;
       --success: #10B981;
       --warning: #F59E0B;
       --danger: #FF4D4F;
-      --info: #3B82F6;
+      --info: #06B6D4;
       --purple: #8B5CF6;
       --flash-success-text: #6EE7B7;
       --flash-error-text: #FF8A8C;
       --flash-info-text: #93C5FD;
       --tint-purple-text: #C4B5FD;
-      --hover-tint: rgba(255,255,255,0.08);
-      --glass-blur: blur(20px) saturate(160%);
-      --glass-shadow: 0 8px 32px rgba(2,8,23,0.35);
+      --hover-tint: rgba(255,255,255,0.07);
+      --glass-blur: blur(24px) saturate(180%);
+      /* Outer soft shadow (the card "floats") plus an inset top highlight
+         (a hairline of light catching the glass's top inner edge) -- one
+         var so every glass surface gets both without repeating the pair
+         everywhere. */
+      --glass-shadow: 0 20px 50px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.15);
       --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       --font-heading: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
-    /* Day theme (2026-09-06): sidebar stays the dark navy brand color in
-       both themes -- only the content area (bg/surface/text/border) flips.
-       --primary/--brand-red/--success/--warning/--danger/--info/--purple
-       are brand/status colors, not theme colors, so they're deliberately
-       untouched here. */
+    /* Day theme (2026-09-06, re-tuned 2026-09-09): --primary/--brand-red/
+       --success/--warning/--danger/--purple are brand/status colors, not
+       theme colors, so they're deliberately untouched here. --info moved
+       to cyan (matching the reference spec's "interactive trigger" accent)
+       in both themes. */
     :root[data-theme="light"] {
       --bg: #EEF1F5;
-      --surface: rgba(255,255,255,0.6);
+      --surface: rgba(255,255,255,0.55);
       --surface-alt: rgba(11,31,58,0.04);
+      --sidebar-bg: rgba(255,255,255,0.45);
       --navy: #0B1F3A;
       --border: rgba(11,31,58,0.1);
+      --border-top: rgba(255,255,255,0.8);
       --text: #1F2937;
       --text-muted: #64748B;
       --flash-success-text: #047857;
@@ -60,29 +80,35 @@
       --flash-info-text: #1D4ED8;
       --tint-purple-text: #6D28D9;
       --hover-tint: rgba(11,31,58,0.05);
-      --glass-shadow: 0 8px 32px rgba(15,23,42,0.08);
+      --glass-shadow: 0 20px 50px rgba(15,23,42,0.1), inset 0 1px 1px rgba(255,255,255,0.7);
     }
 
-    /* Glassmorphism (2026-09-06): translucent surfaces only read as "glass"
-       with something soft and colorful behind them to blur -- a flat solid
+    /* Glassmorphism: translucent surfaces only read as "glass" with
+       something soft and colorful behind them to blur -- a flat solid
        --bg would make backdrop-filter invisible. Fixed, oversized, heavily
-       blurred brand-color blobs behind everything else (z-index -1,
-       pointer-events none so they never intercept clicks), tuned dimmer in
-       light mode where the base is already bright. */
-    body::before, body::after {
+       blurred brand-color orbs behind everything else (z-index -1,
+       pointer-events none so they never intercept clicks). Three orbs
+       (indigo/cyan/violet), tuned dimmer in light mode where the base is
+       already bright and would otherwise wash the color out to nothing. */
+    body::before, body::after, .bg-orb-3 {
       content: ""; position: fixed; z-index: -1; border-radius: 50%;
-      filter: blur(90px); pointer-events: none;
+      filter: blur(120px); opacity: 0.3; pointer-events: none;
     }
     body::before {
-      top: -12%; left: -8%; width: 46vw; height: 46vw;
-      background: radial-gradient(circle, rgba(59,110,165,0.35), transparent 70%);
+      top: -14%; left: -10%; width: 42vw; height: 42vw;
+      background: #6366F1;
     }
     body::after {
-      bottom: -18%; right: -10%; width: 50vw; height: 50vw;
-      background: radial-gradient(circle, rgba(139,92,246,0.25), transparent 70%);
+      top: 20%; right: -12%; width: 40vw; height: 40vw;
+      background: #06B6D4;
     }
-    :root[data-theme="light"] body::before { background: radial-gradient(circle, rgba(59,110,165,0.18), transparent 70%); }
-    :root[data-theme="light"] body::after { background: radial-gradient(circle, rgba(139,92,246,0.13), transparent 70%); }
+    .bg-orb-3 {
+      bottom: -16%; left: 15%; width: 44vw; height: 44vw;
+      background: #8B5CF6;
+    }
+    :root[data-theme="light"] body::before,
+    :root[data-theme="light"] body::after,
+    :root[data-theme="light"] .bg-orb-3 { opacity: 0.14; }
 
     body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.5; display: flex; min-height: 100vh; }
 
@@ -166,8 +192,8 @@
     }
 
     .sidebar-nav a:hover, .sidebar-nav a.active {
-      background: rgba(59,110,165,0.12);
-      color: white; border-left-color: var(--primary);
+      background: rgba(6,182,212,0.12);
+      color: white; border-left-color: var(--info);
     }
 
     .sidebar-nav a .nav-icon { font-size: 16px; width: 20px; text-align: center; }
@@ -350,7 +376,7 @@
     .notif-panel {
       display: none; position: absolute; top: calc(100% + 8px); right: 0; z-index: 300;
       width: 320px; max-height: 360px; overflow-y: auto;
-      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); border: 1px solid var(--border); border-top-color: var(--border-top); border-radius: 16px;
       backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
       box-shadow: var(--glass-shadow); padding: 6px;
     }
@@ -390,9 +416,9 @@
 
     /* ---- CARD ---- */
     .card {
-      background: var(--surface); border-radius: 14px;
+      background: var(--surface); border-radius: 16px;
       backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-      border: 1px solid var(--border); margin-bottom: 20px;
+      border: 1px solid var(--border); border-top-color: var(--border-top); margin-bottom: 20px;
       box-shadow: var(--glass-shadow);
     }
 
