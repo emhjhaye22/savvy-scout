@@ -15,27 +15,35 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Poppins:wght@600;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      --bg: #041226;
-      --surface: #0B1F3A;
+      /* Kept in sync with base.html's glassmorphism variables by hand
+         (2026-09-09) -- this page can't extend base.html (the theme-flash-
+         prevention script above must run before ANY stylesheet, including
+         one from a shared parent template), so its own copy of the tokens
+         has to be updated alongside base.html's whenever the theme changes. */
+      --bg: #08090C;
+      --surface: rgba(255,255,255,0.06);
       --brand-red: #AF1F23;
-      --danger: #FF4D4F;
+      --danger: #EF4444;
       --primary: #3B6EA5;
       --primary-dark: #2E5680;
       --navy: #FFFFFF;
-      --text: #E5E7EB;
-      --text-muted: #9AA3AD;
-      --border: rgba(255,255,255,0.1);
+      --text: #FFFFFF;
+      --text-muted: #94A3B8;
+      --border: rgba(255,255,255,0.12);
       --input-bg: rgba(255,255,255,0.03);
       --input-bg-focus: rgba(255,255,255,0.05);
       --flash-error-text: #FF8A8C;
       --tint-blue-text: #BFDBFE;
-      --bg-gradient: linear-gradient(135deg, #041226 0%, #0B1F3A 100%);
+      --glass-blur: blur(24px);
+      --glass-shadow: 0 20px 50px rgba(0,0,0,0.45), inset 0 1px 1px rgba(255,255,255,0.15);
+      --orb-color-1: rgba(99,102,241,0.25);
+      --orb-color-2: rgba(6,182,212,0.20);
       --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       --font-heading: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
     :root[data-theme="light"] {
       --bg: #EEF1F5;
-      --surface: #FFFFFF;
+      --surface: rgba(255,255,255,0.6);
       --navy: #0B1F3A;
       --text: #1F2937;
       --text-muted: #64748B;
@@ -44,25 +52,41 @@
       --input-bg-focus: rgba(11,31,58,0.05);
       --flash-error-text: #B91C1C;
       --tint-blue-text: #1D4ED8;
-      --bg-gradient: linear-gradient(135deg, #EEF1F5 0%, #DCE3EC 100%);
+      --glass-shadow: 0 15px 35px rgba(15,23,42,0.08), inset 0 1px 1px rgba(255,255,255,0.8);
+      --orb-color-1: rgba(99,102,241,0.12);
+      --orb-color-2: rgba(6,182,212,0.10);
     }
     body {
       font-family: var(--font);
-      background: var(--bg-gradient);
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 24px;
+      position: relative;
+      overflow-x: hidden;
     }
+    /* Same two ambient orbs as base.html -- login is the first thing
+       anyone sees, so it needs the same glass canvas, not the flat solid
+       background this page had before. */
+    body::before, body::after {
+      content: ""; position: fixed; z-index: -1; border-radius: 50%;
+      filter: blur(120px); pointer-events: none;
+    }
+    body::before { width: 500px; height: 500px; top: -100px; left: 10%; background: var(--orb-color-1); }
+    body::after  { width: 600px; height: 600px; bottom: -150px; right: 5%; background: var(--orb-color-2); }
     .login-card {
       background: var(--surface);
+      backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
       border: 1px solid var(--border);
       border-radius: 16px;
       padding: 44px 40px;
       width: 100%;
       max-width: 400px;
-      box-shadow: 0 24px 48px rgba(0,0,0,0.35);
+      box-shadow: var(--glass-shadow);
+      position: relative; z-index: 1;
     }
     .brand { text-align: center; margin-bottom: 32px; }
     .brand .mark-badge {
@@ -83,7 +107,7 @@
     }
     input:focus { outline: none; border-color: var(--primary); background: var(--input-bg-focus); box-shadow: 0 0 0 3px rgba(59,110,165,0.18); }
     .error-msg {
-      background: rgba(255,77,79,0.1); color: var(--flash-error-text); padding: 10px 14px;
+      background: rgba(239,68,68,0.1); color: var(--flash-error-text); padding: 10px 14px;
       border-radius: 6px; border-left: 4px solid var(--danger);
       font-size: 13px; font-weight: 500; margin: 16px 0 0;
     }
