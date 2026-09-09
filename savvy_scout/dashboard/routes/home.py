@@ -337,23 +337,6 @@ def _build_approval_rate(conn, in_scope_where, in_scope_params) -> dict:
     return _approval_rate_from_counts(row["approved"] or 0, row["rejected"] or 0)
 
 
-def _build_approval_rate_by_owner(conn, in_scope_where, in_scope_params) -> list[dict]:
-    """Same Approved vs Rejected definition as _build_approval_rate, broken
-    out per owner (2026-08-10 explicit request) -- lets each sector owner
-    (and Victoria, looking across everyone) see whose escalated notices
-    tend to land with her vs get turned down, not just one aggregate
-    figure."""
-    rows = conn.execute(
-        _approval_rate_sql(in_scope_where) + " AND n.owner IS NOT NULL GROUP BY n.owner ORDER BY n.owner",
-        tuple(in_scope_params),
-    ).fetchall()
-    result = [
-        {"owner": r["owner"], **_approval_rate_from_counts(r["approved"] or 0, r["rejected"] or 0)}
-        for r in rows
-    ]
-    return [r for r in result if r["total"] > 0]
-
-
 def _build_top_buyers(conn, in_scope_where, in_scope_params, limit=5) -> list[dict]:
     rows = conn.execute(
         f"""
@@ -544,7 +527,6 @@ def index():
     sector_performance = _build_sector_performance(conn, uk_now)
     source_performance = _build_source_performance(conn, uk_now)
     approval_rate = _build_approval_rate(conn, in_scope_where, in_scope_params)
-    approval_rate_by_owner = _build_approval_rate_by_owner(conn, in_scope_where, in_scope_params)
     top_buyers = _build_top_buyers(conn, in_scope_where, in_scope_params)
     top_competitors = _build_top_competitors(conn)
     sector_spend = _build_sector_spend(conn)
@@ -623,7 +605,6 @@ def index():
         sector_performance=sector_performance,
         source_performance=source_performance,
         approval_rate=approval_rate,
-        approval_rate_by_owner=approval_rate_by_owner,
         top_buyers=top_buyers,
         top_competitors=top_competitors,
         sector_spend=sector_spend,

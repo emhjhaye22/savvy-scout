@@ -7,15 +7,22 @@
 
 <style>
   body { overflow-y: auto; }
-  .content { padding: 6px 14px; overflow: visible; }
+  /* Fill the viewport instead of leaving a dead gap below the last panel
+     row (2026-09-09, direct feedback: on a tall/wide monitor the packed
+     layout above only used the top ~600px, leaving a big empty stretch of
+     background below). flex column down through report-card/card-body so
+     .overview-grid inherits a real height budget instead of shrinking to
+     fit its content -- .content already gets a definite height for free
+     from base.html's .page-wrapper (flex column, min-height:100vh). */
+  .content { padding: 6px 14px; overflow: visible; display: flex; flex-direction: column; }
   .page-wrapper { overflow: visible; }
 
   /* Flattened, not glassy (2026-09-06): the panels inside are each already
      glass surfaces of their own -- a glass card wrapping glass panels
      doubles the blur/shadow for no visual gain, just muddier edges. This
      outer card is purely a layout container. */
-  .report-card { margin-top: 0; margin-bottom: 0; background: none; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
-  .report-card .card-body { padding: 6px 10px; }
+  .report-card { margin-top: 0; margin-bottom: 0; background: none; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; flex: 1; display: flex; flex-direction: column; }
+  .report-card .card-body { padding: 6px 10px; flex: 1; display: flex; flex-direction: column; }
 
   /* One KPI strip for point-in-time totals -- these numbers appear here ONLY.
      Grid with minmax(0,1fr) columns always stays a single row: columns shrink to
@@ -42,22 +49,27 @@
      single column). auto-fit + minmax lets the browser fit as many
      ~300px+ columns as the viewport allows (typically 3-4 on a laptop,
      more on a wide monitor) without a fixed column count that would
-     either cram or under-fill different screen widths. align-items:start
-     so a short panel (a donut) doesn't stretch to match a tall neighbor
-     (a table) -- panels keep their own natural height. .span-2 is for the
+     either cram or under-fill different screen widths. .span-2 is for the
      three panels with real width needs (two tables, one 6-bar chart);
-     everything else takes one column. */
-  /* grid-auto-flow: dense -- without it, a span-2 item that can't fit in
-     the current row's remaining single track skips to a whole new row,
-     leaving that row's gap empty rather than backfilled by a later
-     single-column item (found 2026-09-06: visible dead space next to
-     Sector mix, and Notices by source not actually reaching full width
-     even with the show-daily override below, because the grid had 4+
-     tracks at this width, not the 3 assumed when picking .span-2). dense
-     lets the browser fill earlier gaps with later, smaller items --
-     the standard fix for this exact masonry-style packing case. */
-  .overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); grid-auto-flow: dense; gap: 6px; margin-bottom: 3px; align-items: start; }
-  .overview-grid > .panel { min-width: 0; }
+     everything else takes one column.
+     align-items/align-content changed to stretch (2026-09-09, superseding
+     the earlier "start" choice): flex:1 above gives this grid a real
+     height budget now, and align-content:stretch is what actually spends
+     it -- it grows the (still auto-sized) row tracks to fill that budget
+     instead of leaving empty space below the last row. align-items:stretch
+     then makes each panel's box fill its row's new height rather than
+     floating at the top of it. Short panels (a donut) would otherwise just
+     look like a box with dead space at the bottom -- handled per-panel
+     below by centering their content instead of leaving it pinned to the
+     top. */
+  .overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); grid-auto-flow: dense; gap: 6px; margin-bottom: 3px; align-items: stretch; align-content: stretch; flex: 1; }
+  .overview-grid > .panel { min-width: 0; display: flex; flex-direction: column; }
+  /* Donut panels (Sector mix, Triage outcomes) have little content next to
+     their table/list neighbors. Growing .donut-wrap itself (not the whole
+     panel via justify-content) keeps panel-head pinned to the top like
+     every other panel, while the donut + legend vertically center in
+     whatever extra height the row stretch above gives this panel. */
+  .overview-grid > .panel > .donut-wrap { flex: 1; }
   .overview-grid > .span-2 { grid-column: span 2; }
   /* Show daily breakdown adds ~8 extra day columns to a table that only
      has room for 3 in its default compact width -- found 2026-09-06 from
@@ -149,7 +161,13 @@
      this panel rather than changed globally in base.html, since Signals
      and the Competitor detail page reuse the same component with more
      columns (12 months) where that hasn't been checked. */
-  .bar-chart-compact { justify-content: flex-start; height: 90px; }
+  /* height was a fixed 90px until 2026-09-09's panel-stretch change gave
+     this panel a real height budget -- flex:1 lets the bars grow into it
+     (their height is already a % of this container, so they scale
+     automatically) instead of staying pinned to a small fixed box at the
+     top of a much taller panel. justify-content/column-width above are
+     unrelated to height and stay as they were. */
+  .bar-chart-compact { justify-content: flex-start; flex: 1; min-height: 90px; }
   .bar-chart-compact .bar-chart-col { flex: 0 0 64px; }
 
 </style>
@@ -419,22 +437,6 @@
         </div>
         {% else %}
         <div class="mini-empty">No notices have reached an Approved/Rejected decision yet.</div>
-        {% endif %}
-
-        {% if approval_rate_by_owner %}
-        <div style="margin-top:8px; padding-top:6px; border-top:1px solid var(--border);">
-          <div style="font-size:10.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:5px;">By owner</div>
-          {% for row in approval_rate_by_owner %}
-          <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
-            <div style="width:70px; font-size:12px; font-weight:600; color:var(--text); flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ row.owner }}</div>
-            <div class="meter-track" style="display:flex; flex:1;">
-              <div style="height:100%; width: {{ row.approved_pct }}%; background:var(--success);"></div>
-              <div style="height:100%; width: {{ row.rejected_pct }}%; background:var(--danger);"></div>
-            </div>
-            <div style="font-size:11px; color:var(--text-muted); white-space:nowrap; font-variant-numeric:tabular-nums;">{{ row.approved }}/{{ row.rejected }}</div>
-          </div>
-          {% endfor %}
-        </div>
         {% endif %}
     </div>
 

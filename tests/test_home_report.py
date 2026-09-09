@@ -426,44 +426,6 @@ def test_approval_rate_counts_approved_and_victoria_sourced_rejections_only(tmp_
     assert result["rejected_pct"] == 25.0
 
 
-def test_approval_rate_by_owner_breaks_down_per_owner(tmp_path):
-    """2026-08-10 explicit request: not just one aggregate figure, per
-    owner too -- Mark's and Kanvesh's notices must be counted separately,
-    each against the same Victoria-sourced-rejection definition."""
-    from savvy_scout.dashboard.routes.home import _build_approval_rate_by_owner
-    from savvy_scout.dashboard.scope_filter import in_scope_filter_sql
-
-    db_path = str(tmp_path / "test.db")
-    conn = get_connection(db_path)
-    init_db(conn)
-    seed_all(conn)
-
-    now = datetime.now(timezone.utc).isoformat()
-    for ref, owner in [
-        ("REF-MARK-1", "Mark"), ("REF-MARK-2", "Mark"), ("REF-KANVESH-1", "Kanvesh"),
-    ]:
-        _insert_notice(conn, ref, now, "Fintech")
-        conn.execute("UPDATE notices SET owner = ? WHERE ref = ?", (owner, ref))
-    conn.commit()
-
-    _set_status_via_history(conn, "REF-MARK-1", "ESCALATED_TO_VICTORIA", "APPROVED", "Victoria")
-    _set_status_via_history(conn, "REF-MARK-2", "ESCALATED_TO_VICTORIA", "REJECTED", "Victoria")
-    _set_status_via_history(conn, "REF-KANVESH-1", "ESCALATED_TO_VICTORIA", "APPROVED", "Victoria")
-    conn.commit()
-
-    in_scope_where, in_scope_params = in_scope_filter_sql(conn)
-    rows = _build_approval_rate_by_owner(conn, in_scope_where, in_scope_params)
-    conn.close()
-
-    by_owner = {r["owner"]: r for r in rows}
-    assert by_owner["Mark"]["approved"] == 1
-    assert by_owner["Mark"]["rejected"] == 1
-    assert by_owner["Mark"]["approved_pct"] == 50.0
-    assert by_owner["Kanvesh"]["approved"] == 1
-    assert by_owner["Kanvesh"]["rejected"] == 0
-    assert by_owner["Kanvesh"]["approved_pct"] == 100.0
-
-
 def test_sector_with_only_a_publish_date_unknown_notice_still_gets_a_row(tmp_path):
     """2026-08-10 finding #5, found live: Fintech's only in-scope notice had
     publish_date_unknown=1 (discovered via an award/update release), and the
