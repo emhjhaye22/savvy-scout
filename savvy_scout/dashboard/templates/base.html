@@ -14,16 +14,16 @@
       --sidebar-expanded-w: 260px;
       --topbar-h: 64px;
       --bg: #041226;
-      --surface: #0B1F3A;
-      --surface-alt: rgba(255,255,255,0.04);
-      --sidebar-bg: #071428;
+      --surface: rgba(15,32,58,0.55);
+      --surface-alt: rgba(255,255,255,0.05);
+      --sidebar-bg: rgba(7,20,40,0.65);
       --sidebar-text: #9AA3AD;
       --brand-red: #AF1F23;
       --sidebar-active: #3B6EA5;
       --primary: #3B6EA5;
       --primary-dark: #2E5680;
       --navy: #FFFFFF;
-      --border: rgba(255,255,255,0.1);
+      --border: rgba(255,255,255,0.14);
       --text: #E5E7EB;
       --text-muted: #9AA3AD;
       --success: #10B981;
@@ -36,6 +36,8 @@
       --flash-info-text: #93C5FD;
       --tint-purple-text: #C4B5FD;
       --hover-tint: rgba(255,255,255,0.08);
+      --glass-blur: blur(20px) saturate(160%);
+      --glass-shadow: 0 8px 32px rgba(2,8,23,0.35);
       --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       --font-heading: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
@@ -47,10 +49,10 @@
        untouched here. */
     :root[data-theme="light"] {
       --bg: #EEF1F5;
-      --surface: #FFFFFF;
-      --surface-alt: rgba(11,31,58,0.035);
+      --surface: rgba(255,255,255,0.6);
+      --surface-alt: rgba(11,31,58,0.04);
       --navy: #0B1F3A;
-      --border: rgba(11,31,58,0.12);
+      --border: rgba(11,31,58,0.1);
       --text: #1F2937;
       --text-muted: #64748B;
       --flash-success-text: #047857;
@@ -58,7 +60,29 @@
       --flash-info-text: #1D4ED8;
       --tint-purple-text: #6D28D9;
       --hover-tint: rgba(11,31,58,0.05);
+      --glass-shadow: 0 8px 32px rgba(15,23,42,0.08);
     }
+
+    /* Glassmorphism (2026-09-06): translucent surfaces only read as "glass"
+       with something soft and colorful behind them to blur -- a flat solid
+       --bg would make backdrop-filter invisible. Fixed, oversized, heavily
+       blurred brand-color blobs behind everything else (z-index -1,
+       pointer-events none so they never intercept clicks), tuned dimmer in
+       light mode where the base is already bright. */
+    body::before, body::after {
+      content: ""; position: fixed; z-index: -1; border-radius: 50%;
+      filter: blur(90px); pointer-events: none;
+    }
+    body::before {
+      top: -12%; left: -8%; width: 46vw; height: 46vw;
+      background: radial-gradient(circle, rgba(59,110,165,0.35), transparent 70%);
+    }
+    body::after {
+      bottom: -18%; right: -10%; width: 50vw; height: 50vw;
+      background: radial-gradient(circle, rgba(139,92,246,0.25), transparent 70%);
+    }
+    :root[data-theme="light"] body::before { background: radial-gradient(circle, rgba(59,110,165,0.18), transparent 70%); }
+    :root[data-theme="light"] body::after { background: radial-gradient(circle, rgba(139,92,246,0.13), transparent 70%); }
 
     body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.5; display: flex; min-height: 100vh; }
 
@@ -67,6 +91,8 @@
       position: fixed; top: 0; left: 0;
       width: var(--sidebar-w); height: 100vh;
       background: var(--sidebar-bg);
+      backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+      border-right: 1px solid var(--border);
       display: flex; flex-direction: column;
       z-index: 200; overflow-y: auto;
       transition: width 0.2s ease;
@@ -289,10 +315,10 @@
       position: sticky; top: 0; z-index: 100;
       height: var(--topbar-h);
       background: var(--surface);
+      backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
       border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 28px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
 
     .topbar-title {
@@ -324,8 +350,9 @@
     .notif-panel {
       display: none; position: absolute; top: calc(100% + 8px); right: 0; z-index: 300;
       width: 320px; max-height: 360px; overflow-y: auto;
-      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(15,23,42,0.12); padding: 6px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+      box-shadow: var(--glass-shadow); padding: 6px;
     }
     .notif.open .notif-panel { display: block; }
     .notif-panel-title {
@@ -363,9 +390,10 @@
 
     /* ---- CARD ---- */
     .card {
-      background: var(--surface); border-radius: 10px;
+      background: var(--surface); border-radius: 14px;
+      backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
       border: 1px solid var(--border); margin-bottom: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      box-shadow: var(--glass-shadow);
     }
 
     .card-header {

@@ -10,14 +10,22 @@
   .content { padding: 6px 14px; overflow: visible; }
   .page-wrapper { overflow: visible; }
 
-  .report-card { margin-top: 0; margin-bottom: 0; }
+  /* Flattened, not glassy (2026-09-06): the panels inside are each already
+     glass surfaces of their own -- a glass card wrapping glass panels
+     doubles the blur/shadow for no visual gain, just muddier edges. This
+     outer card is purely a layout container. */
+  .report-card { margin-top: 0; margin-bottom: 0; background: none; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
   .report-card .card-body { padding: 6px 10px; }
 
   /* One KPI strip for point-in-time totals -- these numbers appear here ONLY.
      Grid with minmax(0,1fr) columns always stays a single row: columns shrink to
      fit the available width exactly, they never wrap and never force page overflow. */
   .kpi-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 3px; }
-  .kpi-card { min-width: 0; border: 1px solid var(--border); border-radius: 10px; padding: 4px 8px; background: var(--surface); }
+  .kpi-card {
+    min-width: 0; border: 1px solid var(--border); border-radius: 12px; padding: 4px 8px;
+    background: var(--surface);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  }
   .kpi-card .stat-value { font-size: 16px; font-weight: 900; color: var(--navy); line-height: 1.1; }
   .kpi-card .stat-label { margin-top: 1px; font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .kpi-card .hint { margin-top: 1px; font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -58,7 +66,11 @@
      sacrificing the compact packed layout for the common case. */
   .overview-grid > .panel.show-daily { grid-column: 1 / -1; }
 
-  .panel { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.04); padding: 7px 10px; }
+  .panel {
+    border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow); padding: 7px 10px;
+  }
   .panel-head { margin-bottom: 3px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 
   .daily-toggle-btn {
