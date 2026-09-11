@@ -99,10 +99,11 @@
     .brand { text-align: center; margin-bottom: 32px; }
     .brand .mark-badge {
       display: inline-flex; align-items: center; justify-content: center;
-      background: #FFFFFF; border-radius: 8px; padding: 6px 8px; margin-bottom: 10px;
+      width: 36px; height: 36px; border-radius: 10px; background: var(--primary);
+      color: #FFFFFF; font-family: var(--font-heading); font-weight: 700; font-size: 18px;
+      margin-bottom: 10px;
     }
     .brand-text { font-family: var(--font-heading); font-size: 22px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; color: var(--navy); }
-    .brand-text .accent { color: var(--brand-red); }
     .brand-sub { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted); font-weight: 600; margin-top: 6px; }
     h1 { font-family: var(--font-heading); font-size: 20px; font-weight: 700; color: var(--navy); text-align: center; margin-bottom: 6px; }
     .subtitle { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 28px; }
@@ -146,8 +147,8 @@
 <div class="bg-orb-4" aria-hidden="true"></div>
   <div class="login-card">
     <div class="brand">
-      <div class="mark-badge"><img src="{{ url_for('static', filename='img/bidsavvy-mark.png') }}" alt="Bid Savvy" height="26"></div>
-      <div class="brand-text">Bid Savvy<span class="accent"> Scout</span></div>
+      <div class="mark-badge">S</div>
+      <div class="brand-text">Savvy Scout</div>
       <div class="brand-sub">Procurement Intelligence</div>
     </div>
 

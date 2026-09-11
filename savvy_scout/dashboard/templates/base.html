@@ -182,11 +182,11 @@
 
     .sidebar-logo .brand .mark-badge {
       flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
-      background: #FFFFFF; border-radius: 6px; padding: 3px 5px; line-height: 0;
+      width: 24px; height: 24px; border-radius: 7px; background: var(--primary);
+      color: #FFFFFF; font-family: var(--font-heading); font-weight: 700; font-size: 13px;
+      line-height: 1;
     }
-    .sidebar-logo .brand .mark-badge img { display: block; }
     .sidebar-logo .brand .wordmark { color: #FFFFFF; }
-    .sidebar-logo .brand .wordmark .accent { color: var(--brand-red); }
 
     .sidebar-logo .tagline {
       font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
@@ -662,8 +662,8 @@
 <aside class="sidebar">
   <div class="sidebar-logo">
     <div class="brand">
-      <span class="mark-badge"><img src="{{ url_for('static', filename='img/bidsavvy-mark.png') }}" alt="Bid Savvy" height="18"></span>
-      <span class="wordmark">Bid Savvy<span class="accent"> Scout</span></span>
+      <span class="mark-badge">S</span>
+      <span class="wordmark">Savvy Scout</span>
     </div>
     <div class="tagline">Tender Scouting & Bid Triage</div>
     <div class="tagline" style="margin-top: 2px;">Client: Trifork</div>
