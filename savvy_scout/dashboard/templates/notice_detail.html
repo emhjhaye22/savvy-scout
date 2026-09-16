@@ -134,7 +134,7 @@
       <div style="display: flex; flex-wrap: wrap; gap: 8px;">
         {% for pc in possible_competitors %}
         <a href="{{ url_for('competitor_intel.detail', name=pc.supplier_name) }}" style="display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--surface); text-decoration:none; color:var(--text); font-size:12.5px;" title="{{ pc.award_count }} relevant award{{ 's' if pc.award_count != 1 else '' }}{% if pc.same_buyer %}, including from this buyer{% endif %} — last win {{ pc.last_win_date[:10] if pc.last_win_date else 'unknown' }}">
-          {% if pc.same_buyer %}<span style="color: var(--primary); font-weight: 700;" title="Has won from this exact buyer before">●</span>{% endif %}
+          {% if pc.same_buyer %}<span style="color: var(--warning); font-weight: 700;" title="Has won from this exact buyer before">●</span>{% endif %}
           <strong>{{ pc.supplier_name }}</strong>
           <span style="color: var(--text-muted);">({{ pc.award_count }})</span>
         </a>
@@ -203,22 +203,41 @@
     <h2>Pipeline Progress</h2>
   </div>
   <div class="card-body">
-    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+    {% set current_stage = pipeline_stages | selectattr('state', 'equalto', 'current') | list | first %}
+    {% if current_stage %}
+    <div style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px;">
+      This notice is currently at step <strong style="color: var(--info);">{{ pipeline_stages.index(current_stage) + 1 }} of {{ pipeline_stages | length }}</strong> —
+      <strong style="color: var(--navy);">{{ current_stage.label }}</strong>{% if current_stage.detail %}: {{ current_stage.detail }}{% endif %}
+    </div>
+    {% endif %}
+    <div style="display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px;">
       {% for stage in pipeline_stages %}
-      <div style="flex: 1; min-width: 150px; padding: 10px 12px; border-radius: 8px;
+      <div style="flex: 1; min-width: 150px; padding: 10px 12px; border-radius: 8px; position: relative;
                   {% if stage.state == 'done' %}background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3);
-                  {% elif stage.state == 'current' %}background: rgba(29,78,216,0.12); border: 1px solid rgba(29,78,216,0.4);
+                  {% elif stage.state == 'current' %}background: rgba(29,78,216,0.12); border: 2px solid var(--info);
                   {% elif stage.state == 'skipped' %}background: rgba(148,163,184,0.08); border: 1px dashed var(--border);
                   {% else %}background: var(--surface-alt); border: 1px solid var(--border); opacity: 0.55;
                   {% endif %}">
-        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
-                    color: {% if stage.state == 'done' %}var(--success){% elif stage.state == 'current' %}var(--info){% elif stage.state == 'skipped' %}var(--text-muted){% else %}var(--text-muted){% endif %};">
-          {{ stage.label }}
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="flex: 0 0 18px; height: 18px; border-radius: 50%; font-size: 10px; font-weight: 700;
+                       display: flex; align-items: center; justify-content: center;
+                       background: {% if stage.state == 'done' %}var(--success){% elif stage.state == 'current' %}var(--info){% else %}var(--text-muted){% endif %};
+                       color: #fff;">{{ loop.index }}</span>
+          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+                      color: {% if stage.state == 'done' %}var(--success){% elif stage.state == 'current' %}var(--info){% elif stage.state == 'skipped' %}var(--text-muted){% else %}var(--text-muted){% endif %};">
+            {{ stage.label }}
+          </div>
         </div>
         {% if stage.detail %}
         <div style="font-size: 12px; color: var(--text); margin-top: 4px;">{{ stage.detail }}</div>
         {% endif %}
+        {% if stage.state == 'current' %}
+        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--info); margin-top: 6px;">▸ You are here</div>
+        {% endif %}
       </div>
+      {% if not loop.last %}
+      <div style="display: flex; align-items: center; color: var(--text-muted); font-size: 16px; padding: 0 2px;" aria-hidden="true">›</div>
+      {% endif %}
       {% endfor %}
     </div>
   </div>
@@ -268,7 +287,7 @@
 </div>
 
 {# ---- Capture Brief (generated from data captured at sweep time) ---- #}
-{% if notice['supplier_name'] or notice['buyer_address'] or notice['procurement_method'] or notice['procurement_method_details'] or notice['cpv_primary_description'] or notice['text_blob'] %}
+{% if notice['supplier_name'] or notice['buyer_address'] or notice['procurement_method'] or notice['procurement_method_details'] or notice['cpv_primary_description'] or notice['notice_description'] or notice['text_blob'] %}
 <div class="card">
   <div class="card-header">
     <h2>Capture Brief</h2>
@@ -359,8 +378,10 @@
         {% if cpv_additional %}
         <div class="cb-body">Additional CPV Codes: {{ cpv_additional | join(', ') }}</div>
         {% endif %}
-        {% if notice['text_blob'] %}
-        <div class="cb-body" style="white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 10px;">{{ notice['text_blob'] }}</div>
+        {% set notice_text = notice['notice_description'] or notice['text_blob'] %}
+        {% if notice_text %}
+        <div class="cb-body cb-muted" style="margin-top: 12px; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">Original notice text — as published by the buyer</div>
+        <div class="cb-body" style="white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 4px; padding: 12px 14px; border-left: 3px solid var(--border); background: var(--surface);">{{ notice_text }}</div>
         {% endif %}
       </div>
     </div>
@@ -453,7 +474,7 @@
     <div class="scope-grid">
       <div class="scope-card">
         <div class="sc-label">Capability Fit</div>
-        <div class="sc-value" style="color: {% if phase2_assessment['capability_fit_rating'] == 'HIGH' %}#059669{% elif phase2_assessment['capability_fit_rating'] == 'LOW' %}#DC2626{% else %}#D97706{% endif %}">
+        <div class="sc-value" style="color: {% if phase2_assessment['capability_fit_rating'] == 'HIGH' %}var(--success){% elif phase2_assessment['capability_fit_rating'] == 'LOW' %}var(--danger){% else %}var(--warning){% endif %}">
           {{ phase2_assessment['capability_fit_rating'] }}
         </div>
         <div class="sc-reason">{{ phase2_assessment['capability_fit_reasoning'] }}</div>
@@ -461,7 +482,7 @@
 
       <div class="scope-card">
         <div class="sc-label">Competitor Position</div>
-        <div class="sc-value" style="color: {% if phase2_assessment['competitor_position_rating'] == 'STRONG' %}#059669{% elif phase2_assessment['competitor_position_rating'] == 'WEAK' %}#DC2626{% else %}#D97706{% endif %}">
+        <div class="sc-value" style="color: {% if phase2_assessment['competitor_position_rating'] == 'STRONG' %}var(--success){% elif phase2_assessment['competitor_position_rating'] == 'WEAK' %}var(--danger){% else %}var(--warning){% endif %}">
           {{ phase2_assessment['competitor_position_rating'] }}
         </div>
         <div class="sc-reason">{{ phase2_assessment['competitor_position_reasoning'] }}</div>
@@ -469,7 +490,7 @@
 
       <div class="scope-card">
         <div class="sc-label">Right to Win</div>
-        <div class="sc-value" style="color: {% if phase2_assessment['right_to_win_rating'] == 'HIGH' %}#059669{% elif phase2_assessment['right_to_win_rating'] == 'LOW' %}#DC2626{% else %}#D97706{% endif %}">
+        <div class="sc-value" style="color: {% if phase2_assessment['right_to_win_rating'] == 'HIGH' %}var(--success){% elif phase2_assessment['right_to_win_rating'] == 'LOW' %}var(--danger){% else %}var(--warning){% endif %}">
           {{ phase2_assessment['right_to_win_rating'] }}
         </div>
         <div class="sc-reason">{{ phase2_assessment['right_to_win_reasoning'] }}</div>
@@ -477,7 +498,7 @@
 
       <div class="scope-card" style="{% if phase2_assessment['overall_rating'] == 'PURSUE' %}border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.08);{% elif phase2_assessment['overall_rating'] == 'DECLINE' %}border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.08);{% else %}border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.08);{% endif %}">
         <div class="sc-label">Overall Recommendation</div>
-        <div class="sc-value" style="color: {% if phase2_assessment['overall_rating'] == 'PURSUE' %}#059669{% elif phase2_assessment['overall_rating'] == 'DECLINE' %}#DC2626{% else %}#D97706{% endif %}">
+        <div class="sc-value" style="color: {% if phase2_assessment['overall_rating'] == 'PURSUE' %}var(--success){% elif phase2_assessment['overall_rating'] == 'DECLINE' %}var(--danger){% else %}var(--warning){% endif %}">
           {{ phase2_assessment['overall_rating'] }}
         </div>
         <div class="sc-reason">{{ phase2_assessment['overall_reasoning'] }}</div>

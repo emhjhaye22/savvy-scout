@@ -141,6 +141,7 @@ def _parse_row(row: dict, source: str) -> ParsedNotice:
         buyer_contact_email=buyer_contact_email,
         buyer_website=buyer_website,
         published_at=published_at,
+        notice_description=description or None,
     )
 
     text_blob = "\n".join([title, description]).lower()

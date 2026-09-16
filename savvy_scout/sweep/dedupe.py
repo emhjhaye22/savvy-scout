@@ -36,6 +36,7 @@ _ADDITIONAL_FIELDS = [
     "buyer_org_type",
     "conflicts_assessment",
     "bid_documents_json",
+    "notice_description",
 ]
 
 

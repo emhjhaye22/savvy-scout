@@ -175,7 +175,7 @@ def build_context(conn: sqlite3.Connection, notice_id: int) -> dict:
         "uk_stage": _display(notice["uk_stage"]),
         "notice_reference": _display(notice["ref"]),
         "notice_url": _display(notice["notice_url"]),
-        "notice_text": _display(notice["text_blob"]),
+        "notice_text": _display(notice["notice_description"] or notice["text_blob"]),
         "sector": _display(notice["sector"]),
         "cpv_codes": cpv_codes,
         "value_estimate": value,

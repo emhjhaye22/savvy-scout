@@ -348,7 +348,8 @@ def build_original_notice_pdf(
         [4 * cm, 12 * cm], styles,
     ))
     story.append(Paragraph("FULL NOTICE TEXT", styles["BriefSectionHeading"]))
-    text_lines = (notice["text_blob"] or "UNVERIFIED").splitlines() or ["UNVERIFIED"]
+    notice_text = notice["notice_description"] or notice["text_blob"] or "UNVERIFIED"
+    text_lines = notice_text.splitlines() or ["UNVERIFIED"]
     for line in text_lines:
         story.append(Paragraph(_esc(line) or "&nbsp;", styles["BriefCell"]))
         story.append(Spacer(1, 4))

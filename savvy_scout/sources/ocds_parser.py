@@ -365,6 +365,13 @@ def parse_release(release: dict, source: str) -> ParsedNotice:
 
     title = tender.get("title") or "UNVERIFIED"
     description = tender.get("description") or ""
+    # release.description is a separate top-level OCDS field, not a
+    # duplicate of tender.description -- on real notices it frequently
+    # carries the practical detail (submission portal links, community
+    # benefits requirements, ESPD document links) tender.description
+    # omits. Kept distinct here so both notice_description and text_blob
+    # below can include it instead of silently dropping it.
+    release_description = release.get("description") or ""
     buyer = _find_buyer_name(release)
     notice_type = _find_notice_type(release)
     uk_stage = _derive_uk_stage(notice_type)
@@ -380,6 +387,11 @@ def parse_release(release: dict, source: str) -> ParsedNotice:
     cpv_primary_description = _find_cpv_description(tender, primary_cpv)
     additional_fields = extract_additional_fields(release)
     supplier_name, supplier_party = _find_award_supplier(release)
+
+    notice_description_parts = [p for p in (description, release_description) if p]
+    if len(notice_description_parts) == 2 and notice_description_parts[0].strip() == notice_description_parts[1].strip():
+        notice_description_parts = notice_description_parts[:1]
+    notice_description = "\n\n".join(notice_description_parts) or None
 
     notice = Notice(
         ref=ref,
@@ -408,6 +420,7 @@ def parse_release(release: dict, source: str) -> ParsedNotice:
         procurement_method_details=tender.get("procurementMethodDetails"),
         notice_url=_find_notice_url(release),
         published_at=release.get("date"),
+        notice_description=notice_description,
         **additional_fields,
     )
 
@@ -420,6 +433,8 @@ def parse_release(release: dict, source: str) -> ParsedNotice:
             break
 
     text_blob_parts = [title, description]
+    if release_description and release_description.strip() != description.strip():
+        text_blob_parts.append(release_description)
     if tender.get("procurementMethodDetails"):
         text_blob_parts.append(tender["procurementMethodDetails"])
     if cpv_primary_description:

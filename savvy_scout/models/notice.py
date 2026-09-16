@@ -176,3 +176,11 @@ class Notice:
     # (2026-08-09) for date-based reporting ("opportunities per day") that
     # reflects real publication activity, not our sweep cadence.
     published_at: str | None = None
+    # The real notice text, original case, for human display (2026-09-16) --
+    # see schema.sql's comment on notices.notice_description. Distinct from
+    # text_blob (lowercased, built for keyword matching), and distinct from
+    # tender.description alone: also folds in the OCDS release's own
+    # top-level description when it differs, since that field frequently
+    # carries the practical detail (submission portals, community benefits
+    # requirements, ESPD links) tender.description omits.
+    notice_description: str | None = None

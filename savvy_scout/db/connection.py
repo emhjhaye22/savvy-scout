@@ -549,3 +549,41 @@ def _apply_migrations(conn: sqlite3.Connection) -> None:
                     fields["bid_documents_json"], row["id"],
                 ),
             )
+
+    # notice_description (2026-09-16): the real notice text for human
+    # display, original case -- see schema.sql's comment on this column.
+    # Fixes two compounding bugs found auditing the Notice Detail page
+    # against real Find a Tender data: (1) the OCDS release's own top-level
+    # description was never captured at all (only tender.description was),
+    # dropping materially different content -- submission portal links,
+    # community benefits requirements, ESPD document links -- present on
+    # 9 of 10 real notices sampled; (2) the page was showing text_blob in
+    # its place, which is lowercased and built for keyword matching, not
+    # for showing an approver the actual notice. Backfilled from each
+    # notice's already-stored raw_json, same pattern as the other
+    # raw_json-sourced backfills above.
+    notice_cols_final = [r[1] for r in conn.execute("PRAGMA table_info(notices)").fetchall()]
+    if "notice_description" not in notice_cols_final:
+        import json as _json
+
+        conn.execute("ALTER TABLE notices ADD COLUMN notice_description TEXT")
+        rows_missing_description = conn.execute(
+            "SELECT id, raw_json FROM notices WHERE raw_json IS NOT NULL AND raw_json != ''"
+        ).fetchall()
+        for row in rows_missing_description:
+            try:
+                release = _json.loads(row["raw_json"])
+            except ValueError:
+                continue
+            tender = release.get("tender", {}) or {}
+            description = tender.get("description") or ""
+            release_description = release.get("description") or ""
+            parts = [p for p in (description, release_description) if p]
+            if len(parts) == 2 and parts[0].strip() == parts[1].strip():
+                parts = parts[:1]
+            notice_description = "\n\n".join(parts) or None
+            if notice_description:
+                conn.execute(
+                    "UPDATE notices SET notice_description = ? WHERE id = ?",
+                    (notice_description, row["id"]),
+                )

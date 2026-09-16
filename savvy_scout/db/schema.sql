@@ -58,6 +58,15 @@ CREATE TABLE IF NOT EXISTS notices (
     conflicts_assessment TEXT,
     bid_documents_json TEXT,
     text_blob TEXT NOT NULL DEFAULT '',
+    -- The real notice text, original case, for human display (2026-09-16).
+    -- Combines tender.description with the OCDS release's own top-level
+    -- description when the two differ -- the latter is a separate field
+    -- that often carries the practical detail (submission portal links,
+    -- community benefits requirements, ESPD document links) that
+    -- tender.description omits. Distinct from text_blob, which is
+    -- lowercased and built for keyword matching, not for showing to an
+    -- approver.
+    notice_description TEXT,
     tender_status TEXT,
     lot_statuses TEXT,
     tender_period_end TEXT,

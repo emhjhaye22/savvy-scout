@@ -172,6 +172,7 @@ def add_notice_manual():
             raw_json="{}",
             deadline=deadline,
             notice_url=notice_url,
+            notice_description=description or None,
         )
         parsed = ParsedNotice(
             notice=notice,
