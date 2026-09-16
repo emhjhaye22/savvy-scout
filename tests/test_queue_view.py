@@ -151,7 +151,7 @@ def test_phase2_queue_orders_by_rating_tier_before_deadline(app):
     # Scoped past the topbar's own "Recent activity" notification dropdown,
     # which also lists notices by ref earlier in the raw HTML than the
     # actual Approval Queue section this test cares about.
-    queue_body = html.split("AI Scope Read Review", 1)[1]
+    queue_body = html.split("Ready for your review", 1)[1]
 
     assert queue_body.index("REF-DISTANT-PURSUE") < queue_body.index("REF-URGENT-DECLINE")
 
@@ -177,7 +177,7 @@ def test_phase2_queue_deadline_chip_reflects_real_urgency(app):
     html = client.get("/queue").get_data(as_text=True)
     # Scoped past the topbar's own "Recent activity" notification dropdown,
     # which also lists notices by ref earlier in the raw HTML.
-    queue_body = html.split("AI Scope Read Review", 1)[1]
+    queue_body = html.split("Ready for your review", 1)[1]
 
     urgent_row = queue_body[queue_body.index("REF-URGENT"):queue_body.index("REF-URGENT") + 700]
     far_out_row = queue_body[queue_body.index("REF-FAROUT"):queue_body.index("REF-FAROUT") + 700]

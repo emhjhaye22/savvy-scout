@@ -18,12 +18,12 @@ _RATING_COLORS = {
     "HIGH": "2F5D8A",
     "MED": "3A3A3A",
     "MEDIUM": "3A3A3A",
-    "LOW": "AF0000",
+    "LOW": "AE1E23",
     "UNKNOWN": "3A3A3A",
     "N/A": "3A3A3A",
 }
 _CALLOUT_BLUE = {"fill": "EEF3FA", "border": "2F5D8A"}
-_CALLOUT_RED = {"fill": "FDF0F0", "border": "AF0000"}
+_CALLOUT_RED = {"fill": "FDF0F0", "border": "AE1E23"}
 
 
 def _rating_color(rating):

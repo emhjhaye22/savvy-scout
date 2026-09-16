@@ -103,7 +103,7 @@ def _email_report(conn, path: str, subject: str) -> None:
             send_email_with_attachment(
                 recipient,
                 subject,
-                "Attached: the latest auto-generated Trifork Scouting report from Savvy Scout.",
+                "Attached: the latest auto-generated Trifork Scouting report from TenderSight™.",
                 path,
             )
             logger.info("Emailed %s to %s", path, recipient)

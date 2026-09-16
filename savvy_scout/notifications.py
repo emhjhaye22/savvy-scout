@@ -20,7 +20,7 @@ load_dotenv()
 # of the raw SMTP mailbox address (2026-08-09) -- Outlook was showing
 # "emhjhaye22@gmail.com" as the sender, which reads as a random personal
 # account rather than the app.
-SENDER_DISPLAY_NAME = "Savvy Scout"
+SENDER_DISPLAY_NAME = "TenderSight™"
 
 URGENT_DAYS = 3
 APPROACHING_DAYS = 7
@@ -152,14 +152,14 @@ def send_account_invite_email(
     most obvious template signal."""
     body = (
         f"Hi {display_name},\n\n"
-        f"Mark has set you up with access to Savvy Scout, the tender-scouting dashboard the Bid Savvy "
+        f"Mark has set you up with access to TenderSight™, the tender-scouting dashboard the Bid Savvy "
         f"team uses to track and triage procurement opportunities.\n\n"
         f"You can sign in at {app_url} using {login_identifier} and the temporary password "
         f"{temp_password}. Once you're in, you can set your own password from the \"Change Password\" "
         f"link in the sidebar.\n\n"
         "If anything doesn't work, just message Mark directly.\n"
     )
-    send_email(to_address, "Your Savvy Scout access from Mark", body)
+    send_email(to_address, "Your TenderSight™ access from Mark", body)
 
 
 def send_new_opportunity_email(
@@ -177,7 +177,7 @@ def send_new_opportunity_email(
     lines = [
         f"Hi {display_name},",
         "",
-        "A new opportunity has been assigned to you on Savvy Scout:",
+        "A new opportunity has been assigned to you on TenderSight™:",
         "",
         f"  {title}",
         f"  Buyer: {buyer or 'Unknown'}",
@@ -330,17 +330,17 @@ def send_victoria_reminder_digest_email(
             '<h3 style="color:#1a4fa0;font-size:14px;margin:18px 0 8px;">STRONG OPPORTUNITIES AWAITING YOUR DECISION</h3>'
             + "".join(_reminder_card_html(item, app_url, "#1a4fa0") for item in high_value_items)
         )
-    lines.append(f"Review outstanding escalations here: {app_url}" if app_url else "Review outstanding escalations in Savvy Scout.")
+    lines.append(f"Review outstanding escalations here: {app_url}" if app_url else "Review outstanding escalations in TenderSight™.")
     subject_bits = []
     if urgent_items:
         subject_bits.append(f"{len(urgent_items)} urgent")
     if high_value_items:
         subject_bits.append(f"{len(high_value_items)} high-value")
-    subject = f"Savvy Scout: {' and '.join(subject_bits)} escalation(s) awaiting your decision"
+    subject = f"TenderSight™: {' and '.join(subject_bits)} escalation(s) awaiting your decision"
 
     footer_link = (
         f'<p style="font-size:13px;margin-top:16px;"><a href="{app_url}" style="color:#1a4fa0;">'
-        f"Review outstanding escalations in Savvy Scout</a></p>"
+        f"Review outstanding escalations in TenderSight™</a></p>"
         if app_url else ""
     )
     html_body = (
@@ -380,7 +380,7 @@ def send_new_opportunity_teams_message(
         "potentialAction": [
             {
                 "@type": "OpenUri",
-                "name": "View in Savvy Scout",
+                "name": "View in TenderSight™",
                 "targets": [{"os": "default", "uri": f"{app_url}/notices/{notice_id}"}],
             }
         ] if app_url else [],

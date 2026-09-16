@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Opportunities — Savvy Scout{% endblock %}
+{% block title %}Opportunities — TenderSight™{% endblock %}
 {% block page_title %}All Opportunities{% endblock %}
 
 {% block content %}
@@ -27,7 +27,7 @@
     font-size: 13px; font-family: var(--font); background: var(--surface-alt); color: var(--text);
   }
   .filter-bar select:focus, .filter-bar input:focus {
-    outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59,110,165,0.1);
+    outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(174,30,35,0.1);
   }
 
   .opp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -106,7 +106,7 @@
   .opp-detail .detail-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 30px 10px; }
   .preview-btn { color: var(--text-muted); text-decoration: none; font-size: 13px; }
   .preview-btn:hover { color: var(--primary); }
-  tr.row-selected { background: rgba(59,110,165,0.12); }
+  tr.row-selected { background: rgba(174,30,35,0.12); }
 </style>
 
 {# Summary status pills #}
@@ -125,7 +125,7 @@
 
   {% if phase1_c %}<a href="{{ url_for('queues.opportunities', status='TO_REVIEW') }}" class="summary-pill {% if status_filter == 'TO_REVIEW' %}active{% endif %}" style="border-color: var(--info); color: var(--info);">To Review <span class="pill-count">({{ phase1_c }})</span></a>{% endif %}
   {% if handoff_c %}<a href="{{ url_for('queues.opportunities', status='HANDOFF') }}" class="summary-pill {% if status_filter == 'HANDOFF' %}active{% endif %}" style="border-color: var(--purple); color: var(--purple);">Handoff <span class="pill-count">({{ handoff_c }})</span></a>{% endif %}
-  {% if phase2_c %}<a href="{{ url_for('queues.opportunities', status='AWAITING_PHASE2_APPROVAL') }}" class="summary-pill {% if status_filter == 'AWAITING_PHASE2_APPROVAL' %}active{% endif %}" style="border-color: var(--purple); color: var(--purple);">Phase 2 Queue <span class="pill-count">({{ phase2_c }})</span></a>{% endif %}
+  {% if phase2_c %}<a href="{{ url_for('queues.opportunities', status='AWAITING_PHASE2_APPROVAL') }}" class="summary-pill {% if status_filter == 'AWAITING_PHASE2_APPROVAL' %}active{% endif %}" style="border-color: var(--purple); color: var(--purple);">Ready for Review <span class="pill-count">({{ phase2_c }})</span></a>{% endif %}
   {% if victoria_c %}<a href="{{ url_for('queues.opportunities', status='ESCALATED_TO_VICTORIA') }}" class="summary-pill {% if status_filter == 'ESCALATED_TO_VICTORIA' %}active{% endif %}" style="border-color: var(--warning); color: var(--warning);">Escalated <span class="pill-count">({{ victoria_c }})</span></a>{% endif %}
   {% if approved_c %}<a href="{{ url_for('queues.opportunities', status='APPROVED') }}" class="summary-pill {% if status_filter == 'APPROVED' %}active{% endif %}" style="border-color: var(--success); color: var(--success);">Approved <span class="pill-count">({{ approved_c }})</span></a>{% endif %}
   {% if rejected_c %}<a href="{{ url_for('queues.opportunities', status='REJECTED') }}" class="summary-pill {% if status_filter == 'REJECTED' %}active{% endif %}" style="border-color: var(--danger); color: var(--danger);">Rejected <span class="pill-count">({{ rejected_c }})</span></a>{% endif %}
@@ -223,7 +223,7 @@
         </td>
         <td style="font-size: 12px; white-space: nowrap; color: var(--text-muted);">{{ n['deadline'][:10] if n['deadline'] else '—' }}</td>
         <td>
-          <span class="status-badge status-{{ n['status'] }}">{{ n['status'] | replace('_', ' ') | replace('AWAITING ', '') }}</span>
+          <span class="status-badge status-{{ n['status'] }}">{{ n['status'] | replace('_', ' ') | replace('AWAITING ', '') | replace('PHASE2 APPROVAL', 'READY FOR REVIEW') }}</span>
         </td>
         <td>
           {% set o = n['headline_outcome'] %}
@@ -254,7 +254,7 @@
     <div class="detail-ref">{{ selected_notice['ref'] }} · {{ selected_notice['source'] }}</div>
     <div class="detail-row">
       <div class="detail-label">Status</div>
-      <span class="status-badge status-{{ selected_notice['status'] }}">{{ selected_notice['status'] | replace('_', ' ') | replace('AWAITING ', '') }}</span>
+      <span class="status-badge status-{{ selected_notice['status'] }}">{{ selected_notice['status'] | replace('_', ' ') | replace('AWAITING ', '') | replace('PHASE2 APPROVAL', 'READY FOR REVIEW') }}</span>
     </div>
     <div class="detail-row"><div class="detail-label">Buyer</div>{{ selected_notice['buyer'] or 'UNVERIFIED' }}</div>
     <div class="detail-row"><div class="detail-label">Sector / Owner</div>{{ selected_notice['sector'] or '—' }} {% if selected_notice['owner'] %}· {{ selected_notice['owner'] }}{% endif %}</div>

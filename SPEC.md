@@ -1,4 +1,4 @@
-# Savvy Scout Build Specification
+# TenderSight Build Specification
 Bid Savvy Solutions Ltd | Trifork UK account | Version 1.5 | 19 July 2026, updated 20 July 2026
 Prepared for build via Claude Code. UK English throughout. No em dashes anywhere in code, comments, UI or output.
 

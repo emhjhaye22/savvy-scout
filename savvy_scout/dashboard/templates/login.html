@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign in — Savvy Scout</title>
-  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/bidsavvy-mark.png') }}">
+  <title>Sign in — TenderSight™</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/TenderSight-Icon.png') }}">
   <script>
     (function () {
       var saved = localStorage.getItem('savvy-scout-theme');
@@ -12,7 +12,7 @@
     })();
   </script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Poppins:wght@600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
       /* Kept in sync with base.html's glassmorphism variables by hand
@@ -22,10 +22,10 @@
          has to be updated alongside base.html's whenever the theme changes. */
       --bg: #08090C;
       --surface: rgba(255,255,255,0.06);
-      --brand-red: #AF1F23;
+      --brand-red: #AE1E23;
       --danger: #EF4444;
-      --primary: #3B6EA5;
-      --primary-dark: #2E5680;
+      --primary: #AE1E23;
+      --primary-dark: #8F1720;
       --navy: #FFFFFF;
       --text: #FFFFFF;
       --text-muted: #94A3B8;
@@ -33,7 +33,7 @@
       --input-bg: rgba(255,255,255,0.03);
       --input-bg-focus: rgba(255,255,255,0.05);
       --flash-error-text: #FF8A8C;
-      --tint-blue-text: #BFDBFE;
+      --tint-blue-text: #F3AEB4;
       --glass-blur: blur(24px);
       --glass-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 90px -30px rgba(139,92,246,0.15), inset 0 1px 1px rgba(255,255,255,0.15);
       --orb-color-1: rgba(99,102,241,0.18);
@@ -41,19 +41,19 @@
       --orb-color-3: rgba(217,70,239,0.12);
       --orb-color-4: rgba(59,130,246,0.12);
       --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      --font-heading: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
     :root[data-theme="light"] {
       --bg: #EEF1F5;
       --surface: rgba(255,255,255,0.6);
       --navy: #0B1F3A;
       --text: #1F2937;
-      --text-muted: #64748B;
-      --border: rgba(11,31,58,0.12);
+      --text-muted: #3A3A3A;
+      --border: rgba(184,188,194,0.55);
       --input-bg: rgba(11,31,58,0.03);
       --input-bg-focus: rgba(11,31,58,0.05);
       --flash-error-text: #B91C1C;
-      --tint-blue-text: #1D4ED8;
+      --tint-blue-text: #9F1D26;
       --glass-shadow: 0 15px 35px rgba(15,23,42,0.08), 0 0 60px -25px rgba(139,92,246,0.08), inset 0 1px 1px rgba(255,255,255,0.8);
       --orb-color-1: rgba(99,102,241,0.08);
       --orb-color-2: rgba(6,182,212,0.07);
@@ -98,10 +98,8 @@
     }
     .brand { text-align: center; margin-bottom: 32px; }
     .brand .mark-badge {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 36px; height: 36px; border-radius: 10px; background: var(--primary);
-      color: #FFFFFF; font-family: var(--font-heading); font-weight: 700; font-size: 18px;
-      margin-bottom: 10px;
+      display: inline-block; width: 44px; height: 44px; border-radius: 10px;
+      margin-bottom: 10px; object-fit: contain;
     }
     .brand-text { font-family: var(--font-heading); font-size: 22px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; color: var(--navy); }
     .brand-sub { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted); font-weight: 600; margin-top: 6px; }
@@ -114,7 +112,7 @@
       font-family: inherit; color: var(--text); background: var(--input-bg);
       transition: all 0.2s;
     }
-    input:focus { outline: none; border-color: var(--primary); background: var(--input-bg-focus); box-shadow: 0 0 0 3px rgba(59,110,165,0.18); }
+    input:focus { outline: none; border-color: var(--primary); background: var(--input-bg-focus); box-shadow: 0 0 0 3px rgba(174,30,35,0.18); }
     .error-msg {
       background: rgba(239,68,68,0.1); color: var(--flash-error-text); padding: 10px 14px;
       border-radius: 6px; border-left: 4px solid var(--danger);
@@ -127,7 +125,7 @@
       font-family: inherit; letter-spacing: 0.5px; text-transform: uppercase;
       transition: all 0.2s;
     }
-    .btn-signin:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(59,110,165,0.35); }
+    .btn-signin:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(174,30,35,0.35); }
     .quick-access { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--border); }
     .quick-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
     .quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -136,7 +134,7 @@
       background: rgba(255,255,255,0.02); color: var(--text); font-size: 12px; font-weight: 600;
       cursor: pointer; font-family: inherit; transition: all 0.15s;
     }
-    .quick-btn:hover { border-color: var(--primary); color: var(--tint-blue-text); background: rgba(59,110,165,0.08); }
+    .quick-btn:hover { border-color: var(--primary); color: var(--tint-blue-text); background: rgba(174,30,35,0.08); }
     .accounts-info { margin-top: 20px; padding: 12px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; font-size: 12px; color: var(--text-muted); }
     .accounts-info strong { color: var(--text); }
     .accounts-info .pwd { color: var(--text-muted); margin-top: 4px; font-size: 11px; }
@@ -147,8 +145,8 @@
 <div class="bg-orb-4" aria-hidden="true"></div>
   <div class="login-card">
     <div class="brand">
-      <div class="mark-badge">S</div>
-      <div class="brand-text">Savvy Scout</div>
+      <img class="mark-badge" src="{{ url_for('static', filename='img/TenderSight-Icon.png') }}" alt="TenderSight">
+      <div class="brand-text">TENDER<span style="color: var(--brand-red);">SIGHT</span>™</div>
       <div class="brand-sub">Procurement Intelligence</div>
     </div>
 

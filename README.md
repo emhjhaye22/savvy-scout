@@ -1,4 +1,4 @@
-# Savvy Scout
+# TenderSight
 
 Phase A: the core rule-based triage engine. Sweeps Find a Tender and
 Contracts Finder, dedupes against what's already known, runs the five-gate
@@ -88,8 +88,8 @@ Daily sweep and daily backup should run unattended. Example, from an
 elevated prompt (adjust the venv and project paths):
 
 ```
-schtasks /Create /TN "SavvyScoutSweep" /TR "C:\path\to\.venv\Scripts\python.exe -m savvy_scout.cli sweep" /SC DAILY /ST 06:00 /RU SYSTEM
-schtasks /Create /TN "SavvyScoutBackup" /TR "C:\path\to\.venv\Scripts\python.exe -m savvy_scout.cli backup" /SC DAILY /ST 06:30 /RU SYSTEM
+schtasks /Create /TN "TenderSightSweep" /TR "C:\path\to\.venv\Scripts\python.exe -m savvy_scout.cli sweep" /SC DAILY /ST 06:00 /RU SYSTEM
+schtasks /Create /TN "TenderSightBackup" /TR "C:\path\to\.venv\Scripts\python.exe -m savvy_scout.cli backup" /SC DAILY /ST 06:30 /RU SYSTEM
 ```
 
 Set the task's "Start in" directory to the project root so the default

@@ -328,7 +328,7 @@ def generate_weekly_report(
     snapshot = doc.add_table(rows=1, cols=2)
     snapshot.style = "Table Grid"
     for index, header in enumerate(("METRIC", "POSITION")):
-        _shade_cell(snapshot.rows[0].cells[index], "AF1F23")
+        _shade_cell(snapshot.rows[0].cells[index], "AE1E23")
         _set_cell_text(snapshot.rows[0].cells[index], header, bold=True, color=WHITE)
     for metric, position in (
         ("Owner decisions this week", str(len(rows))),
@@ -353,7 +353,7 @@ def generate_weekly_report(
         title_table = doc.add_table(rows=1, cols=1)
         title_table.style = "Table Grid"
         cell = title_table.rows[0].cells[0]
-        _shade_cell(cell, "AF1F23")
+        _shade_cell(cell, "AE1E23")
         _set_cell_text(
             cell, f"OPPORTUNITY {i}: {row['buyer'] or 'Buyer not stated'} | {row['title']}",
             bold=True, color=WHITE, size=11,
@@ -438,7 +438,7 @@ def generate_monthly_report(
     t1 = doc.add_table(rows=1, cols=3)
     t1.style = "Table Grid"
     for idx, header in enumerate(["SECTOR", "NO. OF OPPORTUNITIES", "TOTAL VALUE"]):
-        _shade_cell(t1.rows[0].cells[idx], "AF1F23")
+        _shade_cell(t1.rows[0].cells[idx], "AE1E23")
         _set_cell_text(t1.rows[0].cells[idx], header, bold=True, color=WHITE)
     total_n, total_v = 0, 0.0
     for sector, sector_rows in sorted(by_sector.items()):
@@ -461,7 +461,7 @@ def generate_monthly_report(
     t2 = doc.add_table(rows=1, cols=4)
     t2.style = "Table Grid"
     for idx, header in enumerate(["CLIENT", "OPPORTUNITY TITLE", "STATUS", "RATIONALE"]):
-        _shade_cell(t2.rows[0].cells[idx], "AF1F23")
+        _shade_cell(t2.rows[0].cells[idx], "AE1E23")
         _set_cell_text(t2.rows[0].cells[idx], header, bold=True, color=WHITE)
     for row in rows:
         decision = conn.execute(
@@ -493,7 +493,7 @@ def generate_monthly_report(
     t3 = doc.add_table(rows=1, cols=4)
     t3.style = "Table Grid"
     for idx, header in enumerate(["CLIENT", "OPPORTUNITY TITLE", "STAGE", "VALUE"]):
-        _shade_cell(t3.rows[0].cells[idx], "AF1F23")
+        _shade_cell(t3.rows[0].cells[idx], "AE1E23")
         _set_cell_text(t3.rows[0].cells[idx], header, bold=True, color=WHITE)
     in_progress_rows = _current_awaiting_victoria(conn, scope_where, scope_params, owner)
     for row in in_progress_rows:
@@ -514,7 +514,7 @@ def generate_monthly_report(
     h4.add_run("4. BIDS SUBMITTED").bold = True
     p4 = doc.add_paragraph()
     p4.add_run(
-        "No verified submitted bids are recorded in Savvy Scout for this period."
+        "No verified submitted bids are recorded in TenderSight for this period."
     ).italic = True
     doc.add_paragraph()
 
@@ -529,7 +529,7 @@ def generate_monthly_report(
         t5 = doc.add_table(rows=1, cols=3)
         t5.style = "Table Grid"
         for index, header in enumerate(("OPPORTUNITY", "DEADLINE", "EXECUTIVE ACTION")):
-            _shade_cell(t5.rows[0].cells[index], "AF1F23")
+            _shade_cell(t5.rows[0].cells[index], "AE1E23")
             _set_cell_text(t5.rows[0].cells[index], header, bold=True, color=WHITE)
         for row in future_rows:
             cells = t5.add_row().cells

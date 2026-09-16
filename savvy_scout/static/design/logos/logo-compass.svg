@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Savvy Scout logo - compass">
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TenderSight logo - compass">
   <circle cx="60" cy="60" r="56" fill="#071428"/>
   <g transform="translate(60,60)">
     <path d="M0,-32 L6,6 L0,0 L-6,6 Z" fill="#00BFA6"/>

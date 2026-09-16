@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Approval Queue — Savvy Scout{% endblock %}
+{% block title %}Approval Queue — TenderSight™{% endblock %}
 {% block page_title %}Approval Queue{% endblock %}
 
 {% block content %}
@@ -81,7 +81,7 @@
   .reason-form { display: none; flex-direction: column; gap: 6px; width: 220px; }
   .reason-form.active { display: flex; }
   .reason-form input { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: var(--font); }
-  .reason-form input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59,110,165,0.1); }
+  .reason-form input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(174,30,35,0.1); }
   .reason-form-btns { display: flex; gap: 6px; }
 
   /* Phase 2 assessment strip */
@@ -130,15 +130,85 @@
 </div>
 {% endif %}
 
+{# ---- PHASE 2 QUEUE (owners only -- Victoria has no sector, see Escalated below) ----
+   This is the primary work queue -- shown first, above the safety-net gate
+   review, since it's where real work actually waits most of the time. #}
+{% if not current_user.is_victoria %}
+<div class="queue-section">
+  <div class="queue-header">
+    <div class="queue-heading">
+      <h2>Ready for your review {% if phase2_rows %}<span class="count phase2-count">{{ phase2_rows | length }}</span>{% endif %}</h2>
+      <p>Validate the AI's read against the notice. Approve sends it to Victoria; Reject closes it.</p>
+    </div>
+  </div>
+
+  {% if phase2_rows %}
+    {% for n in phase2_rows %}
+    {% set rating = n['overall_rating'] or '' %}
+    <div class="notice-card {% if rating == 'PURSUE' %}pass-card{% elif rating == 'DECLINE' %}fail-card{% elif rating %}flag-card{% else %}flag-card{% endif %}">
+      <div class="notice-left">
+        <div class="notice-ref-row">
+          <span class="notice-ref"><a href="{{ url_for('queues.notice_detail', notice_id=n['id']) }}">{{ n['ref'] }}</a></span>
+          {% if n['overall_rating'] %}
+            {% if n['overall_rating'] == 'PURSUE' %}<span class="badge badge-pass">● Pursue</span>
+            {% elif n['overall_rating'] == 'DECLINE' %}<span class="badge badge-fail">● Decline</span>
+            {% else %}<span class="badge badge-flag">● {{ n['overall_rating'] }}</span>{% endif %}
+          {% endif %}
+          {% if n['uk_stage'] and n['uk_stage'] != 'UNVERIFIED' %}<span class="badge badge-stage">{{ n['uk_stage'] }}</span>{% endif %}
+        </div>
+        <div class="notice-title">
+          <a href="{{ url_for('queues.notice_detail', notice_id=n['id']) }}">{{ n['title'] }}</a>
+        </div>
+        <div class="notice-meta">
+          <span class="meta-chip buyer">{{ n['buyer'] or 'UNVERIFIED' }}</span>
+          {% if n['sector'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['sector'] }}</span>{% endif %}
+          {% if n['indicative_value'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['indicative_value'] | gbp }}</span>{% endif %}
+          {% if n['deadline'] %}<span class="meta-sep">·</span><span class="deadline-chip {{ n['deadline_class'] }}">{{ n['deadline'][:10] }}</span>{% endif %}
+        </div>
+        {% if n['overall_rating'] %}
+        <div class="assessment-strip">
+          <div class="prov-tag">PROVISIONAL — FOR VALIDATION</div>
+          <div class="ratings">
+            {% if n['capability_fit_rating'] %}<span class="rating-item"><strong>Capability fit:</strong> {{ n['capability_fit_rating'] }}</span>{% endif %}
+            {% if n['right_to_win_rating'] %}<span class="rating-item"><strong>Right to win:</strong> {{ n['right_to_win_rating'] }}</span>{% endif %}
+            {% if n['overall_rating'] %}<span class="rating-item"><strong>Overall:</strong> {{ n['overall_rating'] }}</span>{% endif %}
+          </div>
+          {% if n['overall_reasoning'] %}<div class="reasoning">{{ n['overall_reasoning'] }}</div>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="notice-right">
+        <div class="action-row">
+          <form method="post" action="{{ url_for('queues.approve', notice_id=n['id']) }}" style="display:inline">
+            <button type="submit" class="btn btn-approve btn-sm" title="Sends to Victoria for her decision">Approve</button>
+          </form>
+          <button class="btn btn-reject btn-sm" onclick="showReason(this, 'p2r-{{ n['id'] }}')">Reject</button>
+        </div>
+        <div id="p2r-{{ n['id'] }}" class="reason-form">
+          <form method="post" action="{{ url_for('queues.reject', notice_id=n['id']) }}">
+            <input type="text" name="reason" placeholder="Reason" required>
+            <div class="reason-form-btns"><button type="submit" class="btn btn-reject btn-sm">Reject</button><button type="button" class="btn btn-secondary btn-sm" onclick="hideReason('p2r-{{ n['id'] }}')">Cancel</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="empty-queue"><p>Nothing waiting on your review right now.</p></div>
+  {% endif %}
+</div>
+{% endif %}
+
 {# ---- TO REVIEW QUEUE (owners only -- Victoria has no sector, see Escalated below) ----
-   Collapsed by default: these are gate FAILs on a safety-net double-check, not the
-   primary work queue (that's Phase 2 below). Still one click away, count stays visible. #}
+   Collapsed by default and shown below the primary queue above: these are
+   gate FAILs on a safety-net double-check, not the main work queue. Still
+   one click away, count stays visible. #}
 {% if not current_user.is_victoria %}
 <details class="queue-section">
   <summary class="queue-header" style="cursor: pointer; list-style: none;">
     <div class="queue-heading">
-      <h2>Phase 1 — Gate Review {% if phase1_rows %}<span class="count">{{ phase1_rows | length }}</span>{% endif %}</h2>
-      <p>Double-check notices that failed a deterministic gate. Overturn to Pass or Reject.</p>
+      <h2>Needs a second look {% if phase1_rows %}<span class="count">{{ phase1_rows | length }}</span>{% endif %}</h2>
+      <p>Notices an automatic check flagged as a possible mismatch. Double-check and approve or reject.</p>
     </div>
   </summary>
 
@@ -175,7 +245,7 @@
         {# Approve — direct submit #}
         <div class="action-row">
           <form method="post" action="{{ url_for('queues.approve', notice_id=n['id']) }}" style="display:inline">
-            <button type="submit" class="btn btn-approve btn-sm">Overturn to Pass</button>
+            <button type="submit" class="btn btn-approve btn-sm">Approve</button>
           </form>
           <button class="btn btn-reject btn-sm" onclick="showReason(this, 'r-{{ n['id'] }}')">Reject</button>
         </div>
@@ -198,78 +268,12 @@
 </details>
 {% endif %}
 
-{# ---- PHASE 2 QUEUE (owners only -- Victoria has no sector, see Escalated below) ---- #}
-{% if not current_user.is_victoria %}
-<div class="queue-section">
-  <div class="queue-header">
-    <div class="queue-heading">
-      <h2>Phase 2 — AI Scope Read Review {% if phase2_rows %}<span class="count phase2-count">{{ phase2_rows | length }}</span>{% endif %}</h2>
-      <p>Validate the AI assessment against the notice. Approve sends it to Victoria; Reject closes it.</p>
-    </div>
-  </div>
-
-  {% if phase2_rows %}
-    {% for n in phase2_rows %}
-    <div class="notice-card" style="border-left: 4px solid #8B5CF6;">
-      <div class="notice-left">
-        <div class="notice-ref-row">
-          <span class="notice-ref"><a href="{{ url_for('queues.notice_detail', notice_id=n['id']) }}">{{ n['ref'] }}</a></span>
-          {% if n['overall_rating'] %}
-            {% if n['overall_rating'] == 'PURSUE' %}<span class="badge badge-pass">● Pursue</span>
-            {% elif n['overall_rating'] == 'DECLINE' %}<span class="badge badge-fail">● Decline</span>
-            {% else %}<span class="badge badge-flag">● {{ n['overall_rating'] }}</span>{% endif %}
-          {% endif %}
-          {% if n['uk_stage'] and n['uk_stage'] != 'UNVERIFIED' %}<span class="badge badge-stage">{{ n['uk_stage'] }}</span>{% endif %}
-        </div>
-        <div class="notice-title">
-          <a href="{{ url_for('queues.notice_detail', notice_id=n['id']) }}">{{ n['title'] }}</a>
-        </div>
-        <div class="notice-meta">
-          <span class="meta-chip buyer">{{ n['buyer'] or 'UNVERIFIED' }}</span>
-          {% if n['sector'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['sector'] }}</span>{% endif %}
-          {% if n['indicative_value'] %}<span class="meta-sep">·</span><span class="meta-chip">{{ n['indicative_value'] | gbp }}</span>{% endif %}
-          {% if n['deadline'] %}<span class="meta-sep">·</span><span class="deadline-chip {{ n['deadline_class'] }}">{{ n['deadline'][:10] }}</span>{% endif %}
-        </div>
-        {% if n['overall_rating'] %}
-        <div class="assessment-strip">
-          <div class="prov-tag">PROVISIONAL — FOR VALIDATION</div>
-          <div class="ratings">
-            {% if n['capability_fit_rating'] %}<span class="rating-item"><strong>Fit:</strong> {{ n['capability_fit_rating'] }}</span>{% endif %}
-            {% if n['right_to_win_rating'] %}<span class="rating-item"><strong>R2W:</strong> {{ n['right_to_win_rating'] }}</span>{% endif %}
-            {% if n['overall_rating'] %}<span class="rating-item"><strong>Overall:</strong> {{ n['overall_rating'] }}</span>{% endif %}
-          </div>
-          {% if n['overall_reasoning'] %}<div class="reasoning">{{ n['overall_reasoning'] }}</div>{% endif %}
-        </div>
-        {% endif %}
-      </div>
-      <div class="notice-right">
-        <div class="action-row">
-          <form method="post" action="{{ url_for('queues.approve', notice_id=n['id']) }}" style="display:inline">
-            <button type="submit" class="btn btn-approve btn-sm" title="Sends to Victoria for her decision">Approve</button>
-          </form>
-          <button class="btn btn-reject btn-sm" onclick="showReason(this, 'p2r-{{ n['id'] }}')">Reject</button>
-        </div>
-        <div id="p2r-{{ n['id'] }}" class="reason-form">
-          <form method="post" action="{{ url_for('queues.reject', notice_id=n['id']) }}">
-            <input type="text" name="reason" placeholder="Reason" required>
-            <div class="reason-form-btns"><button type="submit" class="btn btn-reject btn-sm">Reject</button><button type="button" class="btn btn-secondary btn-sm" onclick="hideReason('p2r-{{ n['id'] }}')">Cancel</button></div>
-          </form>
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  {% else %}
-  <div class="empty-queue"><p>No notices awaiting Phase 2 review.</p></div>
-  {% endif %}
-</div>
-{% endif %}
-
 {# ---- VICTORIA ESCALATION (only for Victoria) ---- #}
 {% if current_user.is_victoria %}
 <div class="queue-section">
   <div class="queue-header">
     <div class="queue-heading">
-      <h2>Final Review — Victoria's Decision {% if escalated_rows %}<span class="count victoria-count">{{ escalated_rows | length }}</span>{% endif %}</h2>
+      <h2>Waiting on Victoria {% if escalated_rows %}<span class="count victoria-count">{{ escalated_rows | length }}</span>{% endif %}</h2>
       <p>Owner-approved notices awaiting the final bid decision.</p>
     </div>
   </div>

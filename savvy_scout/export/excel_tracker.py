@@ -170,7 +170,7 @@ def _write_sheet(wb: Workbook, title: str, rows: list[dict]) -> Worksheet:
 
 def _write_legend_sheet(wb: Workbook) -> None:
     ws = wb.create_sheet(title="Legend and method")
-    ws.append(["Savvy Scout Phase A tracker: legend and method"])
+    ws.append(["TenderSight™ Phase A tracker: legend and method"])
     ws.append([])
     ws.append(["Gate order (always all six run, no short-circuit):"])
     for key, name in [
