@@ -47,12 +47,36 @@
       --border-light: rgba(255,255,255,0.20);
       --text: #FFFFFF;
       --text-muted: #94A3B8;
-      --success: #10B981;
-      --warning: #F59E0B;
-      --danger: #EF4444;
+      /* Rating/status colours, brought in line with BidSavvy_Brand_Guidelines.md's
+         "Rating and semantic colour logic" (2026-09-16): positive/strong ->
+         Steel Blue, moderate/neutral -> a brand neutral, weak/caution/negative
+         -> Bid Savvy Red -- no green or amber in the guideline's palette at
+         all. Values here are lightened/brightened for legibility as TEXT on
+         this theme's near-black background; the light theme below uses the
+         guideline's literal hexes directly, since those were specified
+         against a white page. --info/--purple are deliberately NOT part of
+         this remap -- they mark "current pipeline step" and "AI-generated,
+         still provisional", which aren't strength/weakness ratings the
+         guideline (written before this app had an AI feature) addresses;
+         collapsing them into the 3-colour rating scale would destroy real
+         distinctions (e.g. "current step" vs "neutral rating" would become
+         visually identical).
+         --success: Steel Blue family (guideline base #2F5D8A), brightened.
+         --warning: Cool Grey #B8BCC2 -- the guideline's own secondary brand
+           colour; used here instead of Charcoal because Charcoal (#3A3A3A)
+           is a dark grey that has poor contrast on this theme's dark
+           background -- it only reads correctly on the white page it was
+           specified for. See the light theme override below for Charcoal
+           used literally.
+         --danger: Bid Savvy Red family (guideline base #AE1E23, matching
+           --primary -- the guideline specifies exactly one red, not a
+           separate "danger red"), brightened for dark-background legibility. */
+      --success: #5B93C4;
+      --warning: #B8BCC2;
+      --danger: #D9484E;
       --info: #06B6D4;
       --purple: #8B5CF6;
-      --flash-success-text: #6EE7B7;
+      --flash-success-text: #9BC4E8;
       --flash-error-text: #FF8A8C;
       --flash-info-text: #93C5FD;
       --tint-purple-text: #C4B5FD;
@@ -83,13 +107,18 @@
     }
 
     /* Day theme (2026-09-06, re-tuned 2026-09-09): --primary/--brand-red/
-       --success/--warning/--danger/--purple are brand/status colors, not
-       theme colors, so they're deliberately untouched here. --info moved
-       to cyan (matching the reference spec's "interactive trigger" accent)
-       in both themes. Keeps this app's existing cool light palette rather
-       than the reference's separate warm "sunlight" theme -- that's a
-       distinct stylistic choice nobody's asked for yet, not a glassmorphism
-       fidelity gap; happy to build it as its own pass if wanted. */
+       --purple are brand/status colors, not theme colors, so they're
+       deliberately untouched here. --info moved to cyan (matching the
+       reference spec's "interactive trigger" accent) in both themes.
+       Keeps this app's existing cool light palette rather than the
+       reference's separate warm "sunlight" theme -- that's a distinct
+       stylistic choice nobody's asked for yet, not a glassmorphism
+       fidelity gap; happy to build it as its own pass if wanted.
+       --success/--warning/--danger (2026-09-16) DO get a light-theme
+       override -- see the dark :root's comment on the same tokens --
+       using BidSavvy_Brand_Guidelines.md's literal hexes directly, since
+       this theme's white-ish background is exactly the context those
+       values were specified for. */
     :root[data-theme="light"] {
       --bg: #EEF1F5;
       --surface: rgba(255,255,255,0.55);
@@ -102,8 +131,11 @@
       --border-light: rgba(255,255,255,0.85);
       --text: #1F2937;
       --text-muted: #3A3A3A;
+      --success: #2F5D8A;
+      --warning: #3A3A3A;
+      --danger: #AE1E23;
       --tint-red-text: #9F1D26;
-      --flash-success-text: #047857;
+      --flash-success-text: #2F5D8A;
       --flash-error-text: #B91C1C;
       --flash-info-text: #1D4ED8;
       --tint-purple-text: #6D28D9;
@@ -449,9 +481,9 @@
       display: flex; align-items: flex-start; gap: 8px;
     }
     .flashes li::before { font-size: 16px; flex-shrink: 0; }
-    .flashes li.success { background: rgba(16,185,129,0.1); color: var(--flash-success-text); border-left: 4px solid var(--success); }
+    .flashes li.success { background: rgba(47,93,138,0.1); color: var(--flash-success-text); border-left: 4px solid var(--success); }
     .flashes li.success::before { content: "✓"; }
-    .flashes li.error { background: rgba(239,68,68,0.1); color: var(--flash-error-text); border-left: 4px solid var(--danger); }
+    .flashes li.error { background: rgba(174,30,35,0.1); color: var(--flash-error-text); border-left: 4px solid var(--danger); }
     .flashes li.error::before { content: "!"; }
     .flashes li:not(.success):not(.error) { background: rgba(59,130,246,0.1); color: var(--flash-info-text); border-left: 4px solid var(--info); }
     .flashes li:not(.success):not(.error)::before { content: "i"; }
@@ -495,26 +527,29 @@
       text-transform: uppercase;
     }
 
-    .badge-pass    { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: var(--success); }
-    .badge-fail    { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: var(--danger); }
-    .badge-flag    { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--warning); }
+    .badge-pass    { background: rgba(47,93,138,0.15); border-color: rgba(47,93,138,0.3); color: var(--success); }
+    .badge-fail    { background: rgba(174,30,35,0.15); border-color: rgba(174,30,35,0.3); color: var(--danger); }
+    .badge-flag    { background: rgba(58,58,58,0.15); border-color: rgba(58,58,58,0.3); color: var(--warning); }
     .badge-inferred { background: rgba(6,182,212,0.15); border-color: rgba(6,182,212,0.3); color: var(--info); }
-    .badge-maybe   { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--warning); }
+    .badge-maybe   { background: rgba(58,58,58,0.15); border-color: rgba(58,58,58,0.3); color: var(--warning); }
     .badge-count   { background: var(--danger); color: white; border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
 
     /* Phase 2 ratings */
-    .badge-high    { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: var(--success); }
-    .badge-med     { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--warning); }
-    .badge-low     { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: var(--danger); }
-    .badge-pursue  { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: var(--success); }
-    .badge-decline { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: var(--danger); }
-    .badge-contested { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--warning); }
-    .badge-strong  { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: var(--success); }
+    .badge-high    { background: rgba(47,93,138,0.15); border-color: rgba(47,93,138,0.3); color: var(--success); }
+    .badge-med     { background: rgba(58,58,58,0.15); border-color: rgba(58,58,58,0.3); color: var(--warning); }
+    .badge-low     { background: rgba(174,30,35,0.15); border-color: rgba(174,30,35,0.3); color: var(--danger); }
+    .badge-pursue  { background: rgba(47,93,138,0.15); border-color: rgba(47,93,138,0.3); color: var(--success); }
+    .badge-decline { background: rgba(174,30,35,0.15); border-color: rgba(174,30,35,0.3); color: var(--danger); }
+    .badge-contested { background: rgba(58,58,58,0.15); border-color: rgba(58,58,58,0.3); color: var(--warning); }
+    .badge-strong  { background: rgba(47,93,138,0.15); border-color: rgba(47,93,138,0.3); color: var(--success); }
     .badge-unknown { background: var(--surface-alt); border-color: var(--border); color: var(--text-muted); }
     .badge-provisional { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.3); color: var(--purple); font-size: 10px; }
 
-    /* UK Stage */
-    .badge-stage   { background: rgba(6,182,212,0.15); border-color: rgba(6,182,212,0.3); color: var(--info); }
+    /* UK Stage -- neutral, not cyan/info (2026-09-16): this is a
+       classification tag (UK1-5), not a decision signal, so giving it its
+       own accent color competed with the real pass/fail/flag colors on the
+       same cards for no reason. Hover it for what the code means. */
+    .badge-stage   { background: var(--surface-alt); border-color: var(--border); color: var(--text-muted); }
 
     /* ---- TABLE ---- */
     .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -555,12 +590,12 @@
     }
     .btn:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.12); }
 
-    .btn-approve  { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.35); color: var(--success); }
-    .btn-approve:hover  { background: rgba(16,185,129,0.25); border-color: var(--success); }
-    .btn-reject   { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.35); color: var(--danger); }
-    .btn-reject:hover   { background: rgba(239,68,68,0.25); border-color: var(--danger); }
-    .btn-park     { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.35); color: var(--warning); }
-    .btn-park:hover     { background: rgba(245,158,11,0.25); border-color: var(--warning); }
+    .btn-approve  { background: rgba(47,93,138,0.15); border-color: rgba(47,93,138,0.35); color: var(--success); }
+    .btn-approve:hover  { background: rgba(47,93,138,0.25); border-color: var(--success); }
+    .btn-reject   { background: rgba(174,30,35,0.15); border-color: rgba(174,30,35,0.35); color: var(--danger); }
+    .btn-reject:hover   { background: rgba(174,30,35,0.25); border-color: var(--danger); }
+    .btn-park     { background: rgba(58,58,58,0.15); border-color: rgba(58,58,58,0.35); color: var(--warning); }
+    .btn-park:hover     { background: rgba(58,58,58,0.25); border-color: var(--warning); }
     .btn-victoria { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.35); color: var(--purple); }
     .btn-victoria:hover { background: rgba(139,92,246,0.25); border-color: var(--purple); }
     .btn-secondary { background: var(--surface-alt); color: var(--text); border: 1px solid var(--border); }
@@ -623,9 +658,9 @@
     .gate-card .gate-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 4px; }
     .gate-card .gate-outcome { font-size: 13px; font-weight: 700; }
     .gate-card .gate-reason { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
-    .gate-card.pass { border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.08); }
-    .gate-card.fail { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.08); }
-    .gate-card.flag { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.08); }
+    .gate-card.pass { border-color: rgba(47,93,138,0.4); background: rgba(47,93,138,0.08); }
+    .gate-card.fail { border-color: rgba(174,30,35,0.4); background: rgba(174,30,35,0.08); }
+    .gate-card.flag { border-color: rgba(58,58,58,0.4); background: rgba(58,58,58,0.08); }
     .gate-card.inferred { border-color: rgba(59,130,246,0.4); background: rgba(59,130,246,0.08); }
 
     .detail-meta { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px 20px; background: var(--surface-alt); border-radius: 8px; margin-bottom: 20px; }

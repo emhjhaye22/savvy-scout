@@ -58,6 +58,20 @@ class UKStage(str, Enum):
     UNVERIFIED = "UNVERIFIED"
 
 
+# Plain-language labels for the UK1-5 stage codes (2026-09-16) -- these
+# codes are shown as bare badges throughout the dashboard (Approval Queue,
+# Notice Detail) with no explanation of what they mean. Shared with
+# escalation/word_documents.py's own Capture Brief wording, which
+# previously kept a private duplicate of this exact mapping.
+UK_STAGE_LABELS: dict[str, str] = {
+    "UK1": "Pipeline notice",
+    "UK2": "Preliminary Market Engagement",
+    "UK3": "Planned procurement notice",
+    "UK4": "Tender notice",
+    "UK5": "Award notice",
+}
+
+
 ALLOWED_TRANSITIONS: dict[Status, set[Status]] = {
     Status.NEW: {Status.PHASE1_TRIAGED},
     Status.PHASE1_TRIAGED: {

@@ -9,6 +9,7 @@ from docx.shared import Pt
 from docx.text.paragraph import Paragraph
 
 from savvy_scout.escalation.context import MISSING, build_context
+from savvy_scout.models.notice import UK_STAGE_LABELS
 
 TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "artifacts"
 
@@ -418,19 +419,10 @@ def _final_decision_text(context):
     )
 
 
-_NOTICE_TYPE_LABELS = {
-    "UK1": "UK1 Pipeline notice",
-    "UK2": "UK2 Preliminary Market Engagement",
-    "UK3": "UK3 Planned procurement notice",
-    "UK4": "UK4 Tender notice",
-    "UK5": "UK5 Award notice",
-}
-
-
 def _notice_type_label(context):
-    label = _NOTICE_TYPE_LABELS.get(context["uk_stage"])
+    label = UK_STAGE_LABELS.get(context["uk_stage"])
     if label:
-        return label
+        return f"{context['uk_stage']} {label}"
     return context["notice_type"] if context["notice_type"] != MISSING else "Not stated in the notice"
 
 

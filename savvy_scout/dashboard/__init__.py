@@ -71,6 +71,16 @@ def create_app(settings: Settings) -> Flask:
             return value
         return f"£{parsed:,.0f}"
 
+    @app.template_filter("uk_stage_label")
+    def uk_stage_label_filter(value):
+        """Plain-language tooltip text for a bare UK1-5 badge (2026-09-16,
+        real feedback that "UK2" etc. means nothing on sight to a reviewer).
+        Returns None for UNVERIFIED/unknown so templates' `{{ ... or '' }}`
+        fallback still works."""
+        from savvy_scout.models.notice import UK_STAGE_LABELS
+
+        return UK_STAGE_LABELS.get(value)
+
     login_manager.init_app(app)
     app.register_blueprint(auth_bp)
     app.register_blueprint(welcome_bp)

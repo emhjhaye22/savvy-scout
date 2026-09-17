@@ -149,7 +149,7 @@
       <tr class="admin-empty-row">
         <td colspan="{{ columns | length + 2 }}" style="text-align: center; color: var(--text-muted); padding: 16px;">No rows match your search.</td>
       </tr>
-      <tr style="background: rgba(16,185,129,0.08);" class="admin-add-row">
+      <tr style="background: rgba(47,93,138,0.08);" class="admin-add-row">
         <form method="post" action="{{ url_for('admin.add_row', table_name=table_name) }}">
           {% for col in columns %}
             <td><input type="text" name="{{ col['name'] }}" placeholder="{{ col['name'] }}{% if col['required'] %} *{% endif %}"></td>
