@@ -27,6 +27,7 @@ from savvy_scout.config import load_settings
 from savvy_scout.db.backup import backup_database
 from savvy_scout.db.connection import get_connection, init_db
 from savvy_scout.db.seed_config import seed_all
+from savvy_scout.graph.drive import upload_file
 from savvy_scout.notifications import (
     APPROACHING_DAYS,
     NotificationError,
@@ -76,6 +77,28 @@ def run_daily_backup() -> None:
         logger.info("Scheduled backup written to %s", path)
     except FileNotFoundError:
         logger.warning("Scheduled backup skipped: no database file yet at %s", settings.db_path)
+        return
+
+    # Off-box copy (2026-09-17 audit finding): the local backup above still
+    # lives on the same disk as the database it protects. Uploaded via the
+    # same Azure AD app registration already used for escalation email --
+    # needs Files.ReadWrite.All added to that app's application permissions
+    # in Azure Portal (an external setup step; see graph/drive.py's
+    # docstring). Failure here is logged, never fatal: the local backup
+    # above already succeeded, and a Graph outage shouldn't be treated as a
+    # reason to consider today's backup missing.
+    if settings.graph_configured:
+        try:
+            folder = os.environ.get("MS_GRAPH_BACKUP_FOLDER", "TenderSight-Backups")
+            url = upload_file(
+                path, folder, settings.ms_graph_sender_upn,
+                settings.ms_graph_tenant_id, settings.ms_graph_client_id, settings.ms_graph_client_secret,
+            )
+            logger.info("Backup uploaded to OneDrive: %s", url)
+        except Exception:
+            logger.exception("OneDrive backup upload failed; local backup at %s is still intact", path)
+    else:
+        logger.info("OneDrive backup skipped: Microsoft Graph is not configured (see .env.example)")
 
 
 def _report_recipients(conn, settings) -> list[str]:

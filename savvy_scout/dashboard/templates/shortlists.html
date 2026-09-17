@@ -54,6 +54,7 @@
           <td style="font-size:12px; color:var(--text-muted); white-space:nowrap;">{{ item.added_at[:10] }}</td>
           <td>
             <form method="post" action="{{ url_for('shortlists.toggle') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="notice_id" value="{{ item.notice_id }}">
               <button type="submit" class="shortlist-remove-btn">Remove</button>
             </form>

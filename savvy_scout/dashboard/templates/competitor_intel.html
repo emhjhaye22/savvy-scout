@@ -75,6 +75,7 @@
           <tr>
             <td>
               <form method="post" action="{{ url_for('competitor_intel.toggle_watch') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="supplier_name" value="{{ c.supplier_name }}">
                 <input type="hidden" name="next" value="{{ url_for('competitor_intel.index', tab='competitors', show=('all' if show_all else none)) }}">
                 <button type="submit" class="ci-watch-cell-btn {% if c.watched %}watched{% endif %}" title="{% if c.watched %}Watching{% else %}Watch this competitor{% endif %}">{% if c.watched %}★{% else %}☆{% endif %}</button>

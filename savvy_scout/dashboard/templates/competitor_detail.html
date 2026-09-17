@@ -48,6 +48,7 @@
 <div class="cd-header">
   <h2>{{ supplier_name }}</h2>
   <form method="post" action="{{ url_for('competitor_intel.toggle_watch') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="supplier_name" value="{{ supplier_name }}">
     <input type="hidden" name="next" value="{{ url_for('competitor_intel.detail', name=supplier_name) }}">
     <button type="submit" class="cd-watch-btn {% if watched %}watched{% endif %}">{% if watched %}★ Watching{% else %}☆ Watch this competitor{% endif %}</button>

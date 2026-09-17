@@ -3,6 +3,8 @@
 import sqlite3
 
 from flask import Blueprint, current_app, flash, g, redirect, render_template, request, url_for
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_login import LoginManager, UserMixin, current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -16,6 +18,12 @@ login_manager.login_view = "auth.login"
 # authenticated page render, leaking a stale message onto the queues view
 # right after a successful login.
 login_manager.login_message = None
+
+# Per-IP login throttling (2026-09-17, audit finding): unlimited password
+# guesses were allowed against any username. In-memory storage is fine here
+# -- this is a single Render instance, no shared cache between workers to
+# worry about. init_app(app) is called from dashboard/__init__.py.
+limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -43,6 +51,7 @@ def load_user(user_id: str):
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per 5 minutes", methods=["POST"])
 def login():
     error = None
     if request.method == "POST":

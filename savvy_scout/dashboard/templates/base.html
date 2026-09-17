@@ -770,6 +770,7 @@
     <ul class="sidebar-nav">
       <li>
         <form action="{{ url_for('home.sweep_now') }}" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="sidebar-sweep-button" type="submit" title="Run sweep now" aria-label="Run sweep now">
             <span class="nav-icon" aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span><span class="nav-label">Sweep now</span>
           </button>
@@ -781,6 +782,7 @@
       </li>
       <li>
         <form action="{{ url_for('home.generate_reports_now') }}" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="sidebar-sweep-button" type="submit" title="Generate Trifork reports now" aria-label="Generate Trifork reports now">
             <span class="nav-icon" aria-hidden="true"><i class="fa-solid fa-file-lines"></i></span><span class="nav-label">Generate reports now</span>
           </button>

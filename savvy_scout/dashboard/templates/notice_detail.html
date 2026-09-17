@@ -64,6 +64,7 @@
         <span class="badge badge-stage">{{ notice['uk_stage'] }}</span>
       {% endif %}
       <form method="post" action="{{ url_for('shortlists.toggle') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="notice_id" value="{{ notice['id'] }}">
         <input type="hidden" name="next" value="{{ url_for('queues.notice_detail', notice_id=notice['id']) }}">
         <button type="submit" class="btn btn-secondary btn-sm" title="{% if shortlisted %}Remove from Shortlists{% else %}Save to Shortlists{% endif %}">{% if shortlisted %}★ Shortlisted{% else %}☆ Shortlist{% endif %}</button>
@@ -150,12 +151,14 @@
       <strong style="font-size: 13px; color: var(--navy); margin-right: 8px;">Actions:</strong>
 
       <form method="post" action="{{ url_for('queues.approve', notice_id=notice['id']) }}" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-approve" title="{% if s == 'AWAITING_PHASE2_APPROVAL' %}Sends to Victoria for her decision{% endif %}">Approve</button>
       </form>
 
       <span class="action-group" style="display: inline-flex; gap: 4px; align-items: center;">
         <button class="btn btn-reject show-input-btn" onclick="toggleAction(this, 'det-reject')">Reject</button>
         <form method="post" action="{{ url_for('queues.reject', notice_id=notice['id']) }}" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="text" name="reason" class="action-input" id="det-reject" placeholder="Reason required" required style="width: 200px;">
           <button type="submit" class="btn btn-reject submit-btn" style="display:none">Submit</button>
         </form>
@@ -170,6 +173,7 @@
     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 16px; background: rgba(58,58,58,0.1); border-radius: 8px; border: 1px solid rgba(58,58,58,0.3); margin-top: 8px;">
       <strong style="font-size: 13px; color: var(--navy); margin-right: 8px;">Victoria's Decision:</strong>
       <form method="post" action="{{ url_for('queues.victoria_decision', notice_id=notice['id']) }}" style="display:inline-flex; align-items:center; gap: 8px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <select name="decision" style="padding: 7px 10px; font-size: 13px;">
           <option value="approve">Approve</option>
           <option value="park">Park</option>
@@ -185,6 +189,7 @@
       {% endfor %}
       {% if escalation_brief and not escalation_brief['emailed_at'] %}
         <form method="post" action="{{ url_for('queues.send_escalation_email', notice_id=notice['id']) }}" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-secondary">Send Brief Email</button>
         </form>
       {% elif escalation_brief and escalation_brief['emailed_at'] %}
@@ -255,6 +260,7 @@
     <h2>Bid Documents</h2>
     {% if notice['status'] in ('APPROVED', 'CAPTURE_BRIEF_DRAFTED') %}
     <form method="post" action="{{ url_for('queues.mark_docs_downloaded', notice_id=notice['id']) }}" style="display:inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-secondary btn-sm">Mark documents downloaded</button>
     </form>
     {% endif %}

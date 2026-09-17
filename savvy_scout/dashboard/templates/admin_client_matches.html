@@ -61,6 +61,7 @@
           </td>
           <td>
             <form method="post" action="{{ url_for('admin.set_client_notice_status', client_id=client.id, notice_id=m['id']) }}" class="cna-actions">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="status_filter" value="{{ status_filter }}">
               <input type="text" name="note" class="cna-note-input" placeholder="Note (optional)" value="{{ m['note'] or '' }}">
               <button type="submit" name="status" value="SHORTLISTED" class="btn btn-secondary btn-sm">★ Shortlist</button>

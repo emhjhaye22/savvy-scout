@@ -155,6 +155,7 @@
     <p class="subtitle">Access the triage and approval dashboard.</p>
 
     <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label for="username">Email or Username</label>
       <input type="text" id="username" name="username" value="{{ request.form.username or '' }}" required autocomplete="username">
 

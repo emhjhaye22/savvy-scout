@@ -67,10 +67,12 @@
   </div>
   <div class="card-body" style="display: flex; flex-direction: column; gap: 10px;">
     <form method="post" action="{{ url_for('admin.retriage_escalated') }}" style="display: flex; align-items: center; gap: 10px;" onsubmit="return confirm('Re-evaluate Phase 1 gates for every Escalated-to-Victoria notice and send it back to Phase 2 for owner review?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-secondary btn-sm">Retriage escalated notices</button>
       <span style="font-size: 12px; color: var(--text-muted);">After a gate/config correction: re-evaluates Phase 1 for every notice awaiting Victoria's decision and sends it back to Phase 2 for owner review.</span>
     </form>
     <form method="post" action="#" onsubmit="event.preventDefault(); const id = prompt('Notice ID to delete:'); if (id) { this.action = '/admin/notices/' + id + '/delete'; if (confirm('Permanently delete notice ' + id + ' and all its records?')) this.submit(); }" style="display: flex; align-items: center; gap: 10px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-secondary btn-sm">Delete a notice by ID</button>
       <span style="font-size: 12px; color: var(--text-muted);">Removes a test/duplicate notice entirely (all gate results, triage runs, assessments, history). Use Reject for a real triage decision instead.</span>
     </form>
@@ -104,6 +106,7 @@
       {% for row in rows %}
       <tr class="admin-data-row">
         <form method="post" action="{{ url_for('admin.assign_owner', row_id=row['id']) if table_name == 'config_owner_map' else url_for('admin.update_row', table_name=table_name, row_id=row['id']) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {% for col in columns %}
             {% if table_name == 'config_owner_map' and col['name'] == 'sector' %}
             <td>
@@ -151,6 +154,7 @@
       </tr>
       <tr style="background: rgba(47,93,138,0.08);" class="admin-add-row">
         <form method="post" action="{{ url_for('admin.add_row', table_name=table_name) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {% for col in columns %}
             <td><input type="text" name="{{ col['name'] }}" placeholder="{{ col['name'] }}{% if col['required'] %} *{% endif %}"></td>
           {% endfor %}
@@ -218,6 +222,7 @@
   </div>
   <div class="card-body">
     <form method="post" action="{{ url_for('admin.add_user') }}" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div>
         <label for="new-display-name" style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Display name</label>
         <input type="text" id="new-display-name" name="display_name" placeholder="e.g. Priya" required>
@@ -260,6 +265,7 @@
         <td style="font-weight: 600;">{{ user['display_name'] }}</td>
         <td colspan="2">
           <form method="post" action="{{ url_for('admin.update_user_contact', user_id=user['id']) }}" style="display: flex; gap: 6px; align-items: center;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="text" name="email" value="{{ user['email'] or '' }}" placeholder="name@bidsavvy.io" style="font-size: 12px; padding: 4px 6px; width: 160px;">
             <input type="text" name="teams_webhook_url" value="{{ user['teams_webhook_url'] or '' }}" placeholder="Teams webhook URL" style="font-size: 12px; padding: 4px 6px; width: 200px;">
             <button type="submit" class="btn btn-secondary btn-sm">Save</button>
@@ -275,14 +281,17 @@
         <td class="actions-col">
           {% if user['email'] %}
           <form method="post" action="{{ url_for('admin.send_invite', user_id=user['id']) }}" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-secondary btn-sm">Send invite</button>
           </form>
           {% endif %}
           <form method="post" action="{{ url_for('admin.reset_user_password', user_id=user['id']) }}" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Reset {{ user['display_name'] }}\'s password and re-send the invite email?');">Reset password</button>
           </form>
           {% if user['id']|string != current_user.id %}
           <form method="post" action="{{ url_for('admin.delete_user', user_id=user['id']) }}" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-reject btn-sm" onclick="return confirm('Remove {{ user['display_name'] }}\'s account? This cannot be undone.');">Remove</button>
           </form>
           {% endif %}
@@ -316,6 +325,7 @@
   </div>
   <div class="card-body">
     <form method="post" action="{{ url_for('admin.add_client') }}" style="display: flex; flex-direction: column; gap: 12px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div>
         <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Client name</label>
         <input type="text" name="name" placeholder="e.g. Acme Construction" required style="width: 260px;">
@@ -387,6 +397,7 @@
         </td>
         <td>
           <form method="post" action="{{ url_for('admin.update_client_filter', client_id=entry.client.id) }}" style="display: flex; flex-direction: column; gap: 6px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
               <input type="text" name="cpv_prefixes" value="{{ entry.filter.cpv_prefixes | from_json | join(', ') if entry.filter else '' }}" placeholder="CPV prefixes" style="font-size: 12px; padding: 4px 6px; width: 140px;">
               <input type="text" name="keywords" value="{{ entry.filter.keywords | from_json | join(', ') if entry.filter else '' }}" placeholder="Keywords" style="font-size: 12px; padding: 4px 6px; width: 160px;">
@@ -407,6 +418,7 @@
         </td>
         <td class="actions-col">
           <form method="post" action="{{ url_for('admin.toggle_client_active', client_id=entry.client.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-secondary btn-sm">{{ 'Pause' if entry.client.is_active else 'Reactivate' }}</button>
           </form>
         </td>

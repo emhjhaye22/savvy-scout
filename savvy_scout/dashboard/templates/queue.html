@@ -121,6 +121,7 @@
   <div style="display: flex; gap: 8px;">
     {% if phase2_ready %}
       <form method="post" action="{{ url_for('queues.process_phase2') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-secondary btn-sm">Process Phase 2</button>
       </form>
     {% else %}
@@ -179,6 +180,7 @@
       <div class="notice-right">
         <div class="action-row">
           <form method="post" action="{{ url_for('queues.approve', notice_id=n['id']) }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-approve btn-sm" title="Sends to Victoria for her decision">Approve</button>
           </form>
           <button class="btn btn-reject btn-sm" onclick="showReason(this, 'p2r-{{ n['id'] }}')">Reject</button>
@@ -186,6 +188,7 @@
         <div style="font-size: 10.5px; color: var(--text-muted); text-align: right; max-width: 200px;">Approve → sent to Victoria for the bid decision. Reject → closed out here.</div>
         <div id="p2r-{{ n['id'] }}" class="reason-form">
           <form method="post" action="{{ url_for('queues.reject', notice_id=n['id']) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="text" name="reason" placeholder="Reason" required>
             <div class="reason-form-btns"><button type="submit" class="btn btn-reject btn-sm">Reject</button><button type="button" class="btn btn-secondary btn-sm" onclick="hideReason('p2r-{{ n['id'] }}')">Cancel</button></div>
           </form>
@@ -245,6 +248,7 @@
         {# Approve — direct submit #}
         <div class="action-row">
           <form method="post" action="{{ url_for('queues.approve', notice_id=n['id']) }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-approve btn-sm" title="Overturns the automatic check and sends it for a Phase 2 AI scope read">Approve</button>
           </form>
           <button class="btn btn-reject btn-sm" onclick="showReason(this, 'r-{{ n['id'] }}')">Reject</button>
@@ -253,6 +257,7 @@
 
         <div id="r-{{ n['id'] }}" class="reason-form">
           <form method="post" action="{{ url_for('queues.reject', notice_id=n['id']) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="text" name="reason" placeholder="Reason for rejection" required>
             <div class="reason-form-btns">
               <button type="submit" class="btn btn-reject btn-sm">Confirm Reject</button>
@@ -318,6 +323,7 @@
       </div>
       <div class="notice-right">
         <form method="post" action="{{ url_for('queues.victoria_decision', notice_id=n['id']) }}" style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div style="display: flex; gap: 6px;">
             <select name="decision" style="padding: 6px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font);">
               <option value="approve">Approve</option>
@@ -330,6 +336,7 @@
         </form>
         {% if not n['emailed_at'] %}
         <form method="post" action="{{ url_for('queues.send_escalation_email', notice_id=n['id']) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-secondary btn-sm">Send Brief</button>
         </form>
         {% else %}

@@ -1,15 +1,16 @@
-"""Flask approval dashboard (SPEC.md B1). Local-only tool for four named
-accounts (Mark, Kanvesh, Hammad, Victoria), individual logins, no shared
-accounts. Not hardened for internet exposure -- run it on localhost or an
-internal network only."""
+"""Flask approval dashboard (SPEC.md B1). Originally a local-only tool for
+four named accounts (Mark, Kanvesh, Hammad, Victoria), individual logins, no
+shared accounts -- now deployed publicly on Render, with CSRF protection and
+login rate-limiting added (2026-09-17 audit) to match that exposure."""
 
 import json
 
 from flask import Flask, g
 from flask_login import current_user
+from flask_wtf import CSRFProtect
 
 from savvy_scout.config import Settings
-from savvy_scout.dashboard.auth import auth_bp, get_db, login_manager
+from savvy_scout.dashboard.auth import auth_bp, get_db, limiter, login_manager
 from savvy_scout.dashboard.notifications import get_notification_context, get_sidebar_stage_counts
 from savvy_scout.dashboard.routes.admin import admin_bp
 from savvy_scout.dashboard.routes.competitor_intel import _parse_gbp, competitor_intel_bp
@@ -26,6 +27,18 @@ from savvy_scout.db.seed_config import seed_all
 
 def create_app(settings: Settings) -> Flask:
     import os
+
+    # Error tracking (2026-09-17 audit finding): previously an uncaught
+    # exception in production just showed a generic 500 with nobody told.
+    # Only active if SENTRY_DSN is set -- a no-op everywhere else (local
+    # dev, tests, or before a Sentry project exists).
+    sentry_dsn = os.environ.get("SENTRY_DSN")
+    if sentry_dsn:
+        import sentry_sdk
+        from sentry_sdk.integrations.flask import FlaskIntegration
+
+        sentry_sdk.init(dsn=sentry_dsn, integrations=[FlaskIntegration()], traces_sample_rate=0.0)
+
     # Explicitly set template_folder to ensure Flask finds our templates
     template_dir = os.path.join(os.path.dirname(__file__), 'templates')
     app = Flask(__name__, template_folder=template_dir)
@@ -34,12 +47,29 @@ def create_app(settings: Settings) -> Flask:
     app.config["SAVVY_SCOUT_APP_BASE_URL"] = os.environ.get("SAVVY_SCOUT_APP_BASE_URL") or None
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.secret_key = settings.flask_secret_key or "dev-only-insecure-key-set-FLASK_SECRET_KEY-in-.env"
+    # Explicit regardless of environment (2026-09-17 audit) -- these two
+    # don't depend on being on Render, unlike Secure below.
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     # Render sets RENDER=true in every runtime environment there -- only
     # force Secure cookies there, never on plain-http localhost (2026-08-08,
     # prepping for a public deploy), or a local dev login would silently
     # never set its session cookie at all.
     if os.environ.get("RENDER"):
         app.config["SESSION_COOKIE_SECURE"] = True
+
+    CSRFProtect(app)
+    # Flask-Limiter's storage lives on the module-level `limiter` object
+    # itself, shared by every Flask app created in this process (each test
+    # file builds its own app via create_app) -- so under pytest, the ~18
+    # test-suite POSTs to /login across different test files would all
+    # count against the SAME "10 per 5 minutes" bucket and start failing
+    # with 429s partway through the run. `enabled` is fixed at init_app()
+    # time (config set afterward has no effect, unlike CSRF above), so this
+    # has to be skipped here rather than toggled per-test.
+    import sys
+    if "pytest" not in sys.modules:
+        limiter.init_app(app)
 
     @app.template_filter("from_json")
     def from_json_filter(value):
@@ -92,6 +122,19 @@ def create_app(settings: Settings) -> Flask:
     app.register_blueprint(draft_assist_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
+
+    @app.route("/healthz")
+    def healthz():
+        """Unauthenticated liveness/readiness check (2026-09-17 audit
+        finding): confirms the process is up AND the database is actually
+        reachable, not just that Flask itself is running. Exempt from CSRF
+        (it's a GET, so exempt by default) and from login -- an uptime
+        monitor has no session."""
+        try:
+            get_connection(settings.db_path).execute("SELECT 1").fetchone()
+        except Exception as exc:  # noqa: BLE001 - report any DB failure, not a specific kind
+            return {"status": "error", "detail": str(exc)}, 503
+        return {"status": "ok"}, 200
 
     # Ensure schema and lightweight migrations are applied on dashboard boot.
     # seed_all is called here too (2026-08-09) -- previously only the CLI's

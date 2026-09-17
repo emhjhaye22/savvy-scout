@@ -1,0 +1,29 @@
+name: Tests
+
+# 2026-09-17 audit finding: the 342-test suite previously only ran when a
+# human remembered to run it locally before pushing -- nothing gated a push
+# or PR before Render auto-deployed it. This runs the suite on every push
+# and PR to any branch; it doesn't block Render's own deploy (that's a
+# separate, larger change), but it does mean a broken push shows up as a
+# red X on GitHub within a couple of minutes instead of silently reaching
+# production.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run test suite
+        run: pytest -q

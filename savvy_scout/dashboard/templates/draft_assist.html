@@ -87,6 +87,7 @@
     <div class="card" style="margin-bottom:20px;">
       {% if scope_read_ready %}
       <form method="post" action="{{ url_for('draft_assist.draft') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="notice_id" value="{{ notice['id'] }}">
         <textarea name="question_text" rows="3" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:13px;" placeholder="Paste the selection-questionnaire or bid-response question here..." required></textarea>
         <button type="submit" class="btn btn-sm" style="margin-top:10px; background: var(--primary); color: white;">Draft answer (PROVISIONAL)</button>
@@ -105,12 +106,14 @@
       {% if item['status'] == 'DRAFTED' %}
       <div class="da-item-actions">
         <form method="post" action="{{ url_for('draft_assist.review') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="item_id" value="{{ item['id'] }}">
           <input type="hidden" name="notice_id" value="{{ notice['id'] }}">
           <input type="hidden" name="decision" value="REVIEWED_USED">
           <button type="submit" class="btn btn-secondary btn-sm">Mark used</button>
         </form>
         <form method="post" action="{{ url_for('draft_assist.review') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="item_id" value="{{ item['id'] }}">
           <input type="hidden" name="notice_id" value="{{ notice['id'] }}">
           <input type="hidden" name="decision" value="REVIEWED_REJECTED">

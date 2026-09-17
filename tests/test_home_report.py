@@ -173,6 +173,7 @@ def test_overview_shows_scouting_report(tmp_path):
     )
     app = create_app(settings)
     app.config["TESTING"] = True
+    app.config["WTF_CSRF_ENABLED"] = False
     client = _logged_in_client(app, "mark")
 
     response = client.get("/")
@@ -579,6 +580,7 @@ def test_overview_shows_cross_feature_tiles(tmp_path):
     )
     app = create_app(settings)
     app.config["TESTING"] = True
+    app.config["WTF_CSRF_ENABLED"] = False
     client = _logged_in_client(app, "mark")
 
     html = client.get("/").get_data(as_text=True)

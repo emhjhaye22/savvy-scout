@@ -41,6 +41,7 @@ def app(tmp_path):
 
     flask_app = create_app(_make_settings(db_path))
     flask_app.config["TESTING"] = True
+    flask_app.config["WTF_CSRF_ENABLED"] = False
     return flask_app
 
 

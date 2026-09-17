@@ -159,6 +159,7 @@
 
 {# Bulk actions + main table #}
 <form method="post" id="bulk-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="next" value="{{ request.full_path }}">
   <div class="bulk-toolbar">
     <span class="bulk-count" id="bulk-count">0 selected</span>
