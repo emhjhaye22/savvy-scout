@@ -141,25 +141,36 @@ CREATE TABLE IF NOT EXISTS contract_expiry (
     created_at TEXT NOT NULL
 );
 
--- Competitor Intel's watch toggle. supplier_name is the natural key (the
--- same free-text name notices.supplier_name carries off award notices --
--- no separate competitor entity exists anywhere else in the app).
+-- Competitor Intel's watch toggle. supplier_name is the natural key within a
+-- client (the same free-text name notices.supplier_name carries off award
+-- notices -- no separate competitor entity exists anywhere else in the app).
+-- client_id (2026-09-18, tenancy fix): previously one global watch-list
+-- shared by everyone regardless of which client they were acting for --
+-- see schema.sql's clients table comment. Each client now gets its own
+-- watch-list, same as client_filters/client_triage_results already do.
 CREATE TABLE IF NOT EXISTS watched_competitors (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    supplier_name TEXT NOT NULL UNIQUE,
+    client_id INTEGER NOT NULL REFERENCES clients(id),
+    supplier_name TEXT NOT NULL,
     watched_by TEXT NOT NULL,
-    watched_at TEXT NOT NULL
+    watched_at TEXT NOT NULL,
+    UNIQUE(client_id, supplier_name)
 );
 
--- Shortlists: one flat save-list per the single-owner design (2026-09-05
--- clarification -- no named/multiple lists, just a star toggle on a notice
--- and one page listing everything saved). notice_id is UNIQUE because a
--- notice is either on the list or it isn't, not on it more than once.
+-- Shortlists: one flat save-list per client (2026-09-05 clarification -- no
+-- named/multiple lists within a client, just a star toggle on a notice and
+-- one page listing everything saved for that client). client_id
+-- (2026-09-18, tenancy fix): previously one global save-list shared by
+-- everyone regardless of which client they were acting for. notice_id is
+-- no longer globally UNIQUE -- a notice can be shortlisted independently by
+-- more than one client -- but still can't be saved twice for the same one.
 CREATE TABLE IF NOT EXISTS shortlisted_notices (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    notice_id INTEGER NOT NULL UNIQUE REFERENCES notices(id),
+    client_id INTEGER NOT NULL REFERENCES clients(id),
+    notice_id INTEGER NOT NULL REFERENCES notices(id),
     added_by TEXT NOT NULL,
-    added_at TEXT NOT NULL
+    added_at TEXT NOT NULL,
+    UNIQUE(client_id, notice_id)
 );
 
 -- Draft assist: PROVISIONAL AI-drafted answers to selection-questionnaire /
@@ -338,7 +349,11 @@ CREATE TABLE IF NOT EXISTS config_sources (
 -- deliberately Mark, not Victoria -- see dashboard/routes/admin.py
 -- _is_super_admin). email is nullable so the four original seeded accounts
 -- (mark/kanvesh/hammad/victoria) keep working via username login without
--- needing a real address backfilled.
+-- needing a real address backfilled. client_id (2026-09-18, tenancy fix):
+-- which client a user is acting on behalf of -- previously no user was tied
+-- to any client at all, so shortlists/watchlists had no way to be scoped
+-- per client. Defaults to Trifork's own row (see clients table below) for
+-- every existing account; new accounts are assigned a client explicitly.
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
@@ -348,7 +363,8 @@ CREATE TABLE IF NOT EXISTS users (
     is_victoria INTEGER NOT NULL DEFAULT 0,
     is_admin INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
-    teams_webhook_url TEXT
+    teams_webhook_url TEXT,
+    client_id INTEGER REFERENCES clients(id)
 );
 
 -- Config: Trifork capability profile fed to the Claude API scope read (B2).

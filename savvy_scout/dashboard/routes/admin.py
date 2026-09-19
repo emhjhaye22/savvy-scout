@@ -315,12 +315,15 @@ def assign_owner(row_id):
             flash("A user with that email, username, or display name already exists.", "error")
             return redirect(url_for("admin.index") + "#group-sectors")
         temp_password, (message, category) = _invite_or_reset(owner_email, new_name, username)
+        # Joins Trifork's own account (2026-09-18 tenancy fix) -- see
+        # add_user()'s identical comment above.
+        trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
         conn.execute(
-            "INSERT INTO users (username, password_hash, display_name, email, teams_webhook_url, is_victoria, is_admin, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, 0, ?)",
+            "INSERT INTO users (username, password_hash, display_name, email, teams_webhook_url, is_victoria, is_admin, created_at, client_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)",
             (
                 username, generate_password_hash(temp_password), new_name, owner_email,
-                owner_teams or None, int(owner_is_victoria), datetime.now(timezone.utc).isoformat(),
+                owner_teams or None, int(owner_is_victoria), datetime.now(timezone.utc).isoformat(), trifork_id,
             ),
         )
         conn.commit()
@@ -533,9 +536,15 @@ def add_user():
         return redirect(url_for("admin.users_index"))
 
     temp_password, (message, category) = _invite_or_reset(email, display_name, username)
+    # New teammates added here join Trifork's own account (2026-09-18
+    # tenancy fix) -- this screen has no way to pick a different client yet,
+    # since every current user of the app is Trifork staff. A real
+    # client-onboarding flow (inviting a *client's own* team) is separate,
+    # larger work, not this fix.
+    trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, email, is_victoria, is_admin, created_at) "
-        "VALUES (?, ?, ?, ?, ?, 0, ?)",
+        "INSERT INTO users (username, password_hash, display_name, email, is_victoria, is_admin, "
+        "created_at, client_id) VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
         (
             username,
             generate_password_hash(temp_password),
@@ -543,6 +552,7 @@ def add_user():
             email,
             int(is_victoria),
             datetime.now(timezone.utc).isoformat(),
+            trifork_id,
         ),
     )
     conn.commit()

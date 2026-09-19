@@ -54,8 +54,10 @@ def index():
         SELECT n.id AS notice_id, n.ref, n.title, n.sector
         FROM shortlisted_notices sl
         JOIN notices n ON n.id = sl.notice_id
+        WHERE sl.client_id = ?
         ORDER BY sl.added_at DESC
-        """
+        """,
+        (current_user.client_id,),
     ).fetchall()
 
     notice = None

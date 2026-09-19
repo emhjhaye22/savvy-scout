@@ -31,10 +31,11 @@ def app(tmp_path):
     setup_conn = get_connection(db_path)
     init_db(setup_conn)
     seed_all(setup_conn)
+    trifork_id = setup_conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     setup_conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at) "
-        "VALUES (?, ?, ?, ?, ?)",
-        ("mark", generate_password_hash("testpass"), "Mark", 0, datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at, client_id) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        ("mark", generate_password_hash("testpass"), "Mark", 0, datetime.now(timezone.utc).isoformat(), trifork_id),
     )
     setup_conn.commit()
     setup_conn.close()
@@ -68,9 +69,10 @@ def _insert_notice(conn, ref, title="An opportunity", sector="Fintech", is_award
 
 
 def _shortlist(conn, notice_id):
+    trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     conn.execute(
-        "INSERT INTO shortlisted_notices (notice_id, added_by, added_at) VALUES (?, 'Mark', ?)",
-        (notice_id, datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO shortlisted_notices (client_id, notice_id, added_by, added_at) VALUES (?, ?, 'Mark', ?)",
+        (trifork_id, notice_id, datetime.now(timezone.utc).isoformat()),
     )
     conn.commit()
 

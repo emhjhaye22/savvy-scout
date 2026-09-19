@@ -13,9 +13,10 @@ from savvy_scout.dashboard.auth import get_db
 shortlists_bp = Blueprint("shortlists", __name__)
 
 
-def is_shortlisted(conn, notice_id: int) -> bool:
+def is_shortlisted(conn, notice_id: int, client_id: int) -> bool:
     row = conn.execute(
-        "SELECT 1 FROM shortlisted_notices WHERE notice_id = ?", (notice_id,)
+        "SELECT 1 FROM shortlisted_notices WHERE notice_id = ? AND client_id = ?",
+        (notice_id, client_id),
     ).fetchone()
     return row is not None
 
@@ -31,8 +32,10 @@ def index():
                n.indicative_value, n.deadline
         FROM shortlisted_notices sl
         JOIN notices n ON n.id = sl.notice_id
+        WHERE sl.client_id = ?
         ORDER BY sl.added_at DESC
-        """
+        """,
+        (current_user.client_id,),
     ).fetchall()
     return render_template("shortlists.html", items=rows)
 
@@ -43,12 +46,21 @@ def toggle():
     notice_id = request.form.get("notice_id", type=int)
     conn = get_db()
     if notice_id is not None:
-        if is_shortlisted(conn, notice_id):
-            conn.execute("DELETE FROM shortlisted_notices WHERE notice_id = ?", (notice_id,))
+        if is_shortlisted(conn, notice_id, current_user.client_id):
+            conn.execute(
+                "DELETE FROM shortlisted_notices WHERE notice_id = ? AND client_id = ?",
+                (notice_id, current_user.client_id),
+            )
         else:
             conn.execute(
-                "INSERT INTO shortlisted_notices (notice_id, added_by, added_at) VALUES (?, ?, ?)",
-                (notice_id, current_user.display_name, datetime.now(timezone.utc).isoformat()),
+                "INSERT INTO shortlisted_notices (client_id, notice_id, added_by, added_at) "
+                "VALUES (?, ?, ?, ?)",
+                (
+                    current_user.client_id,
+                    notice_id,
+                    current_user.display_name,
+                    datetime.now(timezone.utc).isoformat(),
+                ),
             )
         conn.commit()
     next_url = request.form.get("next") or url_for("shortlists.index")

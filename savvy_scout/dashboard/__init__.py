@@ -164,7 +164,10 @@ def create_app(settings: Settings) -> Flask:
             # (is_admin), separate from Victoria's rule-correction authority
             # (is_victoria) -- see dashboard/routes/admin.py. Kanvesh and
             # Hammad are no longer seeded here: scouting consolidated to
-            # Mark alone on 2026-09-01.
+            # Mark alone on 2026-09-01. Both join Trifork's own account
+            # (2026-09-18 tenancy fix) -- init_db/seed_all above already
+            # guarantee that row exists by the time this runs.
+            trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
             password_hash = generate_password_hash('12345')
             users = [
                 ('mark', 'Mark', False, True),
@@ -173,8 +176,8 @@ def create_app(settings: Settings) -> Flask:
 
             for username, display_name, is_victoria, is_admin in users:
                 conn.execute(
-                    "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                    (username, password_hash, display_name, int(is_victoria), int(is_admin), datetime.now(timezone.utc).isoformat())
+                    "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at, client_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (username, password_hash, display_name, int(is_victoria), int(is_admin), datetime.now(timezone.utc).isoformat(), trifork_id)
                 )
 
             conn.commit()

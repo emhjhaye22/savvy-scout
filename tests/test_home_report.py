@@ -113,16 +113,18 @@ def test_overview_shows_scouting_report(tmp_path):
     setup_conn = get_connection(db_path)
     init_db(setup_conn)
     seed_all(setup_conn)
+    trifork_id = setup_conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     for username, display_name in [("victoria", "Victoria"), ("mark", "Mark")]:
         setup_conn.execute(
-            "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at, client_id) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
             (
                 username,
                 generate_password_hash("testpass"),
                 display_name,
                 int(display_name == "Victoria"),
                 datetime.now(timezone.utc).isoformat(),
+                trifork_id,
             ),
         )
     setup_conn.commit()
@@ -530,10 +532,11 @@ def test_overview_shows_cross_feature_tiles(tmp_path):
     setup_conn = get_connection(db_path)
     init_db(setup_conn)
     seed_all(setup_conn)
+    trifork_id = setup_conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     setup_conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at) "
-        "VALUES (?, ?, ?, ?, ?)",
-        ("mark", generate_password_hash("testpass"), "Mark", 0, datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at, client_id) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        ("mark", generate_password_hash("testpass"), "Mark", 0, datetime.now(timezone.utc).isoformat(), trifork_id),
     )
 
     now = datetime.now(timezone.utc)
@@ -553,16 +556,16 @@ def test_overview_shows_cross_feature_tiles(tmp_path):
         ((now + timedelta(days=400)).isoformat(), (now + timedelta(days=200)).isoformat(), (now - timedelta(days=40)).isoformat()),
     )
     setup_conn.execute(
-        "INSERT INTO watched_competitors (supplier_name, watched_by, watched_at) VALUES ('Acme Ltd', 'Mark', ?)",
-        (now.isoformat(),),
+        "INSERT INTO watched_competitors (client_id, supplier_name, watched_by, watched_at) VALUES (?, 'Acme Ltd', 'Mark', ?)",
+        (trifork_id, now.isoformat()),
     )
     _insert_notice(setup_conn, "REF-SHORTLIST", now.isoformat(), "Fintech")
     shortlisted_notice_id = setup_conn.execute(
         "SELECT id FROM notices WHERE ref = 'REF-SHORTLIST'"
     ).fetchone()["id"]
     setup_conn.execute(
-        "INSERT INTO shortlisted_notices (notice_id, added_by, added_at) VALUES (?, 'Mark', ?)",
-        (shortlisted_notice_id, now.isoformat()),
+        "INSERT INTO shortlisted_notices (client_id, notice_id, added_by, added_at) VALUES (?, ?, 'Mark', ?)",
+        (trifork_id, shortlisted_notice_id, now.isoformat()),
     )
     setup_conn.commit()
     setup_conn.close()

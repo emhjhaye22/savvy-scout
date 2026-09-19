@@ -587,3 +587,88 @@ def _apply_migrations(conn: sqlite3.Connection) -> None:
                     "UPDATE notices SET notice_description = ? WHERE id = ?",
                     (notice_description, row["id"]),
                 )
+
+    # Tenancy fix (2026-09-18): users, shortlisted_notices and
+    # watched_competitors previously had no client scoping at all -- one
+    # flat pool of users and one global shortlist/watchlist shared by
+    # everyone, regardless of which client they were acting for. See
+    # schema.sql's comments on these three tables. Every existing row is
+    # backfilled onto Trifork's own client row, so behaviour is unchanged
+    # for the app's current users; new clients get their own scoped data
+    # going forward.
+    user_cols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+    shortlist_cols = [r[1] for r in conn.execute("PRAGMA table_info(shortlisted_notices)").fetchall()]
+    watch_cols = [r[1] for r in conn.execute("PRAGMA table_info(watched_competitors)").fetchall()]
+    needs_client_id = (
+        "client_id" not in user_cols
+        or "client_id" not in shortlist_cols
+        or "client_id" not in watch_cols
+    )
+    if needs_client_id:
+        from datetime import datetime, timezone
+
+        # Ensured here rather than assumed from seed_config.seed_clients():
+        # seed_all() runs after init_db() at every call site (see
+        # dashboard/__init__.py, cli.py, scheduler.py), so the Trifork row
+        # can't be relied on to exist yet the first time this runs. Matches
+        # seed_clients()'s own row exactly; harmless no-op for seed_clients()
+        # to find the table non-empty afterwards.
+        trifork_row = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()
+        if trifork_row is None:
+            conn.execute(
+                "INSERT INTO clients (name, is_active, created_at, created_by) VALUES ('Trifork', 1, ?, ?)",
+                (datetime.now(timezone.utc).isoformat(), "migration"),
+            )
+            trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
+        else:
+            trifork_id = trifork_row["id"]
+
+        if "client_id" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN client_id INTEGER REFERENCES clients(id)")
+            conn.execute("UPDATE users SET client_id = ? WHERE client_id IS NULL", (trifork_id,))
+
+        # shortlisted_notices and watched_competitors both need their UNIQUE
+        # constraint changed (single-column -> composite with client_id),
+        # which SQLite can't do via ALTER TABLE -- rebuilt via the standard
+        # create-new-table/copy/drop-old/rename sequence instead.
+        if "client_id" not in shortlist_cols:
+            conn.execute(
+                """
+                CREATE TABLE shortlisted_notices_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id INTEGER NOT NULL REFERENCES clients(id),
+                    notice_id INTEGER NOT NULL REFERENCES notices(id),
+                    added_by TEXT NOT NULL,
+                    added_at TEXT NOT NULL,
+                    UNIQUE(client_id, notice_id)
+                )
+                """
+            )
+            conn.execute(
+                "INSERT INTO shortlisted_notices_new (id, client_id, notice_id, added_by, added_at) "
+                "SELECT id, ?, notice_id, added_by, added_at FROM shortlisted_notices",
+                (trifork_id,),
+            )
+            conn.execute("DROP TABLE shortlisted_notices")
+            conn.execute("ALTER TABLE shortlisted_notices_new RENAME TO shortlisted_notices")
+
+        if "client_id" not in watch_cols:
+            conn.execute(
+                """
+                CREATE TABLE watched_competitors_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id INTEGER NOT NULL REFERENCES clients(id),
+                    supplier_name TEXT NOT NULL,
+                    watched_by TEXT NOT NULL,
+                    watched_at TEXT NOT NULL,
+                    UNIQUE(client_id, supplier_name)
+                )
+                """
+            )
+            conn.execute(
+                "INSERT INTO watched_competitors_new (id, client_id, supplier_name, watched_by, watched_at) "
+                "SELECT id, ?, supplier_name, watched_by, watched_at FROM watched_competitors",
+                (trifork_id,),
+            )
+            conn.execute("DROP TABLE watched_competitors")
+            conn.execute("ALTER TABLE watched_competitors_new RENAME TO watched_competitors")

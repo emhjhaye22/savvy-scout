@@ -47,8 +47,13 @@ def _parse_gbp(value: str | None) -> float | None:
         return None
 
 
-def _watched_names(conn: sqlite3.Connection) -> set[str]:
-    return {r["supplier_name"] for r in conn.execute("SELECT supplier_name FROM watched_competitors").fetchall()}
+def _watched_names(conn: sqlite3.Connection, client_id: int) -> set[str]:
+    return {
+        r["supplier_name"]
+        for r in conn.execute(
+            "SELECT supplier_name FROM watched_competitors WHERE client_id = ?", (client_id,)
+        ).fetchall()
+    }
 
 
 def _normalize_name(name: str | None) -> str:
@@ -134,7 +139,7 @@ def _is_relevant_award(conn: sqlite3.Connection, row: sqlite3.Row) -> bool:
     return relevant
 
 
-def _competitors(conn: sqlite3.Connection):
+def _competitors(conn: sqlite3.Connection, client_id: int):
     rows = conn.execute(
         """
         SELECT ref, supplier_name, sector, indicative_value, text_blob, cpv_primary,
@@ -167,7 +172,7 @@ def _competitors(conn: sqlite3.Connection):
             entry["relevant"] = True
     conn.commit()  # one commit for the whole batch of relevance-cache writes, not one per row
 
-    watched = {_normalize_name(w) for w in _watched_names(conn)}
+    watched = {_normalize_name(w) for w in _watched_names(conn, client_id)}
     out = []
     for key, entry in by_supplier.items():
         # Display the most common exact-casing variant seen, not just
@@ -230,7 +235,7 @@ def possible_competitors_for_notice(conn: sqlite3.Connection, sector: str | None
     return out[:10]
 
 
-def _competitor_detail(conn: sqlite3.Connection, supplier_name: str) -> dict | None:
+def _competitor_detail(conn: sqlite3.Connection, supplier_name: str, client_id: int) -> dict | None:
     """Per-competitor drill-down (2026-09-06 UI alignment, modeled on
     Contracts Advance's competitor detail page): the same award rows the
     main grid already aggregates, cut three ways -- by buyer, by sector,
@@ -323,7 +328,7 @@ def _competitor_detail(conn: sqlite3.Connection, supplier_name: str) -> dict | N
         "by_buyer": sorted(by_buyer.values(), key=lambda x: x["count"], reverse=True),
         "by_sector": sorted(by_sector.values(), key=lambda x: x["count"], reverse=True),
         "chart": chart,
-        "watched": _normalize_name(display_name) in {_normalize_name(w) for w in _watched_names(conn)},
+        "watched": _normalize_name(display_name) in {_normalize_name(w) for w in _watched_names(conn, client_id)},
         "latest_contact": latest_contact,
     }
 
@@ -378,7 +383,7 @@ def index():
     tab = request.args.get("tab", "competitors")
     show_all = request.args.get("show") == "all"
 
-    all_competitors = _competitors(conn) if tab != "buyers" else []
+    all_competitors = _competitors(conn, current_user.client_id) if tab != "buyers" else []
     irrelevant_count = sum(1 for c in all_competitors if not c["relevant"])
     competitors = all_competitors if show_all else [c for c in all_competitors if c["relevant"]]
 
@@ -398,7 +403,7 @@ def index():
 def detail():
     conn = get_db()
     supplier_name = request.args.get("name", "")
-    detail_data = _competitor_detail(conn, supplier_name)
+    detail_data = _competitor_detail(conn, supplier_name, current_user.client_id)
     if detail_data is None:
         abort(404)
 
@@ -426,14 +431,16 @@ def toggle_watch():
         return redirect(url_for("competitor_intel.index"))
 
     existing = conn.execute(
-        "SELECT id FROM watched_competitors WHERE supplier_name = ?", (supplier_name,)
+        "SELECT id FROM watched_competitors WHERE supplier_name = ? AND client_id = ?",
+        (supplier_name, current_user.client_id),
     ).fetchone()
     if existing:
         conn.execute("DELETE FROM watched_competitors WHERE id = ?", (existing["id"],))
     else:
         conn.execute(
-            "INSERT INTO watched_competitors (supplier_name, watched_by, watched_at) VALUES (?, ?, ?)",
-            (supplier_name, current_user.display_name, datetime.now(timezone.utc).isoformat()),
+            "INSERT INTO watched_competitors (client_id, supplier_name, watched_by, watched_at) "
+            "VALUES (?, ?, ?, ?)",
+            (current_user.client_id, supplier_name, current_user.display_name, datetime.now(timezone.utc).isoformat()),
         )
     conn.commit()
     return redirect(request.form.get("next") or url_for("competitor_intel.index", tab="competitors"))

@@ -123,15 +123,20 @@ def cmd_create_user(args: argparse.Namespace) -> None:
         print("Aborted: password cannot be empty.")
         return
 
+    # Joins Trifork's own account (2026-09-18 tenancy fix) -- this CLI has
+    # no client argument yet, since every current user of the app is
+    # Trifork staff.
+    trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at) "
-        "VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at, client_id) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
         (
             args.username,
             generate_password_hash(password),
             args.display_name,
             int(args.display_name == "Victoria"),
             datetime.now(timezone.utc).isoformat(),
+            trifork_id,
         ),
     )
     conn.commit()

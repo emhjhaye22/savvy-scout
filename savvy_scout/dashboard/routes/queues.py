@@ -459,7 +459,7 @@ def notice_detail(notice_id):
         notice, triage_run, phase2_assessment, escalation_brief, status_history
     )
 
-    shortlisted = is_shortlisted(conn, notice_id)
+    shortlisted = is_shortlisted(conn, notice_id, current_user.client_id)
     possible_competitors = possible_competitors_for_notice(conn, notice["sector"], notice["buyer"])
 
     return render_template(
@@ -655,15 +655,19 @@ def bulk_shortlist():
     now = datetime.now(timezone.utc).isoformat()
     count = 0
     for notice_id in notice_ids:
-        already = is_shortlisted(conn, notice_id)
+        already = is_shortlisted(conn, notice_id, current_user.client_id)
         if action == "add" and not already:
             conn.execute(
-                "INSERT INTO shortlisted_notices (notice_id, added_by, added_at) VALUES (?, ?, ?)",
-                (notice_id, current_user.display_name, now),
+                "INSERT INTO shortlisted_notices (client_id, notice_id, added_by, added_at) "
+                "VALUES (?, ?, ?, ?)",
+                (current_user.client_id, notice_id, current_user.display_name, now),
             )
             count += 1
         elif action == "remove" and already:
-            conn.execute("DELETE FROM shortlisted_notices WHERE notice_id = ?", (notice_id,))
+            conn.execute(
+                "DELETE FROM shortlisted_notices WHERE notice_id = ? AND client_id = ?",
+                (notice_id, current_user.client_id),
+            )
             count += 1
     conn.commit()
     if count:

@@ -16,10 +16,11 @@ def app(tmp_path):
     setup_conn = get_connection(db_path)
     init_db(setup_conn)
     seed_all(setup_conn)
+    trifork_id = setup_conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     setup_conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at) "
-        "VALUES (?, ?, ?, ?, ?)",
-        ("mark", generate_password_hash("testpass"), "Mark", 0, datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at, client_id) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        ("mark", generate_password_hash("testpass"), "Mark", 0, datetime.now(timezone.utc).isoformat(), trifork_id),
     )
     setup_conn.commit()
     setup_conn.close()
@@ -498,9 +499,10 @@ def test_watch_status_carries_across_case_variants(app):
     conn = _db(app)
     _insert_award(conn, "REF-A", "NHS Buyer", "NHS and Healthcare", "Softcat Plc", "100000 GBP")
     _insert_award(conn, "REF-B", "Another Buyer", "Fintech", "Softcat plc", "200000 GBP")
+    trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     conn.execute(
-        "INSERT INTO watched_competitors (supplier_name, watched_by, watched_at) VALUES (?, 'Mark', ?)",
-        ("softcat plc", datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO watched_competitors (client_id, supplier_name, watched_by, watched_at) VALUES (?, ?, 'Mark', ?)",
+        (trifork_id, "softcat plc", datetime.now(timezone.utc).isoformat()),
     )
     conn.commit()
 

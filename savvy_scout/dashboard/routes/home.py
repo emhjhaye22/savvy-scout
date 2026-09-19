@@ -353,7 +353,7 @@ def _build_top_buyers(conn, in_scope_where, in_scope_params, limit=5) -> list[di
     return [{"buyer": r["buyer"], "count": r["cnt"], "pct": round(r["cnt"] / max_count * 100, 1)} for r in rows]
 
 
-def _build_top_competitors(conn, limit=5) -> list[dict]:
+def _build_top_competitors(conn, client_id, limit=5) -> list[dict]:
     """Mirrors _build_top_buyers, but for Competitor Intel's own aggregation
     (2026-09-06) rather than a fresh query -- reuses _is_relevant_award(), the
     same purpose-built relevance check Competitor Intel's default filter uses
@@ -363,7 +363,7 @@ def _build_top_competitors(conn, limit=5) -> list[dict]:
     already fixed. Deliberately NOT scoped by in_scope_filter_sql: award
     notices are UK5, which that filter excludes by design, same reasoning
     as Competitor Intel's own screen."""
-    relevant = [c for c in _competitors(conn) if c["relevant"]][:limit]
+    relevant = [c for c in _competitors(conn, client_id) if c["relevant"]][:limit]
     max_count = relevant[0]["award_count"] if relevant else 1
     return [
         {"supplier_name": c["supplier_name"], "count": c["award_count"], "pct": round(c["award_count"] / max_count * 100, 1)}
@@ -528,7 +528,7 @@ def index():
     source_performance = _build_source_performance(conn, uk_now)
     approval_rate = _build_approval_rate(conn, in_scope_where, in_scope_params)
     top_buyers = _build_top_buyers(conn, in_scope_where, in_scope_params)
-    top_competitors = _build_top_competitors(conn)
+    top_competitors = _build_top_competitors(conn, current_user.client_id)
     sector_spend = _build_sector_spend(conn)
 
     # Cross-feature tiles (2026-09-05 UI alignment): Signals, Competitor
@@ -547,8 +547,12 @@ def index():
         "SELECT COUNT(*) FROM contract_expiry WHERE created_at >= ?",
         (week_start.isoformat(),),
     )
-    competitors_watched = _count(conn, "SELECT COUNT(*) FROM watched_competitors", ())
-    items_shortlisted = _count(conn, "SELECT COUNT(*) FROM shortlisted_notices", ())
+    competitors_watched = _count(
+        conn, "SELECT COUNT(*) FROM watched_competitors WHERE client_id = ?", (current_user.client_id,)
+    )
+    items_shortlisted = _count(
+        conn, "SELECT COUNT(*) FROM shortlisted_notices WHERE client_id = ?", (current_user.client_id,)
+    )
 
     latest_triage_rows = conn.execute(
         f"""
