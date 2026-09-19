@@ -34,6 +34,7 @@
 
 <div class="manual-form-card">
   <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label for="title">Title *</label>
       <input type="text" id="title" name="title" required>

@@ -237,18 +237,23 @@ def create_app(settings: Settings) -> Flask:
     @app.context_processor
     def inject_notifications():
         if not current_user.is_authenticated:
-            return {}
-        if current_user.client_id != app.config["TRIFORK_CLIENT_ID"]:
+            return {"is_trifork": False}
+        is_trifork = current_user.client_id == app.config["TRIFORK_CLIENT_ID"]
+        if not is_trifork:
             # Trifork-wide counts (attention/activity/workflow-stage) --
             # base.html's topbar/sidebar already treat these as optional via
             # `|default`, so an empty dict here just renders no badges
             # rather than leaking Trifork's own pipeline volume to a tenant.
-            return {}
+            # is_trifork is also read by base.html's sidebar (2026-09-19) to
+            # hide Trifork-only nav links for a tenant login -- without it,
+            # every link there silently redirects back to Welcome via the
+            # tenant-isolation gate, which reads as broken, not restricted.
+            return {"is_trifork": False}
         conn = get_db()
         notif = get_notification_context(conn, current_user.display_name, int(current_user.is_victoria))
         sidebar_stage_counts = get_sidebar_stage_counts(
             conn, current_user.display_name, int(current_user.is_victoria)
         )
-        return {"notif": notif, "sidebar_stage_counts": sidebar_stage_counts}
+        return {"notif": notif, "sidebar_stage_counts": sidebar_stage_counts, "is_trifork": True}
 
     return app

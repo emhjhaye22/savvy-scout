@@ -673,6 +673,25 @@ def _apply_migrations(conn: sqlite3.Connection) -> None:
             conn.execute("DROP TABLE watched_competitors")
             conn.execute("ALTER TABLE watched_competitors_new RENAME TO watched_competitors")
 
+    # Self-healing client_id backfill (2026-09-19). The block above only
+    # backfills NULL client_id -> Trifork the FIRST time it runs, gated on
+    # "client_id column doesn't exist yet" -- but SQLite's ALTER TABLE ADD
+    # COLUMN is durable independent of any later commit(), while the
+    # UPDATE right after it is not. init_db() only commits once, at the
+    # very end of _apply_migrations() -- so a process killed (deploy
+    # restart, OOM, health-check timeout) between that ALTER and the final
+    # commit leaves every existing user's client_id permanently NULL: the
+    # column now exists, so `needs_client_id` is false on every future
+    # boot and the backfill above never runs again. This step is
+    # unconditional and idempotent -- a no-op once every user has a
+    # client_id, self-healing (to Trifork, the only client with logins
+    # before 2026-09-19) otherwise, regardless of how a row went NULL.
+    user_cols_now = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if "client_id" in user_cols_now:
+        trifork_row = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()
+        if trifork_row is not None:
+            conn.execute("UPDATE users SET client_id = ? WHERE client_id IS NULL", (trifork_row["id"],))
+
     # Former staff removal (2026-09-18): Kanvesh and Hammad are no longer
     # with Trifork -- scouting consolidated to Mark and Victoria alone.
     # Naturally idempotent (a no-op once they're already gone). Matches by

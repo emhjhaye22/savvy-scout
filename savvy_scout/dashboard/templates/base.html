@@ -725,15 +725,22 @@
       <li><a href="{{ url_for('welcome.index') }}" class="{% if request.endpoint == 'welcome.index' %}active{% endif %}">
         <span class="nav-icon"><i class="fa-solid fa-compass"></i></span><span class="nav-label">Welcome</span>
       </a></li>
+      {% if is_trifork %}
       <li><a href="{{ url_for('home.index') }}" class="{% if request.endpoint == 'home.index' %}active{% endif %}">
         <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span><span class="nav-label">Overview</span>
       </a></li>
       <li><a href="{{ url_for('queues.index') }}" class="{% if request.endpoint in ('queues.index', 'queues.notice_detail') %}active{% endif %}">
         <span class="nav-icon"><i class="fa-solid fa-clipboard-check"></i></span><span class="nav-label">Approval Queue</span>
       </a></li>
+      {% else %}
+      <li><a href="{{ url_for('client_portal.matches') }}" class="{% if request.endpoint and request.endpoint.startswith('client_portal.') %}active{% endif %}">
+        <span class="nav-icon"><i class="fa-solid fa-clipboard-list"></i></span><span class="nav-label">Your Matches</span>
+      </a></li>
+      {% endif %}
     </ul>
   </div>
 
+  {% if is_trifork %}
   <div class="sidebar-section">
     <div class="sidebar-section-label">Intelligence</div>
     <ul class="sidebar-nav">
@@ -805,7 +812,9 @@
     </ul>
   </div>
   {% endif %}
+  {% endif %}
 
+  {% if is_trifork %}
   <div class="sidebar-divider"></div>
   <div class="sidebar-stages">
     <div class="sidebar-stages-title">Workflow Stages</div>
@@ -817,6 +826,7 @@
     </a>
     {% endfor %}
   </div>
+  {% endif %}
 
   <div class="sidebar-divider"></div>
   <div class="sidebar-section" style="margin-top: auto;">

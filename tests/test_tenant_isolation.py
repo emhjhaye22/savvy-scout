@@ -100,3 +100,25 @@ def test_non_trifork_tenant_can_still_log_out(app):
     resp = client.get("/logout", follow_redirects=False)
     assert resp.status_code == 302
     assert resp.headers["Location"] != "/welcome"
+
+
+def test_sidebar_hides_trifork_only_links_for_tenant(app):
+    """2026-09-19 regression: base.html's sidebar is shared by every
+    authenticated page. Without gating it on is_trifork too, a tenant
+    login would see a full-looking menu (Overview, Approval Queue, Signals,
+    etc.) whose links all silently redirect back to Welcome via the
+    tenant-isolation gate the moment they're clicked -- confusing, not
+    just restricted."""
+    client = _logged_in_client(app, "acmeuser")
+    html = client.get("/my-matches").get_data(as_text=True)
+    assert 'nav-label">Your Matches<' in html
+    assert 'nav-label">Approval Queue<' not in html
+    assert 'nav-label">Competitor Intel<' not in html
+    assert "Workflow Stages" not in html
+
+
+def test_sidebar_shows_full_menu_for_trifork_user(app):
+    client = _logged_in_client(app, "victoria")
+    html = client.get("/").get_data(as_text=True)
+    assert 'nav-label">Approval Queue<' in html
+    assert 'nav-label">Competitor Intel<' in html
