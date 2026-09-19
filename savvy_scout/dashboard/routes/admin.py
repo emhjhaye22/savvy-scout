@@ -13,7 +13,13 @@ from werkzeug.security import generate_password_hash
 
 from savvy_scout.dashboard.auth import get_db
 from savvy_scout.logging_util import log_audit
-from savvy_scout.triage.client_filter import run_client_triage
+from savvy_scout.triage.client_filter import (
+    client_filter_is_empty,
+    get_client_match_status_counts,
+    get_client_matches,
+    record_client_notice_status,
+    run_client_triage,
+)
 from savvy_scout.workflow.approvals import bring_back_escalated_for_gate_retriage
 from savvy_scout.notifications import NotificationError, send_account_invite_email
 
@@ -119,7 +125,17 @@ def index():
         ).fetchall()
     else:
         tables, editable_columns, corrections = {}, {}, []
-    users = conn.execute("SELECT * FROM users ORDER BY display_name").fetchall() if is_admin else []
+    users = conn.execute(
+        "SELECT u.*, c.name AS client_name FROM users u LEFT JOIN clients c ON c.id = u.client_id "
+        "ORDER BY u.display_name"
+    ).fetchall() if is_admin else []
+    # Every active client, Trifork first, for the "Add a teammate" client
+    # picker (2026-09-19) -- separate from the Trifork-excluded `clients`
+    # list below, which is the client-onboarding/filter-management section.
+    all_clients = (
+        conn.execute("SELECT * FROM clients WHERE is_active = 1 ORDER BY (name != 'Trifork'), name").fetchall()
+        if is_admin else []
+    )
     # Clients (2026-09-06): multi-client onboarding, is_admin-only (Mark),
     # deliberately not has_correction_authority -- Victoria's remit is
     # Trifork's own rule-correction, not which clients exist on the
@@ -175,6 +191,7 @@ def index():
         owner_contacts=owner_contacts,
         can_create_users=is_admin,
         clients=clients,
+        all_clients=all_clients,
     )
 
 
@@ -513,6 +530,7 @@ def add_user():
     display_name = request.form.get("display_name", "").strip()
     email = request.form.get("email", "").strip().lower()
     is_victoria = request.form.get("is_victoria") == "on"
+    client_id = request.form.get("client_id", type=int)
 
     if not display_name or not email:
         flash("Display name and email are both required.", "error")
@@ -527,6 +545,23 @@ def add_user():
     username = email.split("@", 1)[0]
 
     conn = get_db()
+    trifork_id = current_app.config["TRIFORK_CLIENT_ID"]
+    client = conn.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone() if client_id else None
+    if client is None:
+        # 2026-09-19 client-portal build: this form now lets Mark pick any
+        # active client, not just Trifork -- but a missing/invalid client_id
+        # (an old cached form, a stray form field) must never silently fall
+        # back to Trifork, which would put a stranger's login in Trifork's
+        # own workspace. Fall back only for genuinely no client_id at all
+        # (backward compatibility with the pre-picker form shape).
+        client = conn.execute("SELECT * FROM clients WHERE id = ?", (trifork_id,)).fetchone()
+    client_id = client["id"]
+    # is_victoria grants visibility into every sector owner's notices in
+    # Trifork's own pipeline (queues.py) -- it must never be attachable to a
+    # non-Trifork tenant account, regardless of what the form posts.
+    if client_id != trifork_id:
+        is_victoria = False
+
     existing = conn.execute(
         "SELECT 1 FROM users WHERE email = ? OR username = ? OR display_name = ?",
         (email, username, display_name),
@@ -536,12 +571,6 @@ def add_user():
         return redirect(url_for("admin.users_index"))
 
     temp_password, (message, category) = _invite_or_reset(email, display_name, username)
-    # New teammates added here join Trifork's own account (2026-09-18
-    # tenancy fix) -- this screen has no way to pick a different client yet,
-    # since every current user of the app is Trifork staff. A real
-    # client-onboarding flow (inviting a *client's own* team) is separate,
-    # larger work, not this fix.
-    trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     conn.execute(
         "INSERT INTO users (username, password_hash, display_name, email, is_victoria, is_admin, "
         "created_at, client_id) VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
@@ -552,7 +581,7 @@ def add_user():
             email,
             int(is_victoria),
             datetime.now(timezone.utc).isoformat(),
-            trifork_id,
+            client_id,
         ),
     )
     conn.commit()
@@ -759,6 +788,15 @@ def add_client():
         flash('"Trifork" is reserved for the existing account.', "error")
         return redirect(url_for("admin.index") + "#group-clients")
 
+    f = _client_filter_from_form()
+    if client_filter_is_empty(f):
+        flash(
+            "At least one filter field (CPV prefix, keyword, notice type, region, or value) "
+            "is required -- an empty filter would match every notice in the backlog.",
+            "error",
+        )
+        return redirect(url_for("admin.index") + "#group-clients")
+
     conn = get_db()
     existing = conn.execute("SELECT 1 FROM clients WHERE name = ?", (name,)).fetchone()
     if existing:
@@ -772,7 +810,6 @@ def add_client():
     )
     client_id = conn.execute("SELECT id FROM clients WHERE name = ?", (name,)).fetchone()["id"]
 
-    f = _client_filter_from_form()
     conn.execute(
         "INSERT INTO client_filters (client_id, cpv_prefixes, keywords, notice_types, regions, "
         "min_value, max_value, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -802,8 +839,17 @@ def update_client_filter(client_id):
         flash("Client not found.", "error")
         return redirect(url_for("admin.index") + "#group-clients")
 
-    now = datetime.now(timezone.utc).isoformat()
     f = _client_filter_from_form()
+    if client_filter_is_empty(f):
+        flash(
+            "At least one filter field (CPV prefix, keyword, notice type, region, or value) "
+            "is required -- an empty filter would match every notice in the backlog. "
+            "The previous filter was left unchanged.",
+            "error",
+        )
+        return redirect(url_for("admin.index") + "#group-clients")
+
+    now = datetime.now(timezone.utc).isoformat()
     conn.execute(
         "UPDATE client_filters SET cpv_prefixes = ?, keywords = ?, notice_types = ?, regions = ?, "
         "min_value = ?, max_value = ?, updated_at = ?, updated_by = ? WHERE client_id = ?",
@@ -859,31 +905,8 @@ def client_matches(client_id):
         return redirect(url_for("admin.index") + "#group-clients")
 
     status_filter = request.args.get("status", "")
-    query = (
-        "SELECT n.id, n.ref, n.title, n.buyer, n.cpv_primary, n.uk_stage, n.buyer_region, "
-        "n.indicative_value, r.reason, r.evaluated_at, "
-        "COALESCE(a.status, 'NEW') AS action_status, a.note "
-        "FROM client_triage_results r JOIN notices n ON n.id = r.notice_id "
-        "LEFT JOIN client_notice_actions a ON a.client_id = r.client_id AND a.notice_id = r.notice_id "
-        "WHERE r.client_id = ? AND r.outcome = 'PASS'"
-    )
-    params = [client_id]
-    if status_filter:
-        query += " AND COALESCE(a.status, 'NEW') = ?"
-        params.append(status_filter)
-    query += " ORDER BY r.evaluated_at DESC LIMIT 500"
-    matches = conn.execute(query, params).fetchall()
-
-    status_counts = {
-        row["action_status"]: row["cnt"]
-        for row in conn.execute(
-            "SELECT COALESCE(a.status, 'NEW') AS action_status, COUNT(*) AS cnt "
-            "FROM client_triage_results r "
-            "LEFT JOIN client_notice_actions a ON a.client_id = r.client_id AND a.notice_id = r.notice_id "
-            "WHERE r.client_id = ? AND r.outcome = 'PASS' GROUP BY action_status",
-            (client_id,),
-        ).fetchall()
-    }
+    matches = get_client_matches(conn, client_id, status_filter or None)
+    status_counts = get_client_match_status_counts(conn, client_id)
 
     return render_template(
         "admin_client_matches.html", client=client, matches=matches,
@@ -905,15 +928,7 @@ def set_client_notice_status(client_id, notice_id):
 
     note = request.form.get("note", "").strip() or None
     conn = get_db()
-    now = datetime.now(timezone.utc).isoformat()
-    conn.execute(
-        "INSERT INTO client_notice_actions (client_id, notice_id, status, note, updated_at, updated_by) "
-        "VALUES (?, ?, ?, ?, ?, ?) "
-        "ON CONFLICT(client_id, notice_id) DO UPDATE SET status = excluded.status, note = excluded.note, "
-        "updated_at = excluded.updated_at, updated_by = excluded.updated_by",
-        (client_id, notice_id, status, note, now, current_user.display_name),
-    )
-    conn.commit()
+    record_client_notice_status(conn, client_id, notice_id, status, note, current_user.display_name)
 
     keep_filter = request.form.get("status_filter", "")
     return redirect(url_for("admin.client_matches", client_id=client_id, status=keep_filter or None))

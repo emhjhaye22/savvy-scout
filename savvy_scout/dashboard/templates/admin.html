@@ -232,6 +232,14 @@
         <input type="text" id="new-email" name="email" placeholder="name@bidsavvy.io" required>
       </div>
       <div>
+        <label for="new-client" style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Client</label>
+        <select id="new-client" name="client_id">
+          {% for c in all_clients %}
+          <option value="{{ c['id'] }}" {% if c['name'] == 'Trifork' %}selected{% endif %}>{{ c['name'] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div id="new-user-victoria-field">
         <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; padding-bottom: 9px;">
           <input type="checkbox" name="is_victoria"> Bid Director authority
         </label>
@@ -240,6 +248,27 @@
     </form>
   </div>
 </div>
+
+<script>
+  // Bid Director authority only means anything inside Trifork's own
+  // pipeline (queues.py reads is_victoria to show every sector owner's
+  // notices) -- hide it for any other client so it's never even offered
+  // for a tenant account (server-side, admin.add_user() also force-clears
+  // it regardless of this field, in case a stale form value ever reaches it).
+  (function () {
+    var clientSelect = document.getElementById('new-client');
+    var victoriaField = document.getElementById('new-user-victoria-field');
+    if (!clientSelect || !victoriaField) return;
+    function syncVictoriaField() {
+      var selected = clientSelect.options[clientSelect.selectedIndex];
+      var isTrifork = selected && selected.textContent.trim() === 'Trifork';
+      victoriaField.style.display = isTrifork ? '' : 'none';
+      if (!isTrifork) victoriaField.querySelector('input[type="checkbox"]').checked = false;
+    }
+    clientSelect.addEventListener('change', syncVictoriaField);
+    syncVictoriaField();
+  })();
+</script>
 
 <div class="card">
   <div class="card-header">
@@ -255,6 +284,7 @@
         <th>Teams webhook</th>
         <th>Username</th>
         <th>Role</th>
+        <th>Client</th>
         <th>Created</th>
         <th></th>
       </tr>
@@ -277,6 +307,7 @@
           {% if user['is_victoria'] %}<span class="badge badge-med">Bid Director</span>{% endif %}
           {% if not user['is_admin'] and not user['is_victoria'] %}<span class="badge badge-unknown">Sector Owner</span>{% endif %}
         </td>
+        <td style="font-size: 12px; color: var(--text-muted);">{{ user['client_name'] or '—' }}</td>
         <td style="font-size: 12px; color: var(--text-muted);">{{ user['created_at'][:10] }}</td>
         <td class="actions-col">
           {% if user['email'] %}

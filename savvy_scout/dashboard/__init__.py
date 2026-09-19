@@ -5,7 +5,7 @@ login rate-limiting added (2026-09-17 audit) to match that exposure."""
 
 import json
 
-from flask import Flask, g
+from flask import Flask, g, redirect, request, url_for
 from flask_login import current_user
 from flask_wtf import CSRFProtect
 
@@ -13,6 +13,7 @@ from savvy_scout.config import Settings
 from savvy_scout.dashboard.auth import auth_bp, get_db, limiter, login_manager
 from savvy_scout.dashboard.notifications import get_notification_context, get_sidebar_stage_counts
 from savvy_scout.dashboard.routes.admin import admin_bp
+from savvy_scout.dashboard.routes.client_portal import client_portal_bp
 from savvy_scout.dashboard.routes.competitor_intel import _parse_gbp, competitor_intel_bp
 from savvy_scout.dashboard.routes.draft_assist import draft_assist_bp
 from savvy_scout.dashboard.routes.home import home_bp
@@ -122,6 +123,7 @@ def create_app(settings: Settings) -> Flask:
     app.register_blueprint(draft_assist_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
+    app.register_blueprint(client_portal_bp)
 
     @app.route("/healthz")
     def healthz():
@@ -148,41 +150,78 @@ def create_app(settings: Settings) -> Flask:
     conn = get_connection(settings.db_path)
     init_db(conn)
     seed_all(conn)
+    # Cached once at boot (2026-09-19, client-portal build): the tenant-
+    # isolation gate below and admin.add_user()'s client picker both need
+    # to compare a user's client_id against Trifork's without a query on
+    # every request.
+    app.config["TRIFORK_CLIENT_ID"] = conn.execute(
+        "SELECT id FROM clients WHERE name = 'Trifork'"
+    ).fetchone()["id"]
     conn.close()
 
-    # Create test users if they don't exist (development only)
+    @app.before_request
+    def _enforce_tenant_isolation():
+        """Non-Trifork tenants get a self-service Matches view only
+        (2026-09-19, client-portal build). Everything else in this app
+        (Overview, Approval Queue, Opportunities, Signals, Competitor
+        Intel, Draft Assist, Settings, Admin) is Trifork's own bespoke
+        pipeline -- 5-gate triage, AI capability-fit scoring, escalation to
+        Victoria -- and was never scoped by client_id. Without this gate,
+        the very first non-Trifork login would see all of it. A no-op for
+        every existing Trifork login (Mark, Victoria, anyone else in daily
+        use today): one attribute comparison, then falls through
+        immediately -- zero behavior change for them."""
+        if not current_user.is_authenticated:
+            return None
+        if current_user.client_id == app.config["TRIFORK_CLIENT_ID"]:
+            return None
+        allowed_endpoints = {None, "static", "healthz", "auth.login", "auth.logout", "welcome.index"}
+        endpoint = request.endpoint or ""
+        if endpoint in allowed_endpoints or endpoint.startswith("client_portal."):
+            return None
+        return redirect(url_for("welcome.index"))
+
+    # Create test users if they don't exist -- LOCAL DEV ONLY (2026-09-18
+    # security fix). Never runs on Render: this used to fire unconditionally
+    # on every boot, including production, seeding a fixed, world-guessable
+    # password ('12345') for real admin/Victoria accounts with no rotation.
+    # A random password is generated and printed once instead; there is no
+    # way to know it without reading this console output at creation time.
     def create_test_users():
-        import sqlite3
+        import secrets
         from werkzeug.security import generate_password_hash
         from datetime import datetime, timezone
-        
+
+        if os.environ.get("RENDER"):
+            return
+
         conn = get_connection(settings.db_path)
         count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        
+
         if count == 0:
             # Create test users. Mark is the account-management admin
             # (is_admin), separate from Victoria's rule-correction authority
             # (is_victoria) -- see dashboard/routes/admin.py. Kanvesh and
             # Hammad are no longer seeded here: scouting consolidated to
-            # Mark alone on 2026-09-01. Both join Trifork's own account
+            # Mark and Victoria alone. Both join Trifork's own account
             # (2026-09-18 tenancy fix) -- init_db/seed_all above already
             # guarantee that row exists by the time this runs.
             trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
-            password_hash = generate_password_hash('12345')
             users = [
                 ('mark', 'Mark', False, True),
                 ('victoria', 'Victoria', True, False),
             ]
 
             for username, display_name, is_victoria, is_admin in users:
+                password = secrets.token_urlsafe(12)
                 conn.execute(
                     "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at, client_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (username, password_hash, display_name, int(is_victoria), int(is_admin), datetime.now(timezone.utc).isoformat(), trifork_id)
+                    (username, generate_password_hash(password), display_name, int(is_victoria), int(is_admin), datetime.now(timezone.utc).isoformat(), trifork_id)
                 )
+                print(f"✓ Created local dev user: {username} / {password}")
 
             conn.commit()
-            print("✓ Created test users: mark, victoria (password: '12345')")
-    
+
     try:
         with app.app_context():
             create_test_users()
@@ -198,6 +237,12 @@ def create_app(settings: Settings) -> Flask:
     @app.context_processor
     def inject_notifications():
         if not current_user.is_authenticated:
+            return {}
+        if current_user.client_id != app.config["TRIFORK_CLIENT_ID"]:
+            # Trifork-wide counts (attention/activity/workflow-stage) --
+            # base.html's topbar/sidebar already treat these as optional via
+            # `|default`, so an empty dict here just renders no badges
+            # rather than leaking Trifork's own pipeline volume to a tenant.
             return {}
         conn = get_db()
         notif = get_notification_context(conn, current_user.display_name, int(current_user.is_victoria))

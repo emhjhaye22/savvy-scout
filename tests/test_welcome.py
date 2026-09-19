@@ -15,15 +15,16 @@ def app(tmp_path):
     setup_conn = get_connection(db_path)
     init_db(setup_conn)
     seed_all(setup_conn)
+    trifork_id = setup_conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     setup_conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at) "
-        "VALUES (?, ?, ?, 0, 1, ?)",
-        ("mark", generate_password_hash("testpass"), "Mark", datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at, client_id) "
+        "VALUES (?, ?, ?, 0, 1, ?, ?)",
+        ("mark", generate_password_hash("testpass"), "Mark", datetime.now(timezone.utc).isoformat(), trifork_id),
     )
     setup_conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at) "
-        "VALUES (?, ?, ?, 1, 0, ?)",
-        ("victoria", generate_password_hash("testpass"), "Victoria", datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at, client_id) "
+        "VALUES (?, ?, ?, 1, 0, ?, ?)",
+        ("victoria", generate_password_hash("testpass"), "Victoria", datetime.now(timezone.utc).isoformat(), trifork_id),
     )
     setup_conn.commit()
     setup_conn.close()
@@ -83,10 +84,11 @@ def test_welcome_page_links_to_every_main_destination(app):
 
 def test_welcome_page_hides_admin_link_for_non_admin_non_victoria_user(app):
     conn = _db(app)
+    trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at) "
-        "VALUES (?, ?, ?, 0, 0, ?)",
-        ("plainuser", generate_password_hash("testpass"), "Plain", datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at, client_id) "
+        "VALUES (?, ?, ?, 0, 0, ?, ?)",
+        ("plainuser", generate_password_hash("testpass"), "Plain", datetime.now(timezone.utc).isoformat(), trifork_id),
     )
     conn.commit()
     conn.close()
@@ -135,3 +137,31 @@ def test_welcome_page_omits_inactive_clients(app):
     client = _logged_in_client(app, "mark")
     html = client.get("/welcome").get_data(as_text=True)
     assert "Paused Co" not in html
+
+
+def test_welcome_page_shows_restricted_grid_for_non_trifork_tenant(app):
+    """2026-09-19, client-portal build: a tenant login gets one card to
+    their own Matches view, not Trifork's full pipeline nav -- everything
+    else in that grid is gated away for them anyway (dashboard/__init__.py's
+    tenant-isolation gate)."""
+    conn = _db(app)
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "INSERT INTO clients (name, is_active, created_at, created_by) VALUES ('Acme Construction', 1, ?, 'Mark')",
+        (now,),
+    )
+    acme_id = conn.execute("SELECT id FROM clients WHERE name = 'Acme Construction'").fetchone()["id"]
+    conn.execute(
+        "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at, client_id) "
+        "VALUES (?, ?, ?, 0, 0, ?, ?)",
+        ("acmeuser", generate_password_hash("testpass"), "Acme User", now, acme_id),
+    )
+    conn.commit()
+    conn.close()
+
+    client = _logged_in_client(app, "acmeuser")
+    html = client.get("/welcome").get_data(as_text=True)
+    assert "Your Matched Opportunities" in html
+    assert "Notices matching your configured filter" in html
+    assert "Pipeline health at a glance" not in html
+    assert "Notices waiting on a decision" not in html

@@ -672,3 +672,13 @@ def _apply_migrations(conn: sqlite3.Connection) -> None:
             )
             conn.execute("DROP TABLE watched_competitors")
             conn.execute("ALTER TABLE watched_competitors_new RENAME TO watched_competitors")
+
+    # Former staff removal (2026-09-18): Kanvesh and Hammad are no longer
+    # with Trifork -- scouting consolidated to Mark and Victoria alone.
+    # Naturally idempotent (a no-op once they're already gone). Matches by
+    # display_name, the same identifier used everywhere else in this app
+    # for "which person" (audit_log, added_by, watched_by, etc. are all
+    # display_name strings, not user_id foreign keys, so removing these
+    # rows doesn't orphan any historical record -- the name just stays as
+    # a text snapshot of who acted at the time).
+    conn.execute("DELETE FROM users WHERE display_name IN ('Kanvesh', 'Hammad')")

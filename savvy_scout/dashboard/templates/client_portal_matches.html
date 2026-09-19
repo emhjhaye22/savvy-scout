@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Your Matched Opportunities — TenderSight™{% endblock %}
+{% block page_title %}Your Matched Opportunities{% endblock %}
+{% block page_subtitle %}<div class="topbar-subtitle">{{ client['name'] }}</div>{% endblock %}
+
+{% block content %}
+<style>
+  .cna-status-badge {
+    display: inline-block; padding: 4px 10px; border-radius: 999px; border: 1px solid transparent;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap;
+  }
+  .cna-status-NEW { background: rgba(6,182,212,0.15); border-color: rgba(6,182,212,0.3); color: var(--info); }
+  .cna-status-SHORTLISTED { background: rgba(47,93,138,0.15); border-color: rgba(47,93,138,0.3); color: var(--success); }
+  .cna-status-REJECTED { background: rgba(174,30,35,0.15); border-color: rgba(174,30,35,0.3); color: var(--danger); }
+  .cna-note { font-size: 11px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
+  .cna-actions { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+  .cna-note-input { font-size: 12px; padding: 4px 6px; width: 140px; }
+</style>
+
+<div class="ci-note" style="background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; font-size: 12.5px; color: var(--text-muted); line-height: 1.5;">
+  <strong>What this is:</strong> every notice currently matching your configured filter, most recently evaluated first. Mark a notice Shortlisted or Rejected with a note to keep track of what you're pursuing.
+</div>
+
+<div class="summary-bar" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+  {% set all_count = status_counts.values() | sum %}
+  <a href="{{ url_for('client_portal.matches') }}" class="summary-pill {% if not status_filter %}active{% endif %}" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:var(--surface); font-size:12px; font-weight:600; text-decoration:none; color:var(--text);">
+    All <span style="font-size:11px; font-weight:700;">({{ all_count }})</span>
+  </a>
+  {% for s in ['NEW', 'SHORTLISTED', 'REJECTED'] %}
+  {% if status_counts.get(s) %}
+  <a href="{{ url_for('client_portal.matches', status=s) }}" class="summary-pill {% if status_filter == s %}active{% endif %}" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:var(--surface); font-size:12px; font-weight:600; text-decoration:none; color:var(--text);">
+    {{ s.title() }} <span style="font-size:11px; font-weight:700;">({{ status_counts[s] }})</span>
+  </a>
+  {% endif %}
+  {% endfor %}
+</div>
+
+<div class="card" style="overflow-x: auto;">
+  <table class="buyer-table">
+    <thead>
+      <tr><th>Ref</th><th>Title</th><th>Buyer</th><th>CPV</th><th>Stage</th><th>Value</th><th>Matched</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% if matches %}
+        {% for m in matches %}
+        <tr>
+          <td style="font-family:monospace; font-size:11px; color:var(--text-muted);">
+            {% if m['notice_url'] %}<a href="{{ m['notice_url'] }}" target="_blank" rel="noopener">{{ m['ref'] }}</a>{% else %}{{ m['ref'] }}{% endif %}
+          </td>
+          <td>{{ m['title'] | truncate(50, True, '…') }}</td>
+          <td style="color:var(--text-muted);">{{ m['buyer'] or '—' }}</td>
+          <td style="font-family:monospace; font-size:12px; color:var(--text-muted);">{{ m['cpv_primary'] or '—' }}</td>
+          <td>{{ m['uk_stage'] }}</td>
+          <td style="color:var(--text-muted); white-space:nowrap;">{{ (m['indicative_value'] | gbp) or 'Not stated' }}</td>
+          <td style="color:var(--text-muted); white-space:nowrap;">{{ m['evaluated_at'][:10] }}</td>
+          <td>
+            <span class="cna-status-badge cna-status-{{ m['action_status'] }}">{{ m['action_status'].title() }}</span>
+            {% if m['note'] %}<div class="cna-note">{{ m['note'] }}</div>{% endif %}
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('client_portal.set_status', notice_id=m['id']) }}" class="cna-actions">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="status_filter" value="{{ status_filter }}">
+              <input type="text" name="note" class="cna-note-input" placeholder="Note (optional)" value="{{ m['note'] or '' }}">
+              <button type="submit" name="status" value="SHORTLISTED" class="btn btn-secondary btn-sm">★ Shortlist</button>
+              <button type="submit" name="status" value="REJECTED" class="btn btn-secondary btn-sm">Reject</button>
+              {% if m['action_status'] != 'NEW' %}<button type="submit" name="status" value="NEW" class="btn btn-secondary btn-sm">Reset</button>{% endif %}
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-muted);">No notices match your filter yet.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

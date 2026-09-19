@@ -16,15 +16,16 @@ def app(tmp_path):
     setup_conn = get_connection(db_path)
     init_db(setup_conn)
     seed_all(setup_conn)
+    trifork_id = setup_conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     setup_conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at) "
-        "VALUES (?, ?, ?, 0, 1, ?)",
-        ("emhjhaye", generate_password_hash("testpass"), "emhjhaye", datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at, client_id) "
+        "VALUES (?, ?, ?, 0, 1, ?, ?)",
+        ("emhjhaye", generate_password_hash("testpass"), "emhjhaye", datetime.now(timezone.utc).isoformat(), trifork_id),
     )
     setup_conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at) "
-        "VALUES (?, ?, ?, 1, 0, ?)",
-        ("victoria", generate_password_hash("testpass"), "Victoria", datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at, client_id) "
+        "VALUES (?, ?, ?, 1, 0, ?, ?)",
+        ("victoria", generate_password_hash("testpass"), "Victoria", datetime.now(timezone.utc).isoformat(), trifork_id),
     )
     setup_conn.commit()
     setup_conn.close()
@@ -118,8 +119,10 @@ def test_add_client_rejects_trifork_name(app):
 
 def test_add_client_rejects_duplicate_name(app):
     client = _admin_client(app)
-    client.post("/admin/clients/add", data={"name": "Acme Construction"})
-    resp = client.post("/admin/clients/add", data={"name": "Acme Construction"}, follow_redirects=True)
+    client.post("/admin/clients/add", data={"name": "Acme Construction", "cpv_prefixes": "45"})
+    resp = client.post(
+        "/admin/clients/add", data={"name": "Acme Construction", "cpv_prefixes": "45"}, follow_redirects=True
+    )
     assert b"already exists" in resp.data
 
 
@@ -158,7 +161,7 @@ def test_update_client_filter_reevaluates_notices(app):
 def test_toggle_client_active(app):
     conn = _db(app)
     client = _admin_client(app)
-    client.post("/admin/clients/add", data={"name": "Acme Construction"})
+    client.post("/admin/clients/add", data={"name": "Acme Construction", "cpv_prefixes": "45"})
     client_id = conn.execute("SELECT id FROM clients WHERE name = 'Acme Construction'").fetchone()["id"]
 
     client.post(f"/admin/clients/{client_id}/toggle-active")
@@ -294,3 +297,76 @@ def test_set_client_notice_status_denied_to_non_admin(app):
     client = _logged_in_client(app, "victoria")
     resp = client.post("/admin/clients/1/notices/1/set-status", data={"status": "SHORTLISTED"}, follow_redirects=True)
     assert b"Only the admin account" in resp.data
+
+
+def test_add_client_rejects_empty_filter(app):
+    """2026-09-19 safeguard: evaluate_client_filter() treats an unconfigured
+    field as no constraint, so an entirely empty filter would PASS every
+    notice in the backlog -- a brand-new tenant's first login would land on
+    the full undifferentiated notice stream instead of a real match set."""
+    conn = _db(app)
+    client = _admin_client(app)
+    resp = client.post("/admin/clients/add", data={"name": "Acme Construction"}, follow_redirects=True)
+    assert b"filter field" in resp.data
+    assert conn.execute("SELECT * FROM clients WHERE name = 'Acme Construction'").fetchone() is None
+
+
+def test_update_client_filter_rejects_empty_filter(app):
+    conn = _db(app)
+    client = _admin_client(app)
+    client_id = _add_client_and_get_id(client, conn)
+
+    resp = client.post(f"/admin/clients/{client_id}/update-filter", data={}, follow_redirects=True)
+    assert b"filter field" in resp.data
+    filter_row = conn.execute("SELECT * FROM client_filters WHERE client_id = ?", (client_id,)).fetchone()
+    assert json.loads(filter_row["cpv_prefixes"]) == ["45"]  # unchanged from _add_client_and_get_id's default
+
+
+def test_add_user_defaults_to_trifork_when_no_client_id_given(app):
+    """Backward compatibility: an old cached form (or any client posting
+    without the new client_id field) must never silently create a login
+    for the wrong client -- it should default to Trifork, never leave a
+    stray unscoped account."""
+    conn = _db(app)
+    trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
+    client = _admin_client(app)
+    resp = client.post(
+        "/admin/users/add", data={"display_name": "New Hire", "email": "newhire@bidsavvy.io"}, follow_redirects=True
+    )
+    assert resp.status_code == 200
+    row = conn.execute("SELECT * FROM users WHERE email = 'newhire@bidsavvy.io'").fetchone()
+    assert row["client_id"] == trifork_id
+
+
+def test_add_user_creates_account_for_chosen_client(app):
+    conn = _db(app)
+    acme_id = _add_client_and_get_id(_admin_client(app), conn)
+    client = _admin_client(app)
+    client.post(
+        "/admin/users/add",
+        data={"display_name": "Acme Contact", "email": "contact@acme.example", "client_id": str(acme_id)},
+        follow_redirects=True,
+    )
+    row = conn.execute("SELECT * FROM users WHERE email = 'contact@acme.example'").fetchone()
+    assert row["client_id"] == acme_id
+
+
+def test_add_user_forces_is_victoria_false_for_non_trifork_client(app):
+    """is_victoria grants visibility into every sector owner's notices in
+    Trifork's own pipeline (queues.py) -- it must never be attachable to a
+    non-Trifork tenant account, even if the form posts is_victoria=on."""
+    conn = _db(app)
+    acme_id = _add_client_and_get_id(_admin_client(app), conn)
+    client = _admin_client(app)
+    client.post(
+        "/admin/users/add",
+        data={
+            "display_name": "Acme Contact",
+            "email": "contact@acme.example",
+            "client_id": str(acme_id),
+            "is_victoria": "on",
+        },
+        follow_redirects=True,
+    )
+    row = conn.execute("SELECT * FROM users WHERE email = 'contact@acme.example'").fetchone()
+    assert row["is_victoria"] == 0

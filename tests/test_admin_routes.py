@@ -15,18 +15,20 @@ def app(tmp_path):
     setup_conn = get_connection(db_path)
     init_db(setup_conn)
     seed_all(setup_conn)
+    trifork_id = setup_conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     for username, display_name in [
-        ("victoria", "Victoria"), ("kanvesh", "Kanvesh"), ("mark", "Mark"), ("hammad", "Hammad"),
+        ("victoria", "Victoria"), ("mark", "Mark"), ("testuser", "Test User"),
     ]:
         setup_conn.execute(
-            "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at, client_id) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
             (
                 username,
                 generate_password_hash("testpass"),
                 display_name,
                 int(display_name == "Victoria"),
                 datetime.now(timezone.utc).isoformat(),
+                trifork_id,
             ),
         )
     setup_conn.commit()
@@ -70,12 +72,12 @@ def mark_client(app):
 
 
 @pytest.fixture
-def hammad_client(app):
-    return _logged_in_client(app, "hammad")
+def testuser_client(app):
+    return _logged_in_client(app, "testuser")
 
 
-def test_admin_index_requires_correction_authority(hammad_client):
-    resp = hammad_client.get("/admin/", follow_redirects=True)
+def test_admin_index_requires_correction_authority(testuser_client):
+    resp = testuser_client.get("/admin/", follow_redirects=True)
     assert b"Only Victoria or the admin account" in resp.data
 
 
@@ -83,8 +85,8 @@ def test_admin_index_allows_mark_correction_authority(mark_client):
     """2026-08-09: Mark was granted the same rule-correction authority as
     Victoria (explicit request), on top of his existing is_admin
     account-management authority -- distinct from is_admin, which only
-    gates Manage Users. Kanvesh lost this same authority on 2026-09-01 when
-    scouting consolidated to Mark alone."""
+    gates Manage Users. Scouting consolidated to Mark and Victoria alone
+    on 2026-09-18; no other account holds correction authority."""
     resp = mark_client.get("/admin/")
     assert b"config_sector_keywords" in resp.data
 
@@ -145,8 +147,8 @@ def test_add_row_rejects_missing_required_field(victoria_client, app):
     assert row is None
 
 
-def test_add_row_denied_for_non_correction_authority(hammad_client, app):
-    hammad_client.post(
+def test_add_row_denied_for_non_correction_authority(testuser_client, app):
+    testuser_client.post(
         "/admin/config/config_sector_keywords/add",
         data={"sector": "Fintech", "keyword": "Monzo", "reason": "test"},
         follow_redirects=True,
@@ -223,13 +225,13 @@ def test_delete_row_requires_reason(victoria_client, app):
     assert still_there is not None
 
 
-def test_delete_row_denied_for_non_correction_authority(hammad_client, app):
+def test_delete_row_denied_for_non_correction_authority(testuser_client, app):
     conn = _db(app)
     row = conn.execute(
         "SELECT * FROM config_sector_keywords WHERE sector = 'Fintech'"
     ).fetchone()
 
-    hammad_client.post(
+    testuser_client.post(
         f"/admin/config/config_sector_keywords/{row['id']}/delete",
         data={"reason": "test"},
         follow_redirects=True,

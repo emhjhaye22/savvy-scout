@@ -30,7 +30,7 @@ from savvy_scout.workflow.approvals import (
     retriage_all_unmatched,
 )
 
-DASHBOARD_DISPLAY_NAMES = {"Mark", "Kanvesh", "Hammad", "Victoria"}
+DASHBOARD_DISPLAY_NAMES = {"Mark", "Victoria"}
 
 
 def cmd_init_db(args: argparse.Namespace) -> None:
@@ -241,7 +241,7 @@ def build_parser() -> argparse.ArgumentParser:
     backup_parser.set_defaults(func=cmd_backup)
 
     create_user_parser = subparsers.add_parser(
-        "create-user", help="Create a dashboard login (Mark, Kanvesh, Hammad or Victoria)"
+        "create-user", help="Create a dashboard login (Mark or Victoria)"
     )
     create_user_parser.add_argument("--username", required=True)
     create_user_parser.add_argument("--display-name", required=True)

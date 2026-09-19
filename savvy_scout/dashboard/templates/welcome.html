@@ -40,6 +40,7 @@
   <div class="welcome-greeting">Welcome, {{ current_user.display_name }}!</div>
   <div class="welcome-subtitle">Where would you like to go?</div>
 
+  {% if is_trifork %}
   <div class="welcome-grid">
     <a class="welcome-card" href="{{ url_for('home.index') }}">
       <span class="welcome-card-icon"><i class="fa-solid fa-chart-line"></i></span>
@@ -107,6 +108,17 @@
     </a>
     {% endif %}
   </div>
+  {% else %}
+  <div class="welcome-grid">
+    <a class="welcome-card" href="{{ url_for('client_portal.matches') }}">
+      <span class="welcome-card-icon"><i class="fa-solid fa-clipboard-list"></i></span>
+      <div>
+        <div class="welcome-card-label">Your Matched Opportunities</div>
+        <div class="welcome-card-desc">Notices matching your configured filter</div>
+      </div>
+    </a>
+  </div>
+  {% endif %}
 
   {% if is_super_admin and clients %}
   <div class="welcome-section-label">Clients</div>

@@ -118,6 +118,73 @@ def run_client_triage(conn: sqlite3.Connection, client_id: int) -> int:
     return count
 
 
+def client_filter_is_empty(filter_fields: dict) -> bool:
+    """True when every field of a submitted client filter is unconfigured.
+    evaluate_client_filter() treats an unconfigured field as "no
+    constraint" (2026-09-19) -- an entirely empty filter would therefore
+    PASS every notice in the backlog, landing a brand-new tenant's first
+    login on the full undifferentiated notice stream instead of a
+    meaningful match set. Called from admin.py before add_client()/
+    update_client_filter() write the row."""
+    return not (
+        filter_fields["cpv_prefixes"]
+        or filter_fields["keywords"]
+        or filter_fields["notice_types"]
+        or filter_fields["regions"]
+        or filter_fields["min_value"]
+        or filter_fields["max_value"]
+    )
+
+
+def get_client_matches(conn: sqlite3.Connection, client_id: int, status_filter: str | None = None) -> list[sqlite3.Row]:
+    """Every notice currently passing client_id's filter, most recently
+    evaluated first, joined with any recorded Shortlisted/Rejected action.
+    Shared by the admin-only Client Matches screen (admin.py) and the
+    tenant-facing self-service portal (client_portal.py) -- both need the
+    exact same PASS-outcome + action-state view, scoped only by which
+    client_id is passed in."""
+    query = (
+        "SELECT n.id, n.ref, n.title, n.buyer, n.cpv_primary, n.uk_stage, n.buyer_region, "
+        "n.indicative_value, n.notice_url, r.reason, r.evaluated_at, "
+        "COALESCE(a.status, 'NEW') AS action_status, a.note "
+        "FROM client_triage_results r JOIN notices n ON n.id = r.notice_id "
+        "LEFT JOIN client_notice_actions a ON a.client_id = r.client_id AND a.notice_id = r.notice_id "
+        "WHERE r.client_id = ? AND r.outcome = 'PASS'"
+    )
+    params: list = [client_id]
+    if status_filter:
+        query += " AND COALESCE(a.status, 'NEW') = ?"
+        params.append(status_filter)
+    query += " ORDER BY r.evaluated_at DESC LIMIT 500"
+    return conn.execute(query, params).fetchall()
+
+
+def get_client_match_status_counts(conn: sqlite3.Connection, client_id: int) -> dict:
+    return {
+        row["action_status"]: row["cnt"]
+        for row in conn.execute(
+            "SELECT COALESCE(a.status, 'NEW') AS action_status, COUNT(*) AS cnt "
+            "FROM client_triage_results r "
+            "LEFT JOIN client_notice_actions a ON a.client_id = r.client_id AND a.notice_id = r.notice_id "
+            "WHERE r.client_id = ? AND r.outcome = 'PASS' GROUP BY action_status",
+            (client_id,),
+        ).fetchall()
+    }
+
+
+def record_client_notice_status(
+    conn: sqlite3.Connection, client_id: int, notice_id: int, status: str, note: str, actor: str
+) -> None:
+    conn.execute(
+        "INSERT INTO client_notice_actions (client_id, notice_id, status, note, updated_at, updated_by) "
+        "VALUES (?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(client_id, notice_id) DO UPDATE SET status = excluded.status, note = excluded.note, "
+        "updated_at = excluded.updated_at, updated_by = excluded.updated_by",
+        (client_id, notice_id, status, note, datetime.now(timezone.utc).isoformat(), actor),
+    )
+    conn.commit()
+
+
 def run_client_triage_for_notice(conn: sqlite3.Connection, notice_row: sqlite3.Row) -> None:
     """Evaluates every active, non-Trifork client's filter against one
     notice -- called from the sweep pipeline so new notices get evaluated
