@@ -12,7 +12,7 @@ from savvy_scout.dashboard.auth import get_db
 from savvy_scout.dashboard.notifications import STAGE_GROUPS, victoria_sourced_reject_sql
 from savvy_scout.dashboard.scope_filter import in_scope_filter_sql
 from savvy_scout.escalation.brief import mark_emailed
-from savvy_scout.dashboard.routes.competitor_intel import possible_competitors_for_notice
+from savvy_scout.dashboard.routes.competitor_intel import _parse_gbp, possible_competitors_for_notice
 from savvy_scout.dashboard.routes.shortlists import is_shortlisted
 from savvy_scout.graph.mail import send_escalation_email as graph_send_escalation_email
 from savvy_scout.models.notice import Notice
@@ -516,9 +516,34 @@ def opportunities():
     conn = get_db()
 
     status_filter = request.args.get("status", "")
-    sector_filter = request.args.get("sector", "")
     stage_filter = request.args.get("stage", "")
     sort_filter = request.args.get("sort", "priority")
+
+    # Search profiles (2026-09-19): a named, reusable saved filter, modeled
+    # on Contracts Advance's "Profile" picker. Picking one from the URL's
+    # profile_id fully determines the filters below (same as Contracts
+    # Advance's own ?profileId= pattern) rather than merging with whatever
+    # else is in the query string.
+    profile_id = request.args.get("profile_id", type=int)
+    active_profile = None
+    if profile_id is not None:
+        active_profile = conn.execute(
+            "SELECT * FROM search_profiles WHERE id = ? AND client_id = ?",
+            (profile_id, current_user.client_id),
+        ).fetchone()
+
+    if active_profile is not None:
+        sector_filter = active_profile["sector"] or ""
+        keyword_filter = active_profile["keyword"] or ""
+        cpv_prefix_filter = active_profile["cpv_prefix"] or ""
+        min_value_filter = active_profile["min_value"]
+        max_value_filter = active_profile["max_value"]
+    else:
+        sector_filter = request.args.get("sector", "")
+        keyword_filter = request.args.get("q", "").strip()
+        cpv_prefix_filter = request.args.get("cpv_prefix", "").strip()
+        min_value_filter = request.args.get("min_value", type=float)
+        max_value_filter = request.args.get("max_value", type=float)
 
     # 2026-07-30: scoped to in_scope_filter_sql throughout (real sector, CPV
     # within that sector's scope, UK1-4), consistent with the Overview,
@@ -571,6 +596,15 @@ def opportunities():
         query += " AND n.sector = ?"
         params.append(sector_filter)
 
+    if keyword_filter:
+        like = f"%{keyword_filter}%"
+        query += " AND (n.title LIKE ? OR n.buyer LIKE ? OR n.ref LIKE ?)"
+        params.extend([like, like, like])
+
+    if cpv_prefix_filter:
+        query += " AND n.cpv_primary LIKE ?"
+        params.append(f"{cpv_prefix_filter}%")
+
     if sort_filter == "newest":
         query += " ORDER BY n.first_seen_at DESC LIMIT 500"
     else:
@@ -581,6 +615,24 @@ def opportunities():
         )
 
     notices = conn.execute(query, params).fetchall()
+
+    # Value range is filtered in Python, not SQL: indicative_value is a free-
+    # text OCDS string ("250000 GBP"), not a numeric column, and _parse_gbp
+    # is the same parser the gbp Jinja filter and Competitor Intel already
+    # use to read it. Applied after the LIMIT 500 above, same tradeoff the
+    # existing status/sector filters already make at this scale.
+    if min_value_filter is not None or max_value_filter is not None:
+        def _in_value_range(row):
+            parsed = _parse_gbp(row["indicative_value"])
+            if parsed is None:
+                return False
+            if min_value_filter is not None and parsed < min_value_filter:
+                return False
+            if max_value_filter is not None and parsed > max_value_filter:
+                return False
+            return True
+
+        notices = [n for n in notices if _in_value_range(n)]
 
     # Master-detail preview pane (2026-09-06 UI alignment, modeled on
     # Contracts Advance's "All Contracts" screen): clicking a row shows a
@@ -609,6 +661,11 @@ def opportunities():
         "SELECT DISTINCT sector FROM notices WHERE sector IS NOT NULL ORDER BY sector"
     ).fetchall()]
 
+    search_profiles = conn.execute(
+        "SELECT * FROM search_profiles WHERE client_id = ? ORDER BY name",
+        (current_user.client_id,),
+    ).fetchall()
+
     # Status counts for the summary bar -- owner-scoped for everyone except
     # Victoria, same rule as the sidebar's Workflow Stages counts and the
     # main list above. Previously this counted every owner's notices
@@ -634,10 +691,71 @@ def opportunities():
         sector_filter=sector_filter,
         stage_filter=stage_filter,
         sort_filter=sort_filter,
+        keyword_filter=keyword_filter,
+        cpv_prefix_filter=cpv_prefix_filter,
+        min_value_filter=min_value_filter,
+        max_value_filter=max_value_filter,
+        search_profiles=search_profiles,
+        active_profile=active_profile,
         selected_id=selected_id,
         selected_notice=selected_notice,
         selected_phase2=selected_phase2,
     )
+
+
+@queues_bp.route("/opportunities/profiles/save", methods=["POST"])
+@login_required
+def save_search_profile():
+    """Saves the Opportunities screen's current keyword/sector/CPV/value
+    filters as a named, reusable profile (2026-09-19) -- re-saving an
+    existing name updates it in place rather than erroring, so tweaking a
+    profile is just "adjust filters, save under the same name" again."""
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Profile name is required.")
+        return redirect(url_for("queues.opportunities"))
+
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO search_profiles "
+        "(client_id, name, keyword, sector, cpv_prefix, min_value, max_value, created_by, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(client_id, name) DO UPDATE SET "
+        "keyword = excluded.keyword, sector = excluded.sector, cpv_prefix = excluded.cpv_prefix, "
+        "min_value = excluded.min_value, max_value = excluded.max_value",
+        (
+            current_user.client_id,
+            name,
+            request.form.get("q", "").strip() or None,
+            request.form.get("sector", "").strip() or None,
+            request.form.get("cpv_prefix", "").strip() or None,
+            request.form.get("min_value", type=float),
+            request.form.get("max_value", type=float),
+            current_user.display_name,
+            datetime.now(timezone.utc).isoformat(),
+        ),
+    )
+    conn.commit()
+    flash(f'Saved profile "{name}".')
+
+    row = conn.execute(
+        "SELECT id FROM search_profiles WHERE client_id = ? AND name = ?",
+        (current_user.client_id, name),
+    ).fetchone()
+    return redirect(url_for("queues.opportunities", profile_id=row["id"]))
+
+
+@queues_bp.route("/opportunities/profiles/<int:profile_id>/delete", methods=["POST"])
+@login_required
+def delete_search_profile(profile_id):
+    conn = get_db()
+    conn.execute(
+        "DELETE FROM search_profiles WHERE id = ? AND client_id = ?",
+        (profile_id, current_user.client_id),
+    )
+    conn.commit()
+    flash("Profile deleted.")
+    return redirect(url_for("queues.opportunities"))
 
 
 @queues_bp.route("/opportunities/bulk-shortlist", methods=["POST"])

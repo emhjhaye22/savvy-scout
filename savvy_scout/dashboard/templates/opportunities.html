@@ -133,10 +133,37 @@
   {% if monitor_c %}<a href="{{ url_for('queues.opportunities', status='MONITORING') }}" class="summary-pill {% if status_filter == 'MONITORING' %}active{% endif %}">Monitoring <span class="pill-count">({{ monitor_c }})</span></a>{% endif %}
 </div>
 
+{# Search profiles: named, reusable saved filters (2026-09-19) #}
+<div class="filter-bar" style="margin-bottom: 10px;">
+  <label>Profile:</label>
+  <select onchange="window.location.href = this.value ? '{{ url_for('queues.opportunities') }}?profile_id=' + this.value : '{{ url_for('queues.opportunities') }}';">
+    <option value="">— None —</option>
+    {% for p in search_profiles %}
+    <option value="{{ p.id }}" {% if active_profile and active_profile.id == p.id %}selected{% endif %}>{{ p.name }}</option>
+    {% endfor %}
+  </select>
+  <form method="post" action="{{ url_for('queues.save_search_profile') }}" style="display: flex; gap: 8px; align-items: center;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="q" value="{{ keyword_filter }}">
+    <input type="hidden" name="sector" value="{{ sector_filter }}">
+    <input type="hidden" name="cpv_prefix" value="{{ cpv_prefix_filter }}">
+    <input type="hidden" name="min_value" value="{{ min_value_filter if min_value_filter is not none else '' }}">
+    <input type="hidden" name="max_value" value="{{ max_value_filter if max_value_filter is not none else '' }}">
+    <input type="text" name="name" placeholder="Save current filters as…" value="{{ active_profile.name if active_profile else '' }}" style="max-width: 200px;">
+    <button type="submit" class="btn btn-secondary btn-sm">Save profile</button>
+  </form>
+  {% if active_profile %}
+  <form method="post" action="{{ url_for('queues.delete_search_profile', profile_id=active_profile.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-secondary btn-sm" style="color: var(--danger);">Delete "{{ active_profile.name }}"</button>
+  </form>
+  {% endif %}
+</div>
+
 {# Filters #}
 <form method="get" action="{{ url_for('queues.opportunities') }}" class="filter-bar">
   <label>Search:</label>
-  <input type="text" name="q" id="search-input" class="search-input" placeholder="Filter by title, buyer, ref…" value="{{ request.args.get('q', '') }}" autocomplete="off">
+  <input type="text" name="q" id="search-input" class="search-input" placeholder="Filter by title, buyer, ref…" value="{{ keyword_filter }}" autocomplete="off">
   <label>Sector:</label>
   <select name="sector">
     <option value="">All Sectors</option>
@@ -144,11 +171,16 @@
     <option value="{{ s }}" {% if sector_filter == s %}selected{% endif %}>{{ s }}</option>
     {% endfor %}
   </select>
+  <label>CPV prefix:</label>
+  <input type="text" name="cpv_prefix" placeholder="e.g. 72000000" value="{{ cpv_prefix_filter }}" style="width: 120px;">
+  <label>Value £:</label>
+  <input type="number" name="min_value" placeholder="Min" value="{{ min_value_filter if min_value_filter is not none else '' }}" style="width: 90px;">
+  <input type="number" name="max_value" placeholder="Max" value="{{ max_value_filter if max_value_filter is not none else '' }}" style="width: 90px;">
   <input type="hidden" name="status" value="{{ status_filter }}">
   <input type="hidden" name="stage" value="{{ stage_filter }}">
   <input type="hidden" name="sort" value="{{ sort_filter }}">
   <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
-  {% if status_filter or stage_filter or sector_filter or request.args.get('q') %}
+  {% if status_filter or stage_filter or sector_filter or keyword_filter or cpv_prefix_filter or min_value_filter is not none or max_value_filter is not none %}
   <a href="{{ url_for('queues.opportunities') }}" class="btn btn-secondary btn-sm">Clear</a>
   {% endif %}
   <div class="sort-toggle">

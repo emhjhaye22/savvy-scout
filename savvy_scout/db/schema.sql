@@ -173,6 +173,29 @@ CREATE TABLE IF NOT EXISTS shortlisted_notices (
     UNIQUE(client_id, notice_id)
 );
 
+-- Named, reusable saved filters over the Opportunities list (2026-09-19,
+-- modeled on Contracts Advance's "Profile" concept: a saved keyword/sector/
+-- CPV/value-range combination a user can reload from a picker instead of
+-- re-entering filters every visit). Deliberately separate from
+-- client_filters (the automated external-client-triage pipeline's single
+-- filter row per client, driving client_triage_results) -- this is a
+-- personal/team browsing convenience on top of Opportunities, not a
+-- decision-making input, so it carries no matching/triage semantics of
+-- its own.
+CREATE TABLE IF NOT EXISTS search_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL REFERENCES clients(id),
+    name TEXT NOT NULL,
+    keyword TEXT,
+    sector TEXT,
+    cpv_prefix TEXT,
+    min_value REAL,
+    max_value REAL,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(client_id, name)
+);
+
 -- Draft assist: PROVISIONAL AI-drafted answers to selection-questionnaire /
 -- bid-response questions Mark pastes in per opportunity (2026-09-05: no
 -- questionnaire text is captured anywhere else in the app, so there is
