@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}{% if client %}{{ client['name'] }} — Configure — TenderSight™{% else %}Add a client — TenderSight™{% endif %}{% endblock %}
+{% block page_title %}Clients{% endblock %}
+{% block page_subtitle %}<div class="topbar-subtitle">{% if client %}Configure {{ client['name'] }}{% else %}Add a client{% endif %}</div>{% endblock %}
+
+{% block content %}
+<style>
+  .ccf-breadcrumb { font-size: 12.5px; color: var(--text-muted); margin-bottom: 16px; }
+  .ccf-breadcrumb a { color: var(--text-muted); text-decoration: none; }
+  .ccf-breadcrumb a:hover { color: var(--primary); }
+  .ccf-form-card { max-width: 640px; }
+  .ccf-field { margin-bottom: 18px; }
+  .ccf-field label {
+    display: block; font-size: 11px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+  }
+  .ccf-field input[type="text"], .ccf-field input[type="number"] { width: 100%; }
+  .ccf-row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .ccf-row .ccf-field { flex: 1; min-width: 180px; }
+  .ccf-types { display: flex; gap: 16px; flex-wrap: wrap; }
+  .ccf-types label { display: flex; align-items: center; gap: 6px; font-size: 13px; text-transform: none; font-weight: 500; color: var(--text); }
+</style>
+
+<div class="ccf-breadcrumb">
+  <a href="{{ url_for('admin.index') }}#group-clients">Admin &rsaquo; Clients</a> &rsaquo; {% if client %}{{ client['name'] }}{% else %}Add a client{% endif %}
+</div>
+
+<div class="card ccf-form-card">
+  <div class="card-body">
+    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+      {% if client %}
+        This filter is evaluated against every notice already swept, and every new notice going
+        forward. This is completely separate from Trifork's own 5-gate + AI system.
+      {% else %}
+        A new client gets a simple structured filter (CPV codes, keywords, notice types, regions,
+        value range) evaluated against every notice already swept, and every new notice going
+        forward -- the same shape as a portal's own advanced search. This is completely separate
+        from Trifork's own 5-gate + AI system, which stays exactly as it is.
+      {% endif %}
+      Every configured field must match (AND); any one value within a field is enough (OR).
+      Leave a field blank for "no constraint" -- at least one field is required.
+    </p>
+
+    <form method="post" action="{{ url_for('admin.add_client') if not client else url_for('admin.update_client_filter', client_id=client['id']) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      {% if client %}
+      <div class="ccf-field">
+        <label>Client name</label>
+        <div style="font-size: 15px; font-weight: 700; color: var(--navy);">{{ client['name'] }}</div>
+      </div>
+      {% else %}
+      <div class="ccf-field">
+        <label for="name">Client name</label>
+        <input type="text" id="name" name="name" placeholder="e.g. Acme Construction" required value="{{ client_form_error.name if client_form_error else '' }}">
+      </div>
+      {% endif %}
+
+      <div class="ccf-row">
+        <div class="ccf-field">
+          <label for="cpv_prefixes">CPV prefixes (comma-separated)</label>
+          <input type="text" id="cpv_prefixes" name="cpv_prefixes" placeholder="e.g. 45, 71"
+                 value="{{ client_form_error.cpv_prefixes if client_form_error else (filter.cpv_prefixes | from_json | join(', ') if filter else '') }}">
+        </div>
+        <div class="ccf-field">
+          <label for="keywords">Keywords (comma-separated)</label>
+          <input type="text" id="keywords" name="keywords" placeholder="e.g. construction, building works"
+                 value="{{ client_form_error.keywords if client_form_error else (filter.keywords | from_json | join(', ') if filter else '') }}">
+        </div>
+        <div class="ccf-field">
+          <label for="regions">Regions (comma-separated)</label>
+          <input type="text" id="regions" name="regions" placeholder="e.g. London, North West"
+                 value="{{ client_form_error.regions if client_form_error else (filter.regions | from_json | join(', ') if filter else '') }}">
+        </div>
+      </div>
+
+      <div class="ccf-field">
+        <label>Notice types</label>
+        {% set submitted_types = client_form_error.notice_types if client_form_error else (filter.notice_types | from_json if filter else []) %}
+        <div class="ccf-types">
+          {% for stage in ['UK1', 'UK2', 'UK3', 'UK4', 'UK5'] %}
+          <label>
+            <input type="checkbox" name="notice_types" value="{{ stage }}" {% if stage in submitted_types %}checked{% endif %}> {{ stage }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="ccf-row">
+        <div class="ccf-field" style="max-width: 160px;">
+          <label for="min_value">Min value (£)</label>
+          <input type="number" id="min_value" name="min_value" step="0.01"
+                 value="{{ client_form_error.min_value if client_form_error and client_form_error.min_value is not none else (filter.min_value if filter and filter.min_value is not none else '') }}">
+        </div>
+        <div class="ccf-field" style="max-width: 160px;">
+          <label for="max_value">Max value (£)</label>
+          <input type="number" id="max_value" name="max_value" step="0.01"
+                 value="{{ client_form_error.max_value if client_form_error and client_form_error.max_value is not none else (filter.max_value if filter and filter.max_value is not none else '') }}">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
+        <button type="submit" class="btn btn-approve">{% if client %}Save changes{% else %}+ Add client{% endif %}</button>
+        <a href="{{ url_for('admin.index') }}#group-clients" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

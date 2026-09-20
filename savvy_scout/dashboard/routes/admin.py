@@ -826,6 +826,40 @@ def _client_form_error(name: str, f: dict) -> dict:
     }
 
 
+@admin_bp.route("/clients/new")
+@login_required
+def new_client():
+    """Dedicated "Add a client" page (2026-09-20) -- previously a
+    permanently-open form card at the top of the Clients section on
+    admin.html, competing for space with the client list itself."""
+    if not _is_super_admin():
+        flash("Only the admin account can manage clients.", "error")
+        return redirect(url_for("queues.index"))
+    return render_template("admin_client_form.html", client=None, filter=None, client_form_error=None)
+
+
+@admin_bp.route("/clients/<int:client_id>/edit")
+@login_required
+def edit_client(client_id):
+    """Dedicated "Configure this client" page (2026-09-20) -- previously
+    an entire edit form (3 text fields, 5 checkboxes, 2 number fields)
+    squeezed into one cell of the Clients table, for every client, all at
+    once, with no click-through of its own (unlike viewing a client's
+    matches, which already had one)."""
+    if not _is_super_admin():
+        flash("Only the admin account can manage clients.", "error")
+        return redirect(url_for("queues.index"))
+    conn = get_db()
+    client = conn.execute(
+        "SELECT * FROM clients WHERE id = ? AND name != 'Trifork'", (client_id,)
+    ).fetchone()
+    if client is None:
+        flash("Client not found.", "error")
+        return redirect(url_for("admin.index") + "#group-clients")
+    filter_row = conn.execute("SELECT * FROM client_filters WHERE client_id = ?", (client_id,)).fetchone()
+    return render_template("admin_client_form.html", client=client, filter=filter_row, client_form_error=None)
+
+
 @admin_bp.route("/clients/add", methods=["POST"])
 @login_required
 def add_client():
@@ -839,12 +873,10 @@ def add_client():
 
     if not name:
         flash("Client name is required.", "error")
-        context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
-        return render_template("admin.html", **context, client_form_error=_client_form_error(name, f))
+        return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f))
     if name == "Trifork":
         flash('"Trifork" is reserved for the existing account.', "error")
-        context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
-        return render_template("admin.html", **context, client_form_error=_client_form_error(name, f))
+        return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f))
 
     if client_filter_is_empty(f):
         flash(
@@ -852,14 +884,12 @@ def add_client():
             "is required -- an empty filter would match every notice in the backlog.",
             "error",
         )
-        context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
-        return render_template("admin.html", **context, client_form_error=_client_form_error(name, f))
+        return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f))
 
     existing = conn.execute("SELECT 1 FROM clients WHERE name = ?", (name,)).fetchone()
     if existing:
         flash(f'A client named "{name}" already exists.', "error")
-        context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
-        return render_template("admin.html", **context, client_form_error=_client_form_error(name, f))
+        return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f))
 
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
@@ -902,17 +932,18 @@ def update_client_filter(client_id):
         # No client_form_error/re-render here (2026-09-20): unlike add_row/
         # update_row/add_client, this route's only failure mode is "every
         # field was left blank" -- there's no partially-correct submission
-        # to lose, since any single non-blank field passes. Redirecting to
-        # index() already shows the real, unchanged, non-empty filter still
-        # in the database; showing the just-submitted (all-blank) values
-        # instead would incorrectly suggest the filter had been cleared.
+        # to lose, since any single non-blank field passes. Redirecting
+        # back to edit_client() re-fetches and shows the real, unchanged,
+        # non-empty filter still in the database; showing the just-
+        # submitted (all-blank) values instead would incorrectly suggest
+        # the filter had been cleared.
         flash(
             "At least one filter field (CPV prefix, keyword, notice type, region, or value) "
             "is required -- an empty filter would match every notice in the backlog. "
             "The previous filter was left unchanged.",
             "error",
         )
-        return redirect(url_for("admin.index") + "#group-clients")
+        return redirect(url_for("admin.edit_client", client_id=client_id))
 
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(

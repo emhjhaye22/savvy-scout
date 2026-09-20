@@ -77,14 +77,53 @@ def test_admin_index_shows_clients_section_for_admin(app):
     resp = client.get("/admin/")
     assert resp.status_code == 200
     assert b"Clients" in resp.data
-    assert b"Add a client" in resp.data
+    assert b'href="/admin/clients/new"' in resp.data
 
 
 def test_admin_index_hides_clients_section_from_victoria(app):
     client = _logged_in_client(app, "victoria")
     resp = client.get("/admin/")
     assert resp.status_code == 200
-    assert b"Add a client" not in resp.data
+    assert b'href="/admin/clients/new"' not in resp.data
+
+
+def test_new_client_page_renders_for_admin(app):
+    client = _admin_client(app)
+    resp = client.get("/admin/clients/new")
+    assert resp.status_code == 200
+    assert b"Add a client" in resp.data
+    assert b'action="/admin/clients/add"' in resp.data
+
+
+def test_new_client_page_denied_to_non_admin(app):
+    client = _logged_in_client(app, "victoria")
+    resp = client.get("/admin/clients/new", follow_redirects=True)
+    assert b"Only the admin account" in resp.data
+
+
+def test_edit_client_page_shows_existing_filter(app):
+    conn = _db(app)
+    admin = _admin_client(app)
+    client_id = _add_client_and_get_id(admin, conn)  # cpv_prefixes="45"
+
+    resp = admin.get(f"/admin/clients/{client_id}/edit")
+    assert resp.status_code == 200
+    assert b"Acme Construction" in resp.data
+    assert b'value="45"' in resp.data
+
+
+def test_edit_client_page_rejects_trifork(app):
+    conn = _db(app)
+    trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
+    client = _admin_client(app)
+    resp = client.get(f"/admin/clients/{trifork_id}/edit", follow_redirects=True)
+    assert b"Client not found" in resp.data
+
+
+def test_edit_client_page_denied_to_non_admin(app):
+    client = _logged_in_client(app, "victoria")
+    resp = client.get("/admin/clients/1/edit", follow_redirects=True)
+    assert b"Only the admin account" in resp.data
 
 
 def test_add_client_creates_client_and_filter(app):
@@ -342,9 +381,9 @@ def test_update_client_filter_empty_submission_still_shows_real_unchanged_filter
     """2026-09-20: unlike add_row/update_row/add_client, this route's only
     failure is "every field was left blank" -- there's no partially-typed
     submission to preserve (any single non-blank field would have
-    succeeded instead). The redirect back to index() must keep showing the
-    filter that's actually still saved (cpv_prefixes "45"), not a blank
-    one matching what was just (mistakenly) submitted."""
+    succeeded instead). The redirect back to edit_client() must keep
+    showing the filter that's actually still saved (cpv_prefixes "45"),
+    not a blank one matching what was just (mistakenly) submitted."""
     conn = _db(app)
     client = _admin_client(app)
     client_id = _add_client_and_get_id(client, conn)  # seeds cpv_prefixes=["45"]

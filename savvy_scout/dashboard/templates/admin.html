@@ -363,62 +363,9 @@
 
 <div class="card">
   <div class="card-header">
-    <h2>Add a client</h2>
-  </div>
-  <div class="card-body">
-    <form method="post" action="{{ url_for('admin.add_client') }}" style="display: flex; flex-direction: column; gap: 12px;">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      {# Re-filled from a failed submit (2026-09-20) -- this used to redirect
-         to a blank form on any validation failure (empty name, empty
-         filter, duplicate name), discarding all 7 fields every time. #}
-      <div>
-        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Client name</label>
-        <input type="text" name="name" placeholder="e.g. Acme Construction" required style="width: 260px;" value="{{ client_form_error.name if client_form_error else '' }}">
-      </div>
-      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-        <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">CPV prefixes (comma-separated)</label>
-          <input type="text" name="cpv_prefixes" placeholder="e.g. 45, 71" style="width: 220px;" value="{{ client_form_error.cpv_prefixes if client_form_error else '' }}">
-        </div>
-        <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Keywords (comma-separated)</label>
-          <input type="text" name="keywords" placeholder="e.g. construction, building works" style="width: 260px;" value="{{ client_form_error.keywords if client_form_error else '' }}">
-        </div>
-        <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Regions (comma-separated)</label>
-          <input type="text" name="regions" placeholder="e.g. London, North West" style="width: 220px;" value="{{ client_form_error.regions if client_form_error else '' }}">
-        </div>
-      </div>
-      <div>
-        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Notice types</label>
-        <div style="display: flex; gap: 14px; flex-wrap: wrap;">
-          {% set submitted_types = client_form_error.notice_types if client_form_error else [] %}
-          {% for stage in ['UK1', 'UK2', 'UK3', 'UK4', 'UK5'] %}
-          <label style="display: flex; align-items: center; gap: 5px; font-size: 13px;">
-            <input type="checkbox" name="notice_types" value="{{ stage }}" {% if stage in submitted_types %}checked{% endif %}> {{ stage }}
-          </label>
-          {% endfor %}
-        </div>
-      </div>
-      <div style="display: flex; gap: 12px; align-items: flex-end;">
-        <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Min value (£)</label>
-          <input type="number" name="min_value" step="0.01" style="width: 140px;" value="{{ client_form_error.min_value if client_form_error and client_form_error.min_value is not none else '' }}">
-        </div>
-        <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Max value (£)</label>
-          <input type="number" name="max_value" step="0.01" style="width: 140px;" value="{{ client_form_error.max_value if client_form_error and client_form_error.max_value is not none else '' }}">
-        </div>
-        <button type="submit" class="btn btn-approve">+ Add client</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div class="card">
-  <div class="card-header">
     <h2>Clients</h2>
     <span class="badge badge-count" style="background: var(--info);">{{ clients | length }}</span>
+    <a href="{{ url_for('admin.new_client') }}" class="btn btn-approve btn-sm" style="margin-left: auto;">+ Add client</a>
   </div>
   <div style="overflow-x: auto;">
   <table class="app-table">
@@ -434,7 +381,9 @@
     <tbody>
     {% for entry in clients %}
       <tr>
-        <td style="font-weight: 600;">{{ entry.client.name }}</td>
+        <td style="font-weight: 600;">
+          <a href="{{ url_for('admin.edit_client', client_id=entry.client.id) }}">{{ entry.client.name }}</a>
+        </td>
         <td>
           {% if entry.client.is_active %}<span class="badge badge-strong">Active</span>{% else %}<span class="badge badge-unknown">Paused</span>{% endif %}
         </td>
@@ -442,30 +391,21 @@
           <a href="{{ url_for('admin.client_matches', client_id=entry.client.id) }}">{{ entry.match_count }} matched</a>
         </td>
         <td>
-          {# Examples restored (2026-09-20) to match the "Add a client" form
-             above -- they'd been dropped here even though it's the same
-             fields. No failed-submission preservation needed: the only
-             validation here is "every field was left blank," which just
-             redirects back to this same unchanged, non-empty filter. #}
-          <form method="post" action="{{ url_for('admin.update_client_filter', client_id=entry.client.id) }}" style="display: flex; flex-direction: column; gap: 6px;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-              <input type="text" name="cpv_prefixes" value="{{ entry.filter.cpv_prefixes | from_json | join(', ') if entry.filter else '' }}" placeholder="e.g. 45, 71" style="font-size: 12px; padding: 4px 6px; width: 140px;">
-              <input type="text" name="keywords" value="{{ entry.filter.keywords | from_json | join(', ') if entry.filter else '' }}" placeholder="e.g. construction, building works" style="font-size: 12px; padding: 4px 6px; width: 160px;">
-              <input type="text" name="regions" value="{{ entry.filter.regions | from_json | join(', ') if entry.filter else '' }}" placeholder="e.g. London, North West" style="font-size: 12px; padding: 4px 6px; width: 140px;">
-            </div>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-              {% set configured_types = entry.filter.notice_types | from_json if entry.filter else [] %}
-              {% for stage in ['UK1', 'UK2', 'UK3', 'UK4', 'UK5'] %}
-              <label style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                <input type="checkbox" name="notice_types" value="{{ stage }}" {% if stage in configured_types %}checked{% endif %}> {{ stage }}
-              </label>
-              {% endfor %}
-              <input type="number" name="min_value" value="{{ entry.filter.min_value if entry.filter and entry.filter.min_value is not none else '' }}" step="0.01" placeholder="Min £" style="font-size: 12px; padding: 4px 6px; width: 90px;">
-              <input type="number" name="max_value" value="{{ entry.filter.max_value if entry.filter and entry.filter.max_value is not none else '' }}" step="0.01" placeholder="Max £" style="font-size: 12px; padding: 4px 6px; width: 90px;">
-              <button type="submit" class="btn btn-secondary btn-sm">Save &amp; re-evaluate</button>
-            </div>
-          </form>
+          {# Read-only summary (2026-09-20) -- editing now happens on its own
+             page (admin.edit_client), not crammed into this table cell. #}
+          {% if entry.filter %}
+          <div style="display: flex; gap: 4px; flex-wrap: wrap; max-width: 320px;">
+            {% for cpv in entry.filter.cpv_prefixes | from_json %}<span class="chip">CPV {{ cpv }}</span>{% endfor %}
+            {% for kw in entry.filter.keywords | from_json %}<span class="chip">{{ kw }}</span>{% endfor %}
+            {% for region in entry.filter.regions | from_json %}<span class="chip">{{ region }}</span>{% endfor %}
+            {% for stage in entry.filter.notice_types | from_json %}<span class="chip">{{ stage }}</span>{% endfor %}
+            {% if entry.filter.min_value is not none or entry.filter.max_value is not none %}
+            <span class="chip">£{{ entry.filter.min_value if entry.filter.min_value is not none else '0' }}–{{ entry.filter.max_value if entry.filter.max_value is not none else '∞' }}</span>
+            {% endif %}
+          </div>
+          {% else %}
+          <span style="color: var(--text-muted); font-size: 12px;">No filter configured</span>
+          {% endif %}
         </td>
         <td class="actions-col">
           <form method="post" action="{{ url_for('admin.toggle_client_active', client_id=entry.client.id) }}">
