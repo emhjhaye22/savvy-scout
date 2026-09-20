@@ -33,12 +33,12 @@ def unique_client_slug(conn: sqlite3.Connection, name: str, exclude_client_id: i
 def get_connection(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 
 def init_db(conn: sqlite3.Connection) -> None:
+    conn.execute("PRAGMA journal_mode=WAL")
     schema = SCHEMA_PATH.read_text(encoding="utf-8")
     conn.executescript(schema)
     _apply_migrations(conn)
