@@ -150,6 +150,104 @@ def test_add_client_creates_client_and_filter(app):
     assert outcomes == {"PASS", "FAIL"}
 
 
+def test_add_client_creates_account_user_and_approver_seats(app):
+    """2026-09-20 explicit request: adding a client should let the admin
+    invite its first Account User and Account Approver in the same save,
+    instead of a separate trip to Manage Users for each."""
+    client = _admin_client(app)
+    resp = client.post(
+        "/admin/clients/add",
+        data={
+            "name": "Acme Construction",
+            "cpv_prefixes": "45",
+            "account_user_name": "Priya",
+            "account_user_email": "priya@acme.example",
+            "account_approver_name": "Jordan",
+            "account_approver_email": "jordan@acme.example",
+        },
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+
+    conn = _db(app)
+    client_row = conn.execute("SELECT * FROM clients WHERE name = 'Acme Construction'").fetchone()
+    user_row = conn.execute("SELECT * FROM users WHERE email = 'priya@acme.example'").fetchone()
+    approver_row = conn.execute("SELECT * FROM users WHERE email = 'jordan@acme.example'").fetchone()
+
+    assert user_row["role"] == "account_user"
+    assert user_row["client_id"] == client_row["id"]
+    assert user_row["display_name"] == "Priya"
+    assert approver_row["role"] == "account_approver"
+    assert approver_row["client_id"] == client_row["id"]
+
+
+def test_add_client_without_seats_creates_no_extra_users(app):
+    """Both seats are optional -- leaving them blank must not create
+    anything, same as today's behavior before this feature existed."""
+    conn = _db(app)
+    before = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    client = _admin_client(app)
+    client.post("/admin/clients/add", data={"name": "Acme Construction", "cpv_prefixes": "45"})
+    after = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    assert after == before
+
+
+def test_add_client_rejects_seat_with_name_but_no_email(app):
+    client = _admin_client(app)
+    resp = client.post(
+        "/admin/clients/add",
+        data={"name": "Acme Construction", "cpv_prefixes": "45", "account_user_name": "Priya"},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert b"both required" in resp.data
+    # Preserved on the re-rendered form, not lost.
+    assert b'value="Priya"' in resp.data
+
+    conn = _db(app)
+    assert conn.execute("SELECT * FROM clients WHERE name = 'Acme Construction'").fetchone() is None
+
+
+def test_add_client_rejects_seats_sharing_an_email(app):
+    client = _admin_client(app)
+    resp = client.post(
+        "/admin/clients/add",
+        data={
+            "name": "Acme Construction",
+            "cpv_prefixes": "45",
+            "account_user_name": "Priya",
+            "account_user_email": "shared@acme.example",
+            "account_approver_name": "Jordan",
+            "account_approver_email": "shared@acme.example",
+        },
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert b"same email" in resp.data
+    conn = _db(app)
+    assert conn.execute("SELECT * FROM clients WHERE name = 'Acme Construction'").fetchone() is None
+
+
+def test_add_client_rejects_seat_email_already_in_use(app):
+    conn = _db(app)
+    client = _admin_client(app)
+    resp = client.post(
+        "/admin/clients/add",
+        data={
+            "name": "Acme Construction",
+            "cpv_prefixes": "45",
+            # local part "emhjhaye" derives the same username as the
+            # existing admin fixture account -- a real username collision.
+            "account_user_name": "Duplicate",
+            "account_user_email": "emhjhaye@example.com",
+        },
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert b"already exists" in resp.data
+    assert conn.execute("SELECT * FROM clients WHERE name = 'Acme Construction'").fetchone() is None
+
+
 def test_add_client_rejects_trifork_name(app):
     client = _admin_client(app)
     resp = client.post("/admin/clients/add", data={"name": "Trifork"}, follow_redirects=True)

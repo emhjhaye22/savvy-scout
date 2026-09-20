@@ -824,12 +824,15 @@ def _client_filter_from_form() -> dict:
     }
 
 
-def _client_form_error(name: str, f: dict) -> dict:
+def _client_form_error(name: str, f: dict, seats: dict | None = None) -> dict:
     """Reshapes _client_filter_from_form()'s output (lists, for matching)
     back into what the Add-a-client form's text inputs need to redisplay
     what was just typed on a failed submit (2026-09-20) -- previously
     every failure branch below redirected to a blank form, discarding all
-    7 fields on any single mistake (a duplicate name, an empty filter)."""
+    7 fields on any single mistake (a duplicate name, an empty filter).
+    `seats` (2026-09-20) carries the optional Account User/Approver
+    name+email fields through the same redisplay-on-failure path."""
+    seats = seats or {}
     return {
         "name": name,
         "cpv_prefixes": ", ".join(f["cpv_prefixes"]),
@@ -838,7 +841,35 @@ def _client_form_error(name: str, f: dict) -> dict:
         "notice_types": f["notice_types"],
         "min_value": f["min_value"],
         "max_value": f["max_value"],
+        "account_user_name": seats.get("account_user_name", ""),
+        "account_user_email": seats.get("account_user_email", ""),
+        "account_approver_name": seats.get("account_approver_name", ""),
+        "account_approver_email": seats.get("account_approver_email", ""),
     }
+
+
+def _client_seats_from_form() -> dict:
+    return {
+        "account_user_name": request.form.get("account_user_name", "").strip(),
+        "account_user_email": request.form.get("account_user_email", "").strip().lower(),
+        "account_approver_name": request.form.get("account_approver_name", "").strip(),
+        "account_approver_email": request.form.get("account_approver_email", "").strip().lower(),
+    }
+
+
+def _validate_client_seat(seats: dict, role: str) -> str | None:
+    """One optional (name, email) seat for a given role -- returns an
+    error string if exactly one of the pair was filled in (the other is
+    required once either is given), otherwise None. A completely blank
+    seat is valid -- it just means "add this person later"."""
+    name = seats[f"{role}_name"]
+    email = seats[f"{role}_email"]
+    label = "Account User" if role == "account_user" else "Account Approver"
+    if bool(name) != bool(email):
+        return f"{label}'s name and email are both required if you fill in either one."
+    if email and "@" not in email:
+        return f"'{email}' doesn't look like a valid email address."
+    return None
 
 
 @admin_bp.route("/clients/new")
@@ -884,14 +915,15 @@ def add_client():
 
     name = request.form.get("name", "").strip()
     f = _client_filter_from_form()
+    seats = _client_seats_from_form()
     conn = get_db()
 
     if not name:
         flash("Client name is required.", "error")
-        return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f))
+        return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f, seats))
     if name == "Trifork":
         flash('"Trifork" is reserved for the existing account.', "error")
-        return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f))
+        return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f, seats))
 
     if client_filter_is_empty(f):
         flash(
@@ -899,12 +931,41 @@ def add_client():
             "is required -- an empty filter would match every notice in the backlog.",
             "error",
         )
-        return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f))
+        return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f, seats))
 
     existing = conn.execute("SELECT 1 FROM clients WHERE name = ?", (name,)).fetchone()
     if existing:
         flash(f'A client named "{name}" already exists.', "error")
-        return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f))
+        return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f, seats))
+
+    # Optional seats (2026-09-20): invite this client's first Account
+    # User/Approver in the same save, instead of a separate trip to
+    # Manage Users -- each is validated (name+email both-or-neither,
+    # collision-checked against existing users and against each other)
+    # before anything is written, same "don't half-succeed" principle as
+    # the client fields above.
+    for role in ("account_user", "account_approver"):
+        seat_error = _validate_client_seat(seats, role)
+        if seat_error:
+            flash(seat_error, "error")
+            return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f, seats))
+
+    seat_emails = [seats["account_user_email"], seats["account_approver_email"]]
+    seat_names = [seats["account_user_name"], seats["account_approver_name"]]
+    if seat_emails[0] and seat_emails[0] == seat_emails[1]:
+        flash("The Account User and Account Approver can't share the same email address.", "error")
+        return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f, seats))
+    for email, seat_name in zip(seat_emails, seat_names):
+        if not email:
+            continue
+        username = email.split("@", 1)[0]
+        collision = conn.execute(
+            "SELECT 1 FROM users WHERE email = ? OR username = ? OR display_name = ?",
+            (email, username, seat_name),
+        ).fetchone()
+        if collision:
+            flash(f"A user with the email, username, or display name for '{seat_name}' already exists.", "error")
+            return render_template("admin_client_form.html", client=None, filter=None, client_form_error=_client_form_error(name, f, seats))
 
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
@@ -926,6 +987,23 @@ def add_client():
 
     matched = run_client_triage(conn, client_id)
     flash(f'Added "{name}" and evaluated {matched} existing notices against its filter.')
+
+    for role, seat_name, email in (
+        ("account_user", seats["account_user_name"], seats["account_user_email"]),
+        ("account_approver", seats["account_approver_name"], seats["account_approver_email"]),
+    ):
+        if not email:
+            continue
+        username = email.split("@", 1)[0]
+        temp_password, (message, category) = _invite_or_reset(email, seat_name, username)
+        conn.execute(
+            "INSERT INTO users (username, password_hash, display_name, email, role, created_at, client_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (username, generate_password_hash(temp_password), seat_name, email, role, now, client_id),
+        )
+        conn.commit()
+        flash(message, category)
+
     return redirect(url_for("admin.index") + "#group-clients")
 
 

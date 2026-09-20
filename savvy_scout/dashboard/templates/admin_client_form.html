@@ -99,6 +99,40 @@
         </div>
       </div>
 
+      {% if not client %}
+      <div style="border-top: 1px solid var(--border); margin-top: 24px; padding-top: 20px;">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+          Optionally invite this client's first two seats right away, instead of a separate trip to
+          Manage Users afterward. Each is optional -- leave either one entirely blank to skip it and
+          add people later.
+        </p>
+        <div class="ccf-row">
+          <div class="ccf-field">
+            <label for="account_user_name">Account User -- name</label>
+            <input type="text" id="account_user_name" name="account_user_name" placeholder="e.g. Priya"
+                   value="{{ client_form_error.account_user_name if client_form_error else '' }}">
+          </div>
+          <div class="ccf-field">
+            <label for="account_user_email">Account User -- email</label>
+            <input type="text" id="account_user_email" name="account_user_email" placeholder="name@example.com"
+                   value="{{ client_form_error.account_user_email if client_form_error else '' }}">
+          </div>
+        </div>
+        <div class="ccf-row">
+          <div class="ccf-field">
+            <label for="account_approver_name">Account Approver -- name</label>
+            <input type="text" id="account_approver_name" name="account_approver_name" placeholder="e.g. Jordan"
+                   value="{{ client_form_error.account_approver_name if client_form_error else '' }}">
+          </div>
+          <div class="ccf-field">
+            <label for="account_approver_email">Account Approver -- email</label>
+            <input type="text" id="account_approver_email" name="account_approver_email" placeholder="name@example.com"
+                   value="{{ client_form_error.account_approver_email if client_form_error else '' }}">
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
         <button type="submit" class="btn btn-approve">{% if client %}Save changes{% else %}+ Add client{% endif %}</button>
         <a href="{{ url_for('admin.index') }}#group-clients" class="btn btn-secondary">Cancel</a>
