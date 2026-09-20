@@ -799,3 +799,39 @@ def _apply_migrations(conn: sqlite3.Connection) -> None:
                 f"Created platform owner account -- username: {username}, email: {owner_email}, "
                 f"temporary password: {temp_password}"
             )
+
+    # Trifork client_filters bootstrap (2026-09-20, explicit request --
+    # "data only for now"): a client_filters row for Trifork itself, CPV
+    # prefixes derived from its real config_sector_cpv_scope config
+    # (de-duplicated across every enabled sector), for parity/future use --
+    # e.g. a future per-client link. Deliberately NOT wired into the admin
+    # Clients list (admin.py's client_rows query still excludes Trifork by
+    # name) or the sweep pipeline (triage/client_filter.py's
+    # run_client_triage_for_notice() still deliberately excludes Trifork
+    # too) -- this is inert data, read by nothing yet, not a live filter.
+    # keywords/regions/notice_types/value range are left blank: Trifork's
+    # real config doesn't map cleanly onto those fields, and guessing would
+    # misrepresent its actual (much richer) 5-gate scope.
+    trifork_row = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()
+    if trifork_row is not None:
+        has_filter = conn.execute(
+            "SELECT 1 FROM client_filters WHERE client_id = ?", (trifork_row["id"],)
+        ).fetchone()
+        if has_filter is None:
+            import json as _json
+
+            scope_rows = conn.execute(
+                "SELECT allowed_cpv_prefixes FROM config_sector_cpv_scope WHERE enabled = 1"
+            ).fetchall()
+            cpv_prefixes = sorted({
+                prefix for row in scope_rows for prefix in _json.loads(row["allowed_cpv_prefixes"])
+            })
+            if cpv_prefixes:
+                from datetime import datetime as _datetime2
+                from datetime import timezone as _timezone2
+
+                conn.execute(
+                    "INSERT INTO client_filters (client_id, cpv_prefixes, updated_at, updated_by) "
+                    "VALUES (?, ?, ?, 'migration')",
+                    (trifork_row["id"], _json.dumps(cpv_prefixes), _datetime2.now(_timezone2.utc).isoformat()),
+                )

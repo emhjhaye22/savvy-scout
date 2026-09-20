@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 
 from werkzeug.security import generate_password_hash
@@ -177,3 +178,29 @@ def test_explicitly_assigned_role_survives_repeated_boots(tmp_path):
     conn.close()
 
     assert row["role"] == "account_approver"
+
+
+def test_trifork_client_filters_bootstrap_derives_cpv_from_its_real_config(tmp_path):
+    """2026-09-20 explicit request ("data only for now"): Trifork gets a
+    client_filters row too, CPV prefixes derived from its real
+    config_sector_cpv_scope config (de-duplicated across every enabled
+    sector) -- inert data, not read by the admin Clients list or the
+    sweep pipeline (both still deliberately exclude Trifork by name)."""
+    db_path = str(tmp_path / "test.db")
+    conn = get_connection(db_path)
+    init_db(conn)
+    seed_all(conn)
+    init_db(conn)  # bootstrap runs after config_sector_cpv_scope is seeded
+
+    trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
+    row = conn.execute("SELECT * FROM client_filters WHERE client_id = ?", (trifork_id,)).fetchone()
+    assert row is not None
+    assert json.loads(row["cpv_prefixes"]) == ["48", "72"]
+    assert row["keywords"] is None
+
+    init_db(conn)  # idempotency: still exactly one row, unchanged
+    count = conn.execute(
+        "SELECT COUNT(*) FROM client_filters WHERE client_id = ?", (trifork_id,)
+    ).fetchone()[0]
+    conn.close()
+    assert count == 1
