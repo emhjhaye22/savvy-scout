@@ -615,6 +615,15 @@ CREATE INDEX IF NOT EXISTS idx_client_notice_actions_client ON client_notice_act
 
 CREATE INDEX IF NOT EXISTS idx_notices_ref ON notices(ref);
 CREATE INDEX IF NOT EXISTS idx_notices_status ON notices(status);
+-- 2026-09-20: Admin's "no filters" views (Overview, Opportunities,
+-- sidebar/notification counts) query by owner and sector on every page
+-- load with no scope-narrowing WHERE clause -- previously every one of
+-- these queries was implicitly narrowed by sector/CPV scope first, so an
+-- unindexed scan over just the in-scope subset was cheap. Unfiltered for
+-- Admin, the same queries now scan the whole table on every request.
+CREATE INDEX IF NOT EXISTS idx_notices_owner ON notices(owner);
+CREATE INDEX IF NOT EXISTS idx_notices_sector ON notices(sector);
+CREATE INDEX IF NOT EXISTS idx_notices_first_seen_at ON notices(first_seen_at);
 CREATE INDEX IF NOT EXISTS idx_gate_results_notice ON gate_results(notice_id);
 CREATE INDEX IF NOT EXISTS idx_triage_runs_notice ON triage_runs(notice_id);
 CREATE INDEX IF NOT EXISTS idx_phase2_assessments_notice ON phase2_assessments(notice_id);
