@@ -20,6 +20,14 @@ import anthropic
 
 MODEL = "claude-sonnet-5"
 OPENAI_MODEL = "gpt-4o"
+# 2026-09-20 fix: every other outbound network call in this app (tender
+# source fetches, Microsoft Graph, SMTP) has an explicit 15-30s timeout --
+# these two AI client constructions were the one exception, left at each
+# SDK's own default (several minutes). A slow/unreachable provider would
+# tie up one of Waitress's limited worker threads for that whole duration,
+# backing up every other request behind it -- a real production incident,
+# not a hypothetical.
+AI_REQUEST_TIMEOUT_SECONDS = 90
 
 SCOPE_READ_SCHEMA = {
     "type": "object",
@@ -564,11 +572,14 @@ def get_scope_read_client(settings):
             raise RuntimeError("SCOPE_READ_PROVIDER=openai but OPENAI_API_KEY is not set.")
         import openai
 
-        return openai.OpenAI(api_key=settings.openai_api_key), run_scope_read_openai
+        return openai.OpenAI(api_key=settings.openai_api_key, timeout=AI_REQUEST_TIMEOUT_SECONDS), run_scope_read_openai
 
     if not settings.anthropic_api_key:
         raise RuntimeError("SCOPE_READ_PROVIDER=anthropic but ANTHROPIC_API_KEY is not set.")
-    return anthropic.Anthropic(api_key=settings.anthropic_api_key), run_scope_read
+    return (
+        anthropic.Anthropic(api_key=settings.anthropic_api_key, timeout=AI_REQUEST_TIMEOUT_SECONDS),
+        run_scope_read,
+    )
 
 
 def save_scope_read(

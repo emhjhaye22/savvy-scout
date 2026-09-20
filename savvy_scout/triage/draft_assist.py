@@ -16,7 +16,7 @@ import sqlite3
 
 import anthropic
 
-from savvy_scout.triage.scope_read import _build_notice_context, get_capability_profile
+from savvy_scout.triage.scope_read import AI_REQUEST_TIMEOUT_SECONDS, _build_notice_context, get_capability_profile
 
 MODEL = "claude-sonnet-5"
 OPENAI_MODEL = "gpt-4o"
@@ -94,8 +94,16 @@ def get_draft_assist_client(settings):
             raise RuntimeError("SCOPE_READ_PROVIDER=openai but OPENAI_API_KEY is not set.")
         import openai
 
-        return openai.OpenAI(api_key=settings.openai_api_key), run_draft_answer_openai, OPENAI_MODEL
+        return (
+            openai.OpenAI(api_key=settings.openai_api_key, timeout=AI_REQUEST_TIMEOUT_SECONDS),
+            run_draft_answer_openai,
+            OPENAI_MODEL,
+        )
 
     if not settings.anthropic_api_key:
         raise RuntimeError("SCOPE_READ_PROVIDER=anthropic but ANTHROPIC_API_KEY is not set.")
-    return anthropic.Anthropic(api_key=settings.anthropic_api_key), run_draft_answer, MODEL
+    return (
+        anthropic.Anthropic(api_key=settings.anthropic_api_key, timeout=AI_REQUEST_TIMEOUT_SECONDS),
+        run_draft_answer,
+        MODEL,
+    )
