@@ -759,3 +759,43 @@ def _apply_migrations(conn: sqlite3.Connection) -> None:
     conn.execute(
         "UPDATE users SET email = 'victoria.milan@bidsavvy.io' WHERE display_name = 'Victoria' AND email IS NULL"
     )
+
+    # One-time platform owner bootstrap (2026-09-20, explicit request): a
+    # distinct Admin account for the person who owns/sells the app and adds
+    # clients, separate from "Mark" (a Trifork persona). No admin session
+    # was reachable in production to create this the normal way (Admin >
+    # Manage Users), so it's seeded here instead -- idempotent (a no-op
+    # once the row exists), same shape as the client_id/role self-heals
+    # above. Password is randomly generated and printed to the app log
+    # once, never stored in source -- same rationale as create_test_users's
+    # local-dev-only random password, just for a real production account
+    # this time.
+    owner_email = "emhjhaye22@gmail.com"
+    if conn.execute("SELECT 1 FROM users WHERE email = ?", (owner_email,)).fetchone() is None:
+        trifork_row = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()
+        if trifork_row is not None:
+            import secrets as _secrets
+            from datetime import datetime as _datetime
+            from datetime import timezone as _timezone
+
+            from werkzeug.security import generate_password_hash as _generate_password_hash
+
+            username = owner_email.split("@", 1)[0]
+            if conn.execute("SELECT 1 FROM users WHERE username = ?", (username,)).fetchone() is not None:
+                username = f"{username}_owner"
+            temp_password = _secrets.token_urlsafe(12)
+            conn.execute(
+                "INSERT INTO users (username, password_hash, display_name, email, role, created_at, client_id) "
+                "VALUES (?, ?, 'Owner', ?, 'admin', ?, ?)",
+                (
+                    username,
+                    _generate_password_hash(temp_password),
+                    owner_email,
+                    _datetime.now(_timezone.utc).isoformat(),
+                    trifork_row["id"],
+                ),
+            )
+            print(
+                f"Created platform owner account -- username: {username}, email: {owner_email}, "
+                f"temporary password: {temp_password}"
+            )
