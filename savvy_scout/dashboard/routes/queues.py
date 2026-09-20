@@ -551,7 +551,17 @@ def opportunities():
     # sidebar, and notifications -- by explicit choice, even for the active
     # queues, even though a text-only Gate 5 (sector boundary) fail with an
     # out-of-range CPV won't show here.
-    in_scope_where, in_scope_params = in_scope_filter_sql(conn)
+    #
+    # Admin is the one exception (2026-09-20, explicit request): this page
+    # is the only "every trade and sector, not just what Trifork's pipeline
+    # is configured for" view in the app -- the sidebar/notification counts
+    # elsewhere stay in-scope-only (those represent an owner's actionable
+    # to-do list, a different concept from browsing the full sweep).
+    show_all_sectors = current_user.is_admin
+    if show_all_sectors:
+        in_scope_where, in_scope_params = "1=1", []
+    else:
+        in_scope_where, in_scope_params = in_scope_filter_sql(conn)
 
     query = f"""
         SELECT n.id, n.ref, n.title, n.buyer, n.owner, n.sector, n.status,
@@ -578,7 +588,7 @@ def opportunities():
     # so e.g. Mark's "Escalated" pill showed his own count but clicking it
     # actually listed every sector's escalated notices -- the pill and the
     # list it linked to disagreed. Victoria still sees everything.
-    if not current_user.is_account_approver:
+    if not (current_user.is_account_approver or current_user.is_admin):
         query += " AND n.owner = ?"
         params.append(current_user.display_name)
 
@@ -672,7 +682,7 @@ def opportunities():
     # main list above. Previously this counted every owner's notices
     # regardless of who was looking, so e.g. Hammad's "To Review" pill showed
     # the whole pipeline's count instead of just his own.
-    if current_user.is_account_approver:
+    if current_user.is_account_approver or current_user.is_admin:
         status_counts = {r[0]: r[1] for r in conn.execute(
             f"SELECT status, COUNT(*) FROM notices WHERE {in_scope_where} GROUP BY status",
             tuple(in_scope_params),
@@ -687,6 +697,7 @@ def opportunities():
         "opportunities.html",
         notices=notices,
         sectors=sectors,
+        show_all_sectors=show_all_sectors,
         status_counts=status_counts,
         status_filter=status_filter,
         sector_filter=sector_filter,

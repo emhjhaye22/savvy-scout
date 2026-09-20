@@ -17,9 +17,9 @@ def app(tmp_path):
     seed_all(setup_conn)
     trifork_id = setup_conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     setup_conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at, client_id) "
+        "INSERT INTO users (username, password_hash, display_name, is_admin, created_at, client_id) "
         "VALUES (?, ?, ?, ?, ?, ?)",
-        ("mark", generate_password_hash("testpass"), "Mark", 0, datetime.now(timezone.utc).isoformat(), trifork_id),
+        ("mark", generate_password_hash("testpass"), "Mark", 1, datetime.now(timezone.utc).isoformat(), trifork_id),
     )
     setup_conn.commit()
     setup_conn.close()
@@ -144,3 +144,45 @@ def test_opportunities_sort_toggle_defaults_to_priority_link_active(app):
     body = resp.data.decode()
     assert 'sort=\'priority\'' not in body  # sanity: not a raw unescaped literal
     assert "Priority" in body and "Newest" in body
+
+
+def test_admin_sees_every_sector_and_owner_by_default(app):
+    """2026-09-20 explicit request: Admin's All Opportunities view is the
+    one "every trade and sector ever swept" page in the app -- unlike a
+    sector owner (scoped to their own notices) or even Account Approver
+    (scoped to Trifork's configured sectors), Admin must see a notice with
+    no sector at all, owned by someone else entirely."""
+    conn = _db(app)
+    _insert_notice(conn, "REF-UNCLASSIFIED", "TO_REVIEW", title="Unclassified trade", sector=None, owner=None)
+    _insert_notice(conn, "REF-OTHER-OWNER", "TO_REVIEW", title="Other owner notice", owner="Someone Else")
+
+    client = _logged_in_client(app)
+    resp = client.get("/opportunities")
+    body = resp.data.decode()
+
+    assert "Unclassified trade" in body
+    assert "Other owner notice" in body
+    assert "every trade and sector ever swept" in body
+
+
+def test_non_admin_owner_stays_scoped_to_configured_sectors_and_own_notices(app):
+    """The widening above is Admin-only -- a regular sector owner must keep
+    seeing only their own notices, and Account Approver must keep seeing
+    only Trifork's configured scope, exactly as before."""
+    conn = _db(app)
+    conn.execute(
+        "INSERT INTO users (username, password_hash, display_name, role, created_at, client_id) "
+        "SELECT 'priya', ?, 'Priya', 'account_user', ?, client_id FROM users WHERE username = 'mark'",
+        (generate_password_hash("testpass"), datetime.now(timezone.utc).isoformat()),
+    )
+    conn.commit()
+    _insert_notice(conn, "REF-UNCLASSIFIED", "TO_REVIEW", title="Unclassified trade", sector=None, owner=None)
+    _insert_notice(conn, "REF-MARKS", "TO_REVIEW", title="Marks own notice", owner="Mark")
+
+    client = app.test_client()
+    client.post("/login", data={"username": "priya", "password": "testpass"})
+    resp = client.get("/opportunities")
+    body = resp.data.decode()
+
+    assert "Unclassified trade" not in body
+    assert "Marks own notice" not in body
