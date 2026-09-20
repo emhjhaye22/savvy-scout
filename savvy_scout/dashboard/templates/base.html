@@ -7,10 +7,28 @@
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/TenderSight-Icon.png') }}">
   <!-- Minimal line icons (2026-09-09): replaces emoji nav/status icons across
        the app -- flat, colorful emoji clash with a minimalist glass UI in a
-       way plain line icons in the current text color don't. -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+       way plain line icons in the current text color don't.
+
+       2026-09-20 fix: both this and the Inter font import below used to be
+       render-blocking (a plain <link rel="stylesheet"> and an @import
+       inside <style> respectively) -- a real production incident traced to
+       exactly this: on a slow or blocked connection to either CDN (observed
+       happening from one real user's network), the browser tab spun
+       indefinitely on EVERY page, even though the page content had already
+       rendered fine on the fallback font/no-icons state. Both loaded
+       non-blocking now via the media=print swap trick: the page finishes
+       loading immediately either way, icons/Inter swap in later if/when
+       they arrive. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap"
+        media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        media="print" onload="this.media='all'">
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  </noscript>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {

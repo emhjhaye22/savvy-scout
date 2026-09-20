@@ -11,8 +11,21 @@
       if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
     })();
   </script>
+  <!-- 2026-09-20 fix: a real production incident traced to this font load.
+       @import inside <style> is a render-blocking resource -- on a slow or
+       blocked connection to fonts.googleapis.com (observed happening from
+       one real user's network), the browser tab spun indefinitely even
+       though the page content had already rendered fine on the fallback
+       font stack below. Loaded as a non-blocking <link> instead: the page
+       renders immediately either way, and Inter swaps in later if/when it
+       arrives -- never blocks anything again. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap"
+        media="print" onload="this.media='all'">
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap">
+  </noscript>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
       /* Kept in sync with base.html's glassmorphism variables by hand
