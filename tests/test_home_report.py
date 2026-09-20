@@ -592,3 +592,49 @@ def test_overview_shows_cross_feature_tiles(tmp_path):
     assert re.search(r'<div class="stat-value">1</div>\s*<div class="stat-label">New signals this week</div>', html)
     assert re.search(r'<div class="stat-value">1</div>\s*<div class="stat-label">Competitors watched</div>', html)
     assert re.search(r'<div class="stat-value">1</div>\s*<div class="stat-label">Items shortlisted</div>', html)
+
+
+def test_admin_overview_counts_every_trade_and_sector(tmp_path):
+    """2026-09-20 explicit request: Admin's Overview KPIs (scouting_total
+    etc.) must include a notice with no sector at all -- the same
+    in_scope_filter_sql restriction fixed on queues.opportunities() applies
+    here too, since every KPI on this page reads from the same
+    in_scope_where/in_scope_params pair."""
+    db_path = str(tmp_path / "test.db")
+    setup_conn = get_connection(db_path)
+    init_db(setup_conn)
+    seed_all(setup_conn)
+    trifork_id = setup_conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
+    setup_conn.execute(
+        "INSERT INTO users (username, password_hash, display_name, is_admin, created_at, client_id) "
+        "VALUES (?, ?, ?, 1, ?, ?)",
+        ("mark", generate_password_hash("testpass"), "Mark", datetime.now(timezone.utc).isoformat(), trifork_id),
+    )
+    setup_conn.commit()
+
+    now = datetime.now(timezone.utc)
+    _insert_notice(setup_conn, "REF-IN-SCOPE", now.isoformat(), "Fintech")
+    _insert_notice(setup_conn, "REF-UNCLASSIFIED", now.isoformat(), sector=None)
+    setup_conn.commit()
+    setup_conn.close()
+
+    settings = Settings(
+        db_path=db_path,
+        lookback_days=7,
+        find_a_tender_base_url="",
+        contracts_finder_base_url="",
+        flask_secret_key="test-key",
+        ms_graph_tenant_id=None,
+        ms_graph_client_id=None,
+        ms_graph_client_secret=None,
+        ms_graph_sender_upn=None,
+    )
+    app = create_app(settings)
+    app.config["TESTING"] = True
+    app.config["WTF_CSRF_ENABLED"] = False
+    client = _logged_in_client(app, "mark")
+
+    html = client.get("/").get_data(as_text=True)
+
+    assert re.search(r'<div class="stat-value">2</div>\s*<div class="stat-label">Total scouted</div>', html)
+    assert "Admin view, every trade and sector ever swept" in html

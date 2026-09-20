@@ -456,7 +456,15 @@ def index():
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    in_scope_where, in_scope_params = in_scope_filter_sql(conn)
+    # Admin sees every trade/sector/CPV ever swept here too (2026-09-20,
+    # same rule as queues.opportunities()) -- every KPI below reads from
+    # this one in_scope_where/in_scope_params pair, so bypassing it here
+    # once is enough to cover the whole page for Admin.
+    show_all_sectors = current_user.is_admin
+    if show_all_sectors:
+        in_scope_where, in_scope_params = "1=1", []
+    else:
+        in_scope_where, in_scope_params = in_scope_filter_sql(conn)
 
     scouting_total = _count(conn, f"SELECT COUNT(*) FROM notices WHERE {in_scope_where}", tuple(in_scope_params))
     scouting_ytd = _count(
@@ -605,6 +613,7 @@ def index():
 
     return render_template(
         "home.html",
+        show_all_sectors=show_all_sectors,
         scouting_report=scouting_report,
         sector_performance=sector_performance,
         source_performance=source_performance,

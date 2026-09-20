@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Overview — TenderSight™{% endblock %}
 {% block page_title %}Overview{% endblock %}
-{% block page_subtitle %}<div class="topbar-subtitle">Scouting report</div>{% endblock %}
+{% block page_subtitle %}<div class="topbar-subtitle">Scouting report{% if show_all_sectors %} — Admin view, every trade and sector ever swept{% endif %}</div>{% endblock %}
 
 {% block content %}
 
