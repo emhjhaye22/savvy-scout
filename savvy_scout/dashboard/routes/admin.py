@@ -96,23 +96,16 @@ def _record_correction(conn, table_name: str, description: str, reason: str) -> 
     log_audit(conn, "config", table_name, "settings_change", current_user.display_name, reason)
 
 
-@admin_bp.route("/")
-@login_required
-def index():
-    # Merged page (2026-08-09): Config & Rules and Manage Users used to be
-    # two separate pages gated by two separate authorities, which read as
-    # "nothing changed" to anyone who only ever looked at the one they had
-    # access to. Now anyone with either authority can land on this one page;
-    # each section below still only renders/acts for the authority that
-    # actually owns it -- Sectors & Rules for Victoria/Mark, Manage Users
-    # for Mark (is_admin) -- so the underlying permission split is unchanged,
-    # just physically co-located.
-    if not (_has_correction_authority() or _is_super_admin()):
-        flash("Only Victoria or the admin account can access this page.", "error")
-        return redirect(url_for("queues.index"))
-    conn = get_db()
-    has_correction = _has_correction_authority()
-    is_admin = _is_super_admin()
+def _build_admin_context(conn, has_correction, is_admin) -> dict:
+    """Every piece of context admin.html needs to render, for a given pair
+    of authorities. Extracted (2026-09-20) so a failed add_row/update_row/
+    add_client/update_client_filter submission can re-render the full page
+    in place with the offending values still filled in, instead of
+    redirecting to a fresh GET of index() and discarding everything the
+    user just typed -- previously the only thing these four handlers ever
+    computed for themselves was the one table/client they were posting to,
+    not the ~8-query page context index() builds, so a redirect was the
+    only viable failure path they had."""
     # Skip querying every config table entirely for an is_admin-only visitor
     # (Mark, with no correction authority) -- those sections aren't rendered
     # for them at all, so fetching every row of every config table on each
@@ -178,21 +171,57 @@ def index():
         }
         if has_correction else {}
     )
-    return render_template(
-        "admin.html",
-        tables=tables,
-        editable_columns=editable_columns,
-        corrections=corrections,
-        groups=TABLE_GROUPS,
-        users=users,
-        has_correction_authority=has_correction,
-        is_super_admin=is_admin,
-        owner_choices=owner_choices,
-        owner_contacts=owner_contacts,
-        can_create_users=is_admin,
-        clients=clients,
-        all_clients=all_clients,
-    )
+    return {
+        "tables": tables,
+        "editable_columns": editable_columns,
+        "corrections": corrections,
+        "groups": TABLE_GROUPS,
+        "users": users,
+        "has_correction_authority": has_correction,
+        "is_super_admin": is_admin,
+        "owner_choices": owner_choices,
+        "owner_contacts": owner_contacts,
+        "can_create_users": is_admin,
+        "clients": clients,
+        "all_clients": all_clients,
+    }
+
+
+@admin_bp.route("/")
+@login_required
+def index():
+    # Merged page (2026-08-09): Config & Rules and Manage Users used to be
+    # two separate pages gated by two separate authorities, which read as
+    # "nothing changed" to anyone who only ever looked at the one they had
+    # access to. Now anyone with either authority can land on this one page;
+    # each section below still only renders/acts for the authority that
+    # actually owns it -- Sectors & Rules for Victoria/Mark, Manage Users
+    # for Mark (is_admin) -- so the underlying permission split is unchanged,
+    # just physically co-located.
+    if not (_has_correction_authority() or _is_super_admin()):
+        flash("Only Victoria or the admin account can access this page.", "error")
+        return redirect(url_for("queues.index"))
+    conn = get_db()
+    context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
+    return render_template("admin.html", **context)
+
+
+def _row_form_error(table_name: str, row_id: int | None = None) -> dict:
+    """What admin.html needs to redisplay a specific row's just-submitted
+    (but rejected) values in place, instead of the row reverting to its
+    last-saved values on a redirect (2026-09-20) -- e.g. forgetting the
+    required reason no longer wipes every other field on that row.
+    row_id=None means this is the "add a new row" form for table_name,
+    not an edit of an existing row."""
+    return {
+        "table_name": table_name,
+        "row_id": row_id,
+        # "fields", not "values" -- a plain dict already has a built-in
+        # .values() method, which Jinja's dot-attribute lookup resolves to
+        # BEFORE falling back to item access, silently shadowing a
+        # same-named dict key instead of raising.
+        "fields": {k: v for k, v in request.form.items() if k != "csrf_token"},
+    }
 
 
 @admin_bp.route("/config/<table_name>/<int:row_id>/update", methods=["POST"])
@@ -205,12 +234,14 @@ def update_row(table_name, row_id):
         flash("Unknown config table.", "error")
         return redirect(url_for("admin.index"))
 
+    conn = get_db()
+
     reason = request.form.get("reason", "")
     if not reason.strip():
         flash("A reason is required for every rule correction.", "error")
-        return redirect(url_for("admin.index"))
+        context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
+        return render_template("admin.html", **context, row_form_error=_row_form_error(table_name, row_id))
 
-    conn = get_db()
     editable_names = {col["name"] for col in _table_schema(conn, table_name)}
     columns = [c for c in request.form if c != "reason" and c in editable_names]
     # A sector's name is its identity everywhere else (config_sector_keywords,
@@ -223,7 +254,8 @@ def update_row(table_name, row_id):
         columns.remove("sector")
     if not columns:
         flash("No recognised fields submitted.", "error")
-        return redirect(url_for("admin.index"))
+        context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
+        return render_template("admin.html", **context, row_form_error=_row_form_error(table_name, row_id))
 
     # Ownership transfer (2026-08-09): the person owning a sector may change,
     # but its existing notices shouldn't silently strand under the old
@@ -410,12 +442,14 @@ def add_row(table_name):
         flash("Unknown config table.", "error")
         return redirect(url_for("admin.index"))
 
+    conn = get_db()
+
     reason = request.form.get("reason", "")
     if not reason.strip():
         flash("A reason is required for every rule correction.", "error")
-        return redirect(url_for("admin.index"))
+        context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
+        return render_template("admin.html", **context, row_form_error=_row_form_error(table_name))
 
-    conn = get_db()
     schema = _table_schema(conn, table_name)
 
     values_by_column = {}
@@ -429,10 +463,12 @@ def add_row(table_name):
 
     if missing_required:
         flash(f"Missing required field(s): {', '.join(missing_required)}.", "error")
-        return redirect(url_for("admin.index"))
+        context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
+        return render_template("admin.html", **context, row_form_error=_row_form_error(table_name))
     if not values_by_column:
         flash("Enter at least one field to add a new row.", "error")
-        return redirect(url_for("admin.index"))
+        context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
+        return render_template("admin.html", **context, row_form_error=_row_form_error(table_name))
 
     all_column_names = {row["name"] for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()}
     now = datetime.now(timezone.utc).isoformat()
@@ -773,6 +809,23 @@ def _client_filter_from_form() -> dict:
     }
 
 
+def _client_form_error(name: str, f: dict) -> dict:
+    """Reshapes _client_filter_from_form()'s output (lists, for matching)
+    back into what the Add-a-client form's text inputs need to redisplay
+    what was just typed on a failed submit (2026-09-20) -- previously
+    every failure branch below redirected to a blank form, discarding all
+    7 fields on any single mistake (a duplicate name, an empty filter)."""
+    return {
+        "name": name,
+        "cpv_prefixes": ", ".join(f["cpv_prefixes"]),
+        "keywords": ", ".join(f["keywords"]),
+        "regions": ", ".join(f["regions"]),
+        "notice_types": f["notice_types"],
+        "min_value": f["min_value"],
+        "max_value": f["max_value"],
+    }
+
+
 @admin_bp.route("/clients/add", methods=["POST"])
 @login_required
 def add_client():
@@ -781,27 +834,32 @@ def add_client():
         return redirect(url_for("queues.index"))
 
     name = request.form.get("name", "").strip()
+    f = _client_filter_from_form()
+    conn = get_db()
+
     if not name:
         flash("Client name is required.", "error")
-        return redirect(url_for("admin.index") + "#group-clients")
+        context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
+        return render_template("admin.html", **context, client_form_error=_client_form_error(name, f))
     if name == "Trifork":
         flash('"Trifork" is reserved for the existing account.', "error")
-        return redirect(url_for("admin.index") + "#group-clients")
+        context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
+        return render_template("admin.html", **context, client_form_error=_client_form_error(name, f))
 
-    f = _client_filter_from_form()
     if client_filter_is_empty(f):
         flash(
             "At least one filter field (CPV prefix, keyword, notice type, region, or value) "
             "is required -- an empty filter would match every notice in the backlog.",
             "error",
         )
-        return redirect(url_for("admin.index") + "#group-clients")
+        context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
+        return render_template("admin.html", **context, client_form_error=_client_form_error(name, f))
 
-    conn = get_db()
     existing = conn.execute("SELECT 1 FROM clients WHERE name = ?", (name,)).fetchone()
     if existing:
         flash(f'A client named "{name}" already exists.', "error")
-        return redirect(url_for("admin.index") + "#group-clients")
+        context = _build_admin_context(conn, _has_correction_authority(), _is_super_admin())
+        return render_template("admin.html", **context, client_form_error=_client_form_error(name, f))
 
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
@@ -841,6 +899,13 @@ def update_client_filter(client_id):
 
     f = _client_filter_from_form()
     if client_filter_is_empty(f):
+        # No client_form_error/re-render here (2026-09-20): unlike add_row/
+        # update_row/add_client, this route's only failure mode is "every
+        # field was left blank" -- there's no partially-correct submission
+        # to lose, since any single non-blank field passes. Redirecting to
+        # index() already shows the real, unchanged, non-empty filter still
+        # in the database; showing the just-submitted (all-blank) values
+        # instead would incorrectly suggest the filter had been cleared.
         flash(
             "At least one filter field (CPV prefix, keyword, notice type, region, or value) "
             "is required -- an empty filter would match every notice in the backlog. "

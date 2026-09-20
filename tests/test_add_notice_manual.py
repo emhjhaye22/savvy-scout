@@ -64,6 +64,32 @@ def test_add_notice_manual_requires_title(mark_client):
     assert b"Title is required" in resp.data
 
 
+def test_add_notice_manual_preserves_typed_fields_on_failure(mark_client):
+    """2026-09-20: this used to redirect to a blank form on the one thing
+    it validates (title), silently discarding every other field already
+    typed -- buyer, description, etc. Now re-renders in place instead."""
+    resp = mark_client.post(
+        "/notices/add-manual",
+        data={
+            "title": "",
+            "buyer": "Some NI Council",
+            "ref": "MY-REF-1",
+            "notice_url": "https://etendersni.gov.uk/example",
+            "deadline": "2026-12-01",
+            "uk_stage": "UK4",
+            "description": "a description that must not be lost",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    assert 'value="Some NI Council"' in body
+    assert 'value="MY-REF-1"' in body
+    assert 'value="https://etendersni.gov.uk/example"' in body
+    assert 'value="2026-12-01"' in body
+    assert "a description that must not be lost" in body
+    assert '<option value="UK4" selected>' in body
+
+
 def test_add_notice_manual_creates_and_triages_a_notice(app, mark_client):
     resp = mark_client.post(
         "/notices/add-manual",

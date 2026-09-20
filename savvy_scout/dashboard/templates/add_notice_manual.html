@@ -35,38 +35,44 @@
 <div class="manual-form-card">
   <form method="POST">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {# Pre-filled from request.form on a failed submit (2026-09-20) -- this
+       used to redirect to a blank form on the one thing it validates
+       (title), silently discarding everything else already typed. Empty
+       on a plain GET, since request.form is empty then. #}
     <div class="field">
       <label for="title">Title *</label>
-      <input type="text" id="title" name="title" required>
+      <input type="text" id="title" name="title" value="{{ request.form.get('title', '') }}" required>
     </div>
     <div class="field">
       <label for="buyer">Buyer</label>
-      <input type="text" id="buyer" name="buyer">
+      <input type="text" id="buyer" name="buyer" value="{{ request.form.get('buyer', '') }}">
     </div>
     <div class="field">
       <label for="ref">Notice reference</label>
-      <input type="text" id="ref" name="ref" placeholder="Leave blank to auto-generate">
+      <input type="text" id="ref" name="ref" placeholder="Leave blank to auto-generate" value="{{ request.form.get('ref', '') }}">
     </div>
     <div class="field">
       <label for="notice_url">Notice link</label>
-      <input type="text" id="notice_url" name="notice_url" placeholder="https://etendersni.gov.uk/...">
+      <input type="text" id="notice_url" name="notice_url" placeholder="https://etendersni.gov.uk/..." value="{{ request.form.get('notice_url', '') }}">
     </div>
     <div class="field">
       <label for="deadline">Deadline</label>
-      <input type="date" id="deadline" name="deadline">
+      <input type="date" id="deadline" name="deadline" value="{{ request.form.get('deadline', '') }}">
     </div>
     <div class="field">
       <label for="uk_stage">Stage</label>
+      {% set submitted_stage = request.form.get('uk_stage', 'UK3') %}
       <select id="uk_stage" name="uk_stage">
-        <option value="UK1">UK1 — Pipeline</option>
-        <option value="UK2">UK2 — Preliminary market engagement</option>
-        <option value="UK3" selected>UK3 — Planned procurement</option>
-        <option value="UK4">UK4 — Tender</option>
+        <option value="UK1" {% if submitted_stage == 'UK1' %}selected{% endif %}>UK1 — Pipeline</option>
+        <option value="UK2" {% if submitted_stage == 'UK2' %}selected{% endif %}>UK2 — Preliminary market engagement</option>
+        <option value="UK3" {% if submitted_stage == 'UK3' %}selected{% endif %}>UK3 — Planned procurement</option>
+        <option value="UK4" {% if submitted_stage == 'UK4' %}selected{% endif %}>UK4 — Tender</option>
+        <option value="UK5" {% if submitted_stage == 'UK5' %}selected{% endif %}>UK5 — Award</option>
       </select>
     </div>
     <div class="field">
       <label for="description">Description</label>
-      <textarea id="description" name="description" placeholder="Paste the notice text or a summary — this is what Gate 2's type-of-work matching reads."></textarea>
+      <textarea id="description" name="description" placeholder="Paste the notice text or a summary — this is what Gate 2's type-of-work matching reads.">{{ request.form.get('description', '') }}</textarea>
       <div class="manual-form-hint">Used for sector/type-of-work keyword matching, same as an automated sweep's notice text.</div>
     </div>
     <button type="submit" class="btn btn-approve">Add and triage</button>

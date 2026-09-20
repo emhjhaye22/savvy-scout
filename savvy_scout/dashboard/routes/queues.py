@@ -153,7 +153,7 @@ def add_notice_manual():
         title = request.form.get("title", "").strip()
         if not title:
             flash("Title is required.", "error")
-            return redirect(url_for("queues.add_notice_manual"))
+            return render_template("add_notice_manual.html")
 
         buyer = request.form.get("buyer", "").strip() or None
         notice_url = request.form.get("notice_url", "").strip() or None

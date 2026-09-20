@@ -147,6 +147,20 @@ def test_add_row_rejects_missing_required_field(victoria_client, app):
     assert row is None
 
 
+def test_add_row_preserves_typed_fields_on_failure(victoria_client):
+    """2026-09-20: a missing required field used to redirect to a blank
+    index() page, discarding every other field already typed on that row."""
+    resp = victoria_client.post(
+        "/admin/config/config_sector_keywords/add",
+        data={"sector": "Fintech", "reason": "test"},  # 'keyword' missing
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    assert 'value="Fintech"' in body
+    assert 'value="test"' in body
+
+
 def test_add_row_denied_for_non_correction_authority(testuser_client, app):
     testuser_client.post(
         "/admin/config/config_sector_keywords/add",
@@ -180,6 +194,23 @@ def test_update_row_stamps_updated_by_and_at(victoria_client, app):
     updated = conn.execute("SELECT * FROM config_owner_map WHERE id = ?", (row["id"],)).fetchone()
     assert updated["updated_by"] == "Victoria"
     assert updated["updated_at"] != row["updated_at"]
+
+
+def test_update_row_requires_reason_and_preserves_typed_fields(victoria_client, app):
+    conn = _db(app)
+    row = conn.execute("SELECT * FROM config_sector_keywords WHERE sector = 'Fintech'").fetchone()
+
+    resp = victoria_client.post(
+        f"/admin/config/config_sector_keywords/{row['id']}/update",
+        data={"sector": "Fintech", "keyword": "A brand new keyword"},  # no reason
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert b"reason is required" in resp.data.lower()
+    assert b"A brand new keyword" in resp.data
+
+    unchanged = conn.execute("SELECT * FROM config_sector_keywords WHERE id = ?", (row["id"],)).fetchone()
+    assert unchanged["keyword"] == row["keyword"]  # not actually saved
 
 
 def test_delete_row_removes_row_and_logs_correction(victoria_client, app):

@@ -19,18 +19,6 @@
   .ci-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
   .ci-tab:hover:not(.active) { color: var(--text); }
 
-  .ci-sector-chip { font-size: 10.5px; padding: 2px 6px; border-radius: 4px; background: var(--surface-alt); color: var(--text); }
-
-  .buyer-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .buyer-table thead th {
-    padding: 10px 14px; background: var(--surface-alt); border-bottom: 2px solid var(--border);
-    text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.5px; color: var(--text-muted);
-  }
-  .buyer-table tbody tr { border-bottom: 1px solid var(--border); }
-  .buyer-table tbody tr:hover { background: var(--surface-alt); }
-  .buyer-table td { padding: 10px 14px; vertical-align: middle; }
-
   .ci-watch-cell-btn {
     width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border);
     background: var(--surface-alt); color: var(--text-muted); cursor: pointer; font-size: 13px;
@@ -65,7 +53,7 @@
     {% endif %}
   </div>
   <div class="card" style="overflow-x: auto;">
-    <table class="buyer-table">
+    <table class="app-table">
       <thead>
         <tr><th></th><th>Competitor</th><th>Sectors</th><th>Awards won</th><th>Recorded value</th><th>Last win</th></tr>
       </thead>
@@ -85,7 +73,7 @@
               <a class="ci-name-link" href="{{ url_for('competitor_intel.detail', name=c.supplier_name) }}">{{ c.supplier_name }}</a>
               {% if show_all and not c.relevant %}<div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Not Trifork's type of work</div>{% endif %}
             </td>
-            <td>{% for s in c.sectors %}<span class="ci-sector-chip">{{ s }}</span>{% endfor %}</td>
+            <td>{% for s in c.sectors %}<span class="chip">{{ s }}</span>{% endfor %}</td>
             <td>{{ c.award_count }}</td>
             <td style="color:var(--text-muted); white-space:nowrap;">
               {% if c.priced_count %}
@@ -97,7 +85,7 @@
           </tr>
           {% endfor %}
         {% else %}
-          <tr><td colspan="6" style="text-align:center; padding:40px; color:var(--text-muted);">No award notices with a named supplier found in tracked sectors yet.</td></tr>
+          <tr class="empty-row"><td colspan="6">No award notices with a named supplier found in tracked sectors yet.</td></tr>
         {% endif %}
       </tbody>
     </table>
@@ -111,7 +99,7 @@
     {% endif %}
   </div>
   <div class="card" style="overflow-x: auto;">
-    <table class="buyer-table">
+    <table class="app-table">
       <thead>
         <tr><th>Buyer</th><th>Sectors</th><th>Notices seen</th><th>Last activity</th></tr>
       </thead>
@@ -123,13 +111,13 @@
               {{ b.buyer }}
               {% if show_all and not b.relevant %}<div style="font-size:10px; color:var(--text-muted); font-weight:400; margin-top:2px;">Not Trifork's type of work</div>{% endif %}
             </td>
-            <td>{% for s in b.sectors %}<span class="ci-sector-chip">{{ s }}</span>{% endfor %}</td>
+            <td>{% for s in b.sectors %}<span class="chip">{{ s }}</span>{% endfor %}</td>
             <td style="color:var(--text-muted);">{{ b.notice_count }}</td>
             <td style="color:var(--text-muted); white-space:nowrap;">{{ b.last_activity[:10] if b.last_activity else '—' }}</td>
           </tr>
           {% endfor %}
         {% else %}
-          <tr><td colspan="4" style="text-align:center; padding:40px; color:var(--text-muted);">No buyer activity found in tracked sectors yet.</td></tr>
+          <tr class="empty-row"><td colspan="4">No buyer activity found in tracked sectors yet.</td></tr>
         {% endif %}
       </tbody>
     </table>

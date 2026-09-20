@@ -208,8 +208,8 @@ def test_matched_notice_defaults_to_new_status(app):
 
     resp = client.get(f"/admin/clients/{client_id}/matches")
     table_body = resp.data.decode().split("<tbody>", 1)[1]
-    assert "cna-status-NEW" in table_body
-    assert "cna-status-SHORTLISTED" not in table_body
+    assert ">New<" in table_body
+    assert "badge-pass" not in table_body
 
 
 def test_set_client_notice_status_to_shortlisted_with_note(app):
@@ -311,6 +311,22 @@ def test_add_client_rejects_empty_filter(app):
     assert conn.execute("SELECT * FROM clients WHERE name = 'Acme Construction'").fetchone() is None
 
 
+def test_add_client_preserves_typed_fields_on_failure(app):
+    """2026-09-20: any failure here used to redirect to a blank form,
+    discarding all 7 fields on a single mistake -- e.g. forgetting the
+    name after carefully filling in the filter."""
+    client = _admin_client(app)
+    resp = client.post(
+        "/admin/clients/add",
+        data={"name": "", "keywords": "construction, building works"},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    assert b"Client name is required" in resp.data
+    assert 'value="construction, building works"' in body
+
+
 def test_update_client_filter_rejects_empty_filter(app):
     conn = _db(app)
     client = _admin_client(app)
@@ -320,6 +336,22 @@ def test_update_client_filter_rejects_empty_filter(app):
     assert b"filter field" in resp.data
     filter_row = conn.execute("SELECT * FROM client_filters WHERE client_id = ?", (client_id,)).fetchone()
     assert json.loads(filter_row["cpv_prefixes"]) == ["45"]  # unchanged from _add_client_and_get_id's default
+
+
+def test_update_client_filter_empty_submission_still_shows_real_unchanged_filter(app):
+    """2026-09-20: unlike add_row/update_row/add_client, this route's only
+    failure is "every field was left blank" -- there's no partially-typed
+    submission to preserve (any single non-blank field would have
+    succeeded instead). The redirect back to index() must keep showing the
+    filter that's actually still saved (cpv_prefixes "45"), not a blank
+    one matching what was just (mistakenly) submitted."""
+    conn = _db(app)
+    client = _admin_client(app)
+    client_id = _add_client_and_get_id(client, conn)  # seeds cpv_prefixes=["45"]
+
+    resp = client.post(f"/admin/clients/{client_id}/update-filter", data={}, follow_redirects=True)
+    assert resp.status_code == 200
+    assert 'value="45"' in resp.data.decode()
 
 
 def test_add_user_defaults_to_trifork_when_no_client_id_given(app):

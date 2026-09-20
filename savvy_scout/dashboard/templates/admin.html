@@ -31,13 +31,12 @@
     border: 1px solid var(--border); border-radius: 6px; font-family: var(--font);
   }
   .admin-search:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(174,30,35,0.1); }
-  .admin-table input[type="text"] {
-    width: 100%; min-width: 90px; padding: 6px 8px; font-size: 12.5px;
-    border: 1px solid var(--border); border-radius: 5px; font-family: var(--font);
-  }
-  .admin-table input[type="text"]:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(174,30,35,0.1); }
-  .admin-table td.reason-col input { min-width: 140px; }
-  .admin-table td.actions-cell { display: flex; gap: 6px; white-space: nowrap; }
+  /* Text-input sizing itself now comes from base.html's shared
+     .app-table--dense (2026-09-20) -- these two are specific to this
+     page's own column semantics (a reason column, a multi-button actions
+     cell), not a general table concern, so they stay page-local. */
+  .app-table--dense td.reason-col input { min-width: 140px; }
+  .app-table--dense td.actions-cell { display: flex; gap: 6px; white-space: nowrap; }
   .admin-empty-row { display: none; }
 </style>
 
@@ -94,7 +93,7 @@
       <input type="text" class="admin-search" data-target="table-{{ table_name }}" placeholder="Search {{ table_name | replace('_', ' ') }}&hellip;">
     </div>
     <div style="overflow-x: auto;">
-    <table class="data-table admin-table" id="table-{{ table_name }}">
+    <table class="app-table app-table--dense" id="table-{{ table_name }}">
       <thead>
         <tr>
           {% for col in columns %}<th>{{ col['name'] }}{% if col['required'] %} *{% endif %}</th>{% endfor %}
@@ -104,6 +103,15 @@
       </thead>
       <tbody>
       {% for row in rows %}
+      {# Re-filled from a failed submit (2026-09-20) -- previously any
+         rejected save (missing reason, unrecognised fields) redirected to
+         index() and every row reverted to its last-saved values, wiping
+         whatever was just typed. Only plain text columns are restored this
+         way; config_owner_map's sector/owner cells keep their normal
+         DB-backed rendering even on failure -- correctly restoring the
+         owner picker's create-new-person sub-fields isn't worth the
+         complexity for how rarely that specific combination fails. #}
+      {% set row_failed = row_form_error and row_form_error.table_name == table_name and row_form_error.row_id == row['id'] %}
       <tr class="admin-data-row">
         <form method="post" action="{{ url_for('admin.assign_owner', row_id=row['id']) if table_name == 'config_owner_map' else url_for('admin.update_row', table_name=table_name, row_id=row['id']) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -133,10 +141,10 @@
               </div>
             </td>
             {% else %}
-            <td><input type="text" name="{{ col['name'] }}" value="{{ row[col['name']] if row[col['name']] is not none else '' }}"></td>
+            <td><input type="text" name="{{ col['name'] }}" value="{{ row_form_error.fields.get(col['name'], '') if row_failed else (row[col['name']] if row[col['name']] is not none else '') }}"></td>
             {% endif %}
           {% endfor %}
-          <td class="reason-col"><input type="text" name="reason" placeholder="Reason required" required></td>
+          <td class="reason-col"><input type="text" name="reason" placeholder="Reason required" value="{{ row_form_error.fields.get('reason', '') if row_failed else '' }}" required></td>
           <td class="actions-cell">
             <button type="submit" class="btn btn-secondary btn-sm">Save</button>
             <button
@@ -152,13 +160,14 @@
       <tr class="admin-empty-row">
         <td colspan="{{ columns | length + 2 }}" style="text-align: center; color: var(--text-muted); padding: 16px;">No rows match your search.</td>
       </tr>
+      {% set add_failed = row_form_error and row_form_error.table_name == table_name and row_form_error.row_id is none %}
       <tr style="background: rgba(47,93,138,0.08);" class="admin-add-row">
         <form method="post" action="{{ url_for('admin.add_row', table_name=table_name) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {% for col in columns %}
-            <td><input type="text" name="{{ col['name'] }}" placeholder="{{ col['name'] }}{% if col['required'] %} *{% endif %}"></td>
+            <td><input type="text" name="{{ col['name'] }}" placeholder="{{ col['name'] }}{% if col['required'] %} *{% endif %}" value="{{ row_form_error.fields.get(col['name'], '') if add_failed else '' }}"></td>
           {% endfor %}
-          <td class="reason-col"><input type="text" name="reason" placeholder="Reason for adding" required></td>
+          <td class="reason-col"><input type="text" name="reason" placeholder="Reason for adding" value="{{ row_form_error.fields.get('reason', '') if add_failed else '' }}" required></td>
           <td><button type="submit" class="btn btn-approve btn-sm">+ Add</button></td>
         </form>
       </tr>
@@ -175,7 +184,7 @@
     <h2>Rule Correction Log</h2>
   </div>
   <div style="overflow-x: auto;">
-  <table class="data-table">
+  <table class="app-table">
     <thead>
       <tr>
         <th>When</th><th>By</th><th>Table</th><th>Description</th><th>Reason</th>
@@ -192,7 +201,7 @@
       </tr>
     {% endfor %}
     {% if not corrections %}
-    <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">No corrections logged yet.</td></tr>
+    <tr class="empty-row"><td colspan="5">No corrections logged yet.</td></tr>
     {% endif %}
     </tbody>
   </table>
@@ -276,7 +285,7 @@
     <span class="badge badge-count" style="background: var(--info);">{{ users | length }}</span>
   </div>
   <div style="overflow-x: auto;">
-  <table class="data-table">
+  <table class="app-table">
     <thead>
       <tr>
         <th>Display name</th>
@@ -318,16 +327,18 @@
           {% endif %}
           <form method="post" action="{{ url_for('admin.reset_user_password', user_id=user['id']) }}" style="display: inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Reset {{ user['display_name'] }}\'s password and re-send the invite email?');">Reset password</button>
+            <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Reset this account\'s password and re-send the invite email?');">Reset password</button>
           </form>
           {% if user['id']|string != current_user.id %}
           <form method="post" action="{{ url_for('admin.delete_user', user_id=user['id']) }}" style="display: inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-reject btn-sm" onclick="return confirm('Remove {{ user['display_name'] }}\'s account? This cannot be undone.');">Remove</button>
+            <button type="submit" class="btn btn-reject btn-sm" onclick="return confirm('Remove this account? This cannot be undone.');">Remove</button>
           </form>
           {% endif %}
         </td>
       </tr>
+    {% else %}
+      <tr class="empty-row"><td colspan="8">No accounts yet.</td></tr>
     {% endfor %}
     </tbody>
   </table>
@@ -357,30 +368,34 @@
   <div class="card-body">
     <form method="post" action="{{ url_for('admin.add_client') }}" style="display: flex; flex-direction: column; gap: 12px;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {# Re-filled from a failed submit (2026-09-20) -- this used to redirect
+         to a blank form on any validation failure (empty name, empty
+         filter, duplicate name), discarding all 7 fields every time. #}
       <div>
         <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Client name</label>
-        <input type="text" name="name" placeholder="e.g. Acme Construction" required style="width: 260px;">
+        <input type="text" name="name" placeholder="e.g. Acme Construction" required style="width: 260px;" value="{{ client_form_error.name if client_form_error else '' }}">
       </div>
       <div style="display: flex; gap: 12px; flex-wrap: wrap;">
         <div>
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">CPV prefixes (comma-separated)</label>
-          <input type="text" name="cpv_prefixes" placeholder="e.g. 45, 71" style="width: 220px;">
+          <input type="text" name="cpv_prefixes" placeholder="e.g. 45, 71" style="width: 220px;" value="{{ client_form_error.cpv_prefixes if client_form_error else '' }}">
         </div>
         <div>
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Keywords (comma-separated)</label>
-          <input type="text" name="keywords" placeholder="e.g. construction, building works" style="width: 260px;">
+          <input type="text" name="keywords" placeholder="e.g. construction, building works" style="width: 260px;" value="{{ client_form_error.keywords if client_form_error else '' }}">
         </div>
         <div>
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Regions (comma-separated)</label>
-          <input type="text" name="regions" placeholder="e.g. London, North West" style="width: 220px;">
+          <input type="text" name="regions" placeholder="e.g. London, North West" style="width: 220px;" value="{{ client_form_error.regions if client_form_error else '' }}">
         </div>
       </div>
       <div>
         <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Notice types</label>
         <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+          {% set submitted_types = client_form_error.notice_types if client_form_error else [] %}
           {% for stage in ['UK1', 'UK2', 'UK3', 'UK4', 'UK5'] %}
           <label style="display: flex; align-items: center; gap: 5px; font-size: 13px;">
-            <input type="checkbox" name="notice_types" value="{{ stage }}"> {{ stage }}
+            <input type="checkbox" name="notice_types" value="{{ stage }}" {% if stage in submitted_types %}checked{% endif %}> {{ stage }}
           </label>
           {% endfor %}
         </div>
@@ -388,11 +403,11 @@
       <div style="display: flex; gap: 12px; align-items: flex-end;">
         <div>
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Min value (£)</label>
-          <input type="number" name="min_value" step="0.01" style="width: 140px;">
+          <input type="number" name="min_value" step="0.01" style="width: 140px;" value="{{ client_form_error.min_value if client_form_error and client_form_error.min_value is not none else '' }}">
         </div>
         <div>
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Max value (£)</label>
-          <input type="number" name="max_value" step="0.01" style="width: 140px;">
+          <input type="number" name="max_value" step="0.01" style="width: 140px;" value="{{ client_form_error.max_value if client_form_error and client_form_error.max_value is not none else '' }}">
         </div>
         <button type="submit" class="btn btn-approve">+ Add client</button>
       </div>
@@ -406,7 +421,7 @@
     <span class="badge badge-count" style="background: var(--info);">{{ clients | length }}</span>
   </div>
   <div style="overflow-x: auto;">
-  <table class="data-table">
+  <table class="app-table">
     <thead>
       <tr>
         <th>Name</th>
@@ -427,12 +442,17 @@
           <a href="{{ url_for('admin.client_matches', client_id=entry.client.id) }}">{{ entry.match_count }} matched</a>
         </td>
         <td>
+          {# Examples restored (2026-09-20) to match the "Add a client" form
+             above -- they'd been dropped here even though it's the same
+             fields. No failed-submission preservation needed: the only
+             validation here is "every field was left blank," which just
+             redirects back to this same unchanged, non-empty filter. #}
           <form method="post" action="{{ url_for('admin.update_client_filter', client_id=entry.client.id) }}" style="display: flex; flex-direction: column; gap: 6px;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-              <input type="text" name="cpv_prefixes" value="{{ entry.filter.cpv_prefixes | from_json | join(', ') if entry.filter else '' }}" placeholder="CPV prefixes" style="font-size: 12px; padding: 4px 6px; width: 140px;">
-              <input type="text" name="keywords" value="{{ entry.filter.keywords | from_json | join(', ') if entry.filter else '' }}" placeholder="Keywords" style="font-size: 12px; padding: 4px 6px; width: 160px;">
-              <input type="text" name="regions" value="{{ entry.filter.regions | from_json | join(', ') if entry.filter else '' }}" placeholder="Regions" style="font-size: 12px; padding: 4px 6px; width: 140px;">
+              <input type="text" name="cpv_prefixes" value="{{ entry.filter.cpv_prefixes | from_json | join(', ') if entry.filter else '' }}" placeholder="e.g. 45, 71" style="font-size: 12px; padding: 4px 6px; width: 140px;">
+              <input type="text" name="keywords" value="{{ entry.filter.keywords | from_json | join(', ') if entry.filter else '' }}" placeholder="e.g. construction, building works" style="font-size: 12px; padding: 4px 6px; width: 160px;">
+              <input type="text" name="regions" value="{{ entry.filter.regions | from_json | join(', ') if entry.filter else '' }}" placeholder="e.g. London, North West" style="font-size: 12px; padding: 4px 6px; width: 140px;">
             </div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
               {% set configured_types = entry.filter.notice_types | from_json if entry.filter else [] %}
@@ -450,12 +470,16 @@
         <td class="actions-col">
           <form method="post" action="{{ url_for('admin.toggle_client_active', client_id=entry.client.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-secondary btn-sm">{{ 'Pause' if entry.client.is_active else 'Reactivate' }}</button>
+            {% if entry.client.is_active %}
+            <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Pause this client? Their matching pipeline stops evaluating new notices until reactivated.');">Pause</button>
+            {% else %}
+            <button type="submit" class="btn btn-secondary btn-sm">Reactivate</button>
+            {% endif %}
           </form>
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No clients added yet.</td></tr>
+      <tr class="empty-row"><td colspan="5">No clients added yet.</td></tr>
     {% endfor %}
     </tbody>
   </table>

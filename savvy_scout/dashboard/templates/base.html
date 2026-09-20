@@ -552,27 +552,56 @@
     .badge-stage   { background: var(--surface-alt); border-color: var(--border); color: var(--text-muted); }
 
     /* ---- TABLE ---- */
-    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .data-table thead th {
-      padding: 10px 12px; text-align: left;
+    /* ---- SHARED TABLE (2026-09-20) ----
+       One table recipe for the whole app, replacing 8 hand-copied variants
+       that had drifted by accident (1-2px padding, 12px vs 13px text,
+       hover present on some but not others) rather than by any real
+       functional difference. .app-table--sticky opts into a sticky header
+       (previously Opportunities-only); .app-table--dense opts into the
+       tighter padding the config-editor grids on /admin need (previously
+       a separate .admin-table class). Home's performance panels keep
+       their own .perf-table -- that density is deliberate and already
+       documented there, not accidental drift. */
+    .app-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .app-table thead th {
+      padding: 10px 14px; text-align: left;
       background: var(--surface-alt); border-bottom: 2px solid var(--border);
       font-size: 11px; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.5px; color: var(--text-muted); white-space: nowrap;
     }
-    .data-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
-    .data-table tbody tr:hover { background: var(--surface-alt); }
-    .data-table td { padding: 11px 12px; vertical-align: middle; }
-    .data-table td.ref-col { font-family: monospace; font-size: 12px; color: var(--text-muted); }
-    .data-table td.title-col { font-weight: 600; max-width: 280px; }
-    .data-table td.title-col a { color: var(--navy); text-decoration: none; }
-    .data-table td.title-col a:hover { color: var(--primary); text-decoration: underline; }
-    .data-table td.buyer-col { max-width: 200px; color: var(--text-muted); font-size: 12px; }
-    .data-table td.value-col { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
-    .data-table td.deadline-col { white-space: nowrap; font-size: 12px; }
-    .data-table td.deadline-col.urgent { color: #DC2626; font-weight: 700; }
-    .data-table td.deadline-col.warning { color: #D97706; font-weight: 600; }
-    .data-table td.actions-col { white-space: nowrap; }
-    .data-table td .cell-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .app-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    .app-table tbody tr:hover { background: var(--surface-alt); }
+    .app-table td { padding: 10px 14px; vertical-align: middle; }
+    .app-table td.ref-col { font-family: monospace; font-size: 12px; color: var(--text-muted); }
+    .app-table td.title-col { font-weight: 600; max-width: 280px; }
+    .app-table td.title-col a { color: var(--navy); text-decoration: none; }
+    .app-table td.title-col a:hover { color: var(--primary); text-decoration: underline; }
+    .app-table td.buyer-col { max-width: 200px; color: var(--text-muted); font-size: 12px; }
+    .app-table td.value-col { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+    .app-table td.deadline-col { white-space: nowrap; font-size: 12px; }
+    .app-table td.deadline-col.urgent { color: var(--danger); font-weight: 700; }
+    .app-table td.deadline-col.warning { color: var(--warning); font-weight: 600; }
+    .app-table td.actions-col { white-space: nowrap; }
+    .app-table td .cell-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .app-table tr.row-selected { background: rgba(174,30,35,0.12); }
+    .app-table .empty-row td { text-align: center; padding: 40px; color: var(--text-muted); }
+
+    .app-table--sticky thead th { position: sticky; top: 0; z-index: 10; }
+
+    .app-table--dense th { font-size: 11px; }
+    .app-table--dense td { padding: 8px; }
+    .app-table--dense input[type="text"] { padding: 5px 8px; font-size: 12px; width: 100%; min-width: 100px; }
+    .app-table--dense button { padding: 5px 10px; font-size: 12px; }
+
+    /* ---- CHIP (2026-09-20) ----
+       One shared "small metadata tag" component, replacing 4 copy-pasted
+       inline styles (opportunities/signals/shortlists/competitor_detail)
+       plus one drifted dedicated class (competitor_intel's .ci-sector-chip,
+       10.5px vs everyone else's 11px). */
+    .chip {
+      display: inline-block; font-size: 11px; padding: 2px 6px; border-radius: 4px;
+      background: var(--surface-alt); color: var(--text);
+    }
 
     /* ---- BUTTONS ---- */
     /* Translucent glass pills (2026-09-09), not solid opaque blocks -- a
@@ -615,6 +644,12 @@
     .action-group.expanded .submit-btn { display: inline-flex; }
     .action-group .submit-btn { display: none; }
 
+    /* Inline field-level validation message (2026-09-20) -- shown next to
+       the specific input a submission failed on, via validateVictoriaDecision()
+       below, instead of the app-wide pattern of a generic flash banner with
+       no connection to which field was the problem. */
+    .field-error { display: none; font-size: 11px; color: var(--danger); margin-top: 3px; }
+
     /* ---- SCOPE READ CARD ---- */
     .scope-ratings { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
     .scope-rating { font-size: 11px; color: var(--text-muted); }
@@ -630,12 +665,6 @@
       outline: none; border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(174,30,35,0.1);
     }
-
-    /* ---- ADMIN TABLE ---- */
-    .admin-table input[type="text"] { padding: 5px 8px; font-size: 12px; width: 100%; min-width: 100px; }
-    .admin-table button { padding: 5px 10px; font-size: 12px; }
-    .admin-table th { font-size: 11px; }
-    .admin-table td { padding: 8px; }
 
     /* ---- EMPTY STATE ---- */
     .empty-state {
@@ -967,6 +996,45 @@ document.addEventListener('click', function(e) {
     applyIcon();
   });
 })();
+
+// Victoria's decision form (queue.html + notice_detail.html, 2026-09-20):
+// the app's actual GO/no-go call needed no confirmation while a much
+// lower-stakes owner Reject required a typed reason behind a two-step
+// reveal -- inverted relative to what each protects. This brings Approve
+// in line (a confirm, since it's irreversible) and makes the reason
+// requirement for Park/Reject visible *before* a round trip to the server
+// (approvals.victoria_decision already rejects a blank reason for those
+// two outcomes; the field was previously labeled "optional" regardless).
+function validateVictoriaDecision(form) {
+  const decision = form.querySelector('select[name="decision"]').value;
+  const reasonInput = form.querySelector('input[name="reason"]');
+  const errorEl = form.querySelector('.field-error');
+  if (errorEl) errorEl.style.display = 'none';
+
+  if ((decision === 'park' || decision === 'reject') && !reasonInput.value.trim()) {
+    if (errorEl) {
+      errorEl.textContent = 'A reason is required to ' + decision + ' a notice.';
+      errorEl.style.display = 'block';
+    }
+    reasonInput.focus();
+    return false;
+  }
+  if (decision === 'approve') {
+    return confirm('Approve this notice? This is the GO decision -- Trifork is committing to bid.');
+  }
+  if (decision === 'park') {
+    return confirm('Park this notice? It will be set aside, not rejected outright.');
+  }
+  return true;
+}
+
+// Owner-level Approve on a notice awaiting Phase 2 approval unconditionally
+// escalates it to Victoria for the bid decision (approvals.approve_phase2) --
+// previously a single click with only a hover tooltip signaling that.
+function confirmOwnerApprove(button) {
+  if (button.dataset.escalates !== 'true') return true;
+  return confirm('Approve and send to Victoria for the bid decision?');
+}
 </script>
 
 </body>

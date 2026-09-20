@@ -181,7 +181,7 @@
         <div class="action-row">
           <form method="post" action="{{ url_for('queues.approve', notice_id=n['id']) }}" style="display:inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-approve btn-sm" title="Sends to Victoria for her decision">Approve</button>
+            <button type="submit" class="btn btn-approve btn-sm" data-escalates="true" onclick="return confirmOwnerApprove(this)" title="Sends to Victoria for her decision">Approve</button>
           </form>
           <button class="btn btn-reject btn-sm" onclick="showReason(this, 'p2r-{{ n['id'] }}')">Reject</button>
         </div>
@@ -322,7 +322,7 @@
         {% endif %}
       </div>
       <div class="notice-right">
-        <form method="post" action="{{ url_for('queues.victoria_decision', notice_id=n['id']) }}" style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
+        <form method="post" action="{{ url_for('queues.victoria_decision', notice_id=n['id']) }}" onsubmit="return validateVictoriaDecision(this)" style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div style="display: flex; gap: 6px;">
             <select name="decision" style="padding: 6px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font);">
@@ -331,7 +331,8 @@
               <option value="reject">Reject</option>
             </select>
           </div>
-          <input type="text" name="reason" placeholder="Notes (optional)" style="padding: 6px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font); width: 200px;">
+          <input type="text" name="reason" placeholder="Reason (required for Park/Reject)" style="padding: 6px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font); width: 200px;">
+          <span class="field-error"></span>
           <button type="submit" class="btn btn-approve btn-sm">Submit Decision</button>
         </form>
         {% if not n['emailed_at'] %}

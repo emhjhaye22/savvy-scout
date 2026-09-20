@@ -27,15 +27,6 @@
   .cd-pane { display: none; }
   .cd-pane.active { display: block; }
 
-  .cd-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .cd-table thead th {
-    padding: 10px 14px; background: var(--surface-alt); border-bottom: 2px solid var(--border);
-    text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.5px; color: var(--text-muted);
-  }
-  .cd-table tbody tr { border-bottom: 1px solid var(--border); }
-  .cd-table td { padding: 10px 14px; }
-
   .cd-company-card { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 20px; }
   .cd-company-field { min-width: 140px; }
   .cd-company-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 700; margin-bottom: 4px; }
@@ -151,7 +142,7 @@
 
 <div class="card" style="overflow-x: auto;">
   <div class="cd-pane active" id="pane-contracts">
-    <table class="cd-table">
+    <table class="app-table">
       <thead><tr><th>Ref</th><th>Title</th><th>Buyer</th><th>Sector</th><th>Value</th><th>Won</th><th>Contact</th></tr></thead>
       <tbody>
         {% for c in contracts %}
@@ -159,7 +150,7 @@
           <td style="font-family:monospace; font-size:11px; color:var(--text-muted);">{{ c.ref }}</td>
           <td>{{ c.title | truncate(50, True, '…') }}</td>
           <td style="color:var(--text-muted);">{{ c.buyer or '—' }}</td>
-          <td>{% if c.sector %}<span style="font-size:11px; padding:2px 6px; border-radius:4px; background:var(--surface-alt); color:var(--text);">{{ c.sector }}</span>{% endif %}</td>
+          <td>{% if c.sector %}<span class="chip">{{ c.sector }}</span>{% endif %}</td>
           <td style="color:var(--text-muted); white-space:nowrap;">{{ (c.indicative_value | gbp) or '—' }}</td>
           <td style="color:var(--text-muted); white-space:nowrap;">{{ c.win_date[:10] if c.win_date else '—' }}</td>
           <td style="color:var(--text-muted); font-size:12px;">
@@ -168,13 +159,15 @@
             {% else %}—{% endif %}
           </td>
         </tr>
+        {% else %}
+        <tr class="empty-row"><td colspan="7">No contracts recorded for this supplier yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 
   <div class="cd-pane" id="pane-buyers">
-    <table class="cd-table">
+    <table class="app-table">
       <thead><tr><th>Buyer</th><th>Awards</th><th>Recorded value</th></tr></thead>
       <tbody>
         {% for b in by_buyer %}
@@ -183,13 +176,15 @@
           <td>{{ b.count }}</td>
           <td style="color:var(--text-muted);">{% if b.priced_total %}£{{ "{:,.0f}".format(b.priced_total) }}{% else %}—{% endif %}</td>
         </tr>
+        {% else %}
+        <tr class="empty-row"><td colspan="3">No buyers recorded for this supplier yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 
   <div class="cd-pane" id="pane-sectors">
-    <table class="cd-table">
+    <table class="app-table">
       <thead><tr><th>Sector</th><th>Awards</th><th>Recorded value</th></tr></thead>
       <tbody>
         {% for s in by_sector %}
@@ -198,6 +193,8 @@
           <td>{{ s.count }}</td>
           <td style="color:var(--text-muted);">{% if s.priced_total %}£{{ "{:,.0f}".format(s.priced_total) }}{% else %}—{% endif %}</td>
         </tr>
+        {% else %}
+        <tr class="empty-row"><td colspan="3">No sectors recorded for this supplier yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>

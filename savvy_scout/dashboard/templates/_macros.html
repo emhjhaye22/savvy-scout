@@ -1,0 +1,39 @@
+{#
+  Shared status-pill macros (2026-09-20). Before this, the same
+  notices.status value rendered three different ways depending which page
+  showed it: a colored pill on Opportunities (.status-badge/.status-*, 15
+  hand-copied rules), a separately-coded (but coincidentally same-red) pill
+  on the two client-match views (.cna-status-badge/.cna-status-*, byte-
+  duplicated across two files), and plain unstyled text on Shortlists.
+  These macros map every real status value onto the ONE shared .badge
+  component already established in base.html (the same classes Phase 2
+  AI ratings already use), so a rejected notice looks the same everywhere
+  it appears.
+#}
+
+{% macro status_badge(status) %}
+{% set modifier = {
+  'NEW': 'inferred',
+  'PHASE1_TRIAGED': 'pass',
+  'TO_REVIEW': 'inferred',
+  'HANDOFF': 'provisional',
+  'PHASE2_SCOPED': 'provisional',
+  'AWAITING_PHASE2_APPROVAL': 'provisional',
+  'ESCALATED_TO_VICTORIA': 'flag',
+  'APPROVED': 'pass',
+  'ACTIVE': 'pass',
+  'REJECTED': 'fail',
+  'PARKED': 'unknown',
+  'MONITORING': 'flag',
+  'CAPTURE_BRIEF_DRAFTED': 'pass',
+  'DOCS_DOWNLOADED': 'pass',
+  'CALENDARED': 'pass',
+}.get(status, 'unknown') %}
+{%- set label = status | replace('_', ' ') | replace('AWAITING ', '') | replace('PHASE2 APPROVAL', 'READY FOR REVIEW') -%}
+<span class="badge badge-{{ modifier }}">{{ label }}</span>
+{%- endmacro %}
+
+{% macro action_status_badge(status) %}
+{% set modifier = {'NEW': 'inferred', 'SHORTLISTED': 'pass', 'REJECTED': 'fail'}.get(status, 'unknown') %}
+<span class="badge badge-{{ modifier }}">{{ status | title }}</span>
+{%- endmacro %}

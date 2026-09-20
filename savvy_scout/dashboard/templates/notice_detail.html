@@ -152,7 +152,7 @@
 
       <form method="post" action="{{ url_for('queues.approve', notice_id=notice['id']) }}" style="display:inline">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-approve" title="{% if s == 'AWAITING_PHASE2_APPROVAL' %}Sends to Victoria for her decision{% endif %}">Approve</button>
+        <button type="submit" class="btn btn-approve" data-escalates="{{ 'true' if s == 'AWAITING_PHASE2_APPROVAL' else 'false' }}" onclick="return confirmOwnerApprove(this)" title="{% if s == 'AWAITING_PHASE2_APPROVAL' %}Sends to Victoria for her decision{% endif %}">Approve</button>
       </form>
 
       <span class="action-group" style="display: inline-flex; gap: 4px; align-items: center;">
@@ -172,15 +172,18 @@
     {% elif s == 'ESCALATED_TO_VICTORIA' and current_user.is_victoria %}
     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 16px; background: rgba(58,58,58,0.1); border-radius: 8px; border: 1px solid rgba(58,58,58,0.3); margin-top: 8px;">
       <strong style="font-size: 13px; color: var(--navy); margin-right: 8px;">Victoria's Decision:</strong>
-      <form method="post" action="{{ url_for('queues.victoria_decision', notice_id=notice['id']) }}" style="display:inline-flex; align-items:center; gap: 8px;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <select name="decision" style="padding: 7px 10px; font-size: 13px;">
-          <option value="approve">Approve</option>
-          <option value="park">Park</option>
-          <option value="reject">Reject</option>
-        </select>
-        <input type="text" name="reason" placeholder="Reason (optional)" style="width: 220px; padding: 7px 10px; font-size: 13px;">
-        <button type="submit" class="btn btn-approve">Submit Decision</button>
+      <form method="post" action="{{ url_for('queues.victoria_decision', notice_id=notice['id']) }}" onsubmit="return validateVictoriaDecision(this)" style="display:inline-flex; flex-direction: column; align-items: flex-start; gap: 6px;">
+        <div style="display:flex; align-items:center; gap: 8px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <select name="decision" style="padding: 7px 10px; font-size: 13px;">
+            <option value="approve">Approve</option>
+            <option value="park">Park</option>
+            <option value="reject">Reject</option>
+          </select>
+          <input type="text" name="reason" placeholder="Reason (required for Park/Reject)" style="width: 220px; padding: 7px 10px; font-size: 13px;">
+          <button type="submit" class="btn btn-approve">Submit Decision</button>
+        </div>
+        <span class="field-error"></span>
       </form>
       {% for artifact in brief_artifacts %}
         <a href="{{ url_for('queues.view_brief', notice_id=notice['id'], brief_id=artifact['id']) }}" target="_blank" class="btn btn-secondary">

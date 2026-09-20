@@ -1,17 +1,11 @@
 {% extends "base.html" %}
+{% import "_macros.html" as macros %}
 {% block title %}Your Matched Opportunities — TenderSight™{% endblock %}
 {% block page_title %}Your Matched Opportunities{% endblock %}
 {% block page_subtitle %}<div class="topbar-subtitle">{{ client['name'] }}</div>{% endblock %}
 
 {% block content %}
 <style>
-  .cna-status-badge {
-    display: inline-block; padding: 4px 10px; border-radius: 999px; border: 1px solid transparent;
-    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap;
-  }
-  .cna-status-NEW { background: rgba(6,182,212,0.15); border-color: rgba(6,182,212,0.3); color: var(--info); }
-  .cna-status-SHORTLISTED { background: rgba(47,93,138,0.15); border-color: rgba(47,93,138,0.3); color: var(--success); }
-  .cna-status-REJECTED { background: rgba(174,30,35,0.15); border-color: rgba(174,30,35,0.3); color: var(--danger); }
   .cna-note { font-size: 11px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
   .cna-actions { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
   .cna-note-input { font-size: 12px; padding: 4px 6px; width: 140px; }
@@ -36,7 +30,7 @@
 </div>
 
 <div class="card" style="overflow-x: auto;">
-  <table class="buyer-table">
+  <table class="app-table">
     <thead>
       <tr><th>Ref</th><th>Title</th><th>Buyer</th><th>CPV</th><th>Stage</th><th>Value</th><th>Matched</th><th>Status</th><th>Actions</th></tr>
     </thead>
@@ -54,7 +48,7 @@
           <td style="color:var(--text-muted); white-space:nowrap;">{{ (m['indicative_value'] | gbp) or 'Not stated' }}</td>
           <td style="color:var(--text-muted); white-space:nowrap;">{{ m['evaluated_at'][:10] }}</td>
           <td>
-            <span class="cna-status-badge cna-status-{{ m['action_status'] }}">{{ m['action_status'].title() }}</span>
+            {{ macros.action_status_badge(m['action_status']) }}
             {% if m['note'] %}<div class="cna-note">{{ m['note'] }}</div>{% endif %}
           </td>
           <td>
@@ -70,7 +64,7 @@
         </tr>
         {% endfor %}
       {% else %}
-        <tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-muted);">No notices match your filter yet.</td></tr>
+        <tr class="empty-row"><td colspan="9">No notices match your filter yet.</td></tr>
       {% endif %}
     </tbody>
   </table>
