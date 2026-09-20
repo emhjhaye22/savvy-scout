@@ -546,6 +546,13 @@ CREATE TABLE IF NOT EXISTS award_relevance_cache (
 CREATE TABLE IF NOT EXISTS clients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
+    -- URL-friendly identifier (2026-09-20) for that client's own distinct
+    -- login link (/login/<slug>) -- e.g. "Acme Construction" -> "acme-
+    -- construction". Nullable at the schema level only because existing
+    -- databases add this column via ALTER TABLE before backfilling it;
+    -- every row has one in practice (see db/connection.py's migration and
+    -- admin.add_client()).
+    slug TEXT UNIQUE,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     created_by TEXT NOT NULL

@@ -12,6 +12,7 @@ from flask_login import current_user, login_required
 from werkzeug.security import generate_password_hash
 
 from savvy_scout.dashboard.auth import get_db
+from savvy_scout.db.connection import unique_client_slug
 from savvy_scout.logging_util import log_audit
 from savvy_scout.triage.client_filter import (
     client_filter_is_empty,
@@ -907,8 +908,8 @@ def add_client():
 
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
-        "INSERT INTO clients (name, is_active, created_at, created_by) VALUES (?, 1, ?, ?)",
-        (name, now, current_user.display_name),
+        "INSERT INTO clients (name, slug, is_active, created_at, created_by) VALUES (?, ?, 1, ?, ?)",
+        (name, unique_client_slug(conn, name), now, current_user.display_name),
     )
     client_id = conn.execute("SELECT id FROM clients WHERE name = ?", (name,)).fetchone()["id"]
 

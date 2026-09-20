@@ -62,26 +62,64 @@ def load_user(user_id: str):
     return User(row) if row else None
 
 
+def _authenticate(identifier: str, password: str):
+    # The four original accounts (mark/kanvesh/hammad/victoria) log in by
+    # username, same as before; accounts added later via the admin
+    # screen log in by email (2026-08-08) -- one input matches either
+    # column so both keep working without forcing a migration on the
+    # original accounts.
+    row = get_db().execute(
+        "SELECT * FROM users WHERE username = ? OR email = ?", (identifier, identifier)
+    ).fetchone()
+    if row and check_password_hash(row["password_hash"], password):
+        return User(row)
+    return None
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per 5 minutes", methods=["POST"])
 def login():
     error = None
     if request.method == "POST":
-        # The four original accounts (mark/kanvesh/hammad/victoria) log in by
-        # username, same as before; accounts added later via the admin
-        # screen log in by email (2026-08-08) -- one input matches either
-        # column so both keep working without forcing a migration on the
-        # original accounts.
-        identifier = request.form.get("username", "").strip()
-        row = get_db().execute(
-            "SELECT * FROM users WHERE username = ? OR email = ?", (identifier, identifier)
-        ).fetchone()
-        if row and check_password_hash(row["password_hash"], request.form.get("password", "")):
-            login_user(User(row))
+        user = _authenticate(request.form.get("username", "").strip(), request.form.get("password", ""))
+        if user:
+            login_user(user)
             return redirect(url_for("welcome.index"))
         error = "Invalid email/username or password"
 
-    return render_template("login.html", error=error)
+    return render_template("login.html", error=error, client=None)
+
+
+@auth_bp.route("/login/<slug>", methods=["GET", "POST"])
+@limiter.limit("10 per 5 minutes", methods=["POST"])
+def client_login(slug):
+    """A client's own distinct, bookmarkable login link (2026-09-20,
+    explicit request -- "Trifork is a distinct client so they should have
+    a different link"): same branding as the generic /login, just with
+    that client's name shown instead of the generic copy, and without the
+    Trifork-internal Mark/Victoria quick-access shortcuts.
+
+    This is a branding/convenience layer, not a security boundary: signing
+    in here runs the exact same _authenticate() check as /login, and a
+    successful login redirects the exact same way regardless of which
+    client's URL it happened on. Actual access is still enforced entirely
+    by the account's own role/client_id via the tenant-isolation gate
+    (dashboard/__init__.py) -- logging in with the wrong client's
+    credentials on the right client's link (or vice versa) still lands
+    you wherever your own account actually belongs, same as today."""
+    client = get_db().execute("SELECT * FROM clients WHERE slug = ?", (slug,)).fetchone()
+    if client is None:
+        return render_template("login.html", error="That portal link isn't recognised.", client=None)
+
+    error = None
+    if request.method == "POST":
+        user = _authenticate(request.form.get("username", "").strip(), request.form.get("password", ""))
+        if user:
+            login_user(user)
+            return redirect(url_for("welcome.index"))
+        error = "Invalid email/username or password"
+
+    return render_template("login.html", error=error, client=client)
 
 
 @auth_bp.route("/logout")

@@ -390,6 +390,9 @@
       <tr>
         <td style="font-weight: 600;">
           <a href="{{ url_for('admin.edit_client', client_id=entry.client.id) }}">{{ entry.client.name }}</a>
+          {% if entry.client.slug %}
+          <div class="cell-sub" style="user-select: all;">{{ url_for('auth.client_login', slug=entry.client.slug, _external=True) }}</div>
+          {% endif %}
         </td>
         <td>
           {% if entry.client.is_active %}<span class="badge badge-strong">Active</span>{% else %}<span class="badge badge-unknown">Paused</span>{% endif %}

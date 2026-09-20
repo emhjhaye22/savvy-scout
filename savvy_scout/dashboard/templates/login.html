@@ -151,8 +151,8 @@
       <div class="brand-sub">Procurement Intelligence</div>
     </div>
 
-    <h1>Sign in</h1>
-    <p class="subtitle">Access the triage and approval dashboard.</p>
+    <h1>{% if client %}Sign in to {{ client['name'] }}{% else %}Sign in{% endif %}</h1>
+    <p class="subtitle">{% if client %}Access your {{ client['name'] }} portal.{% else %}Access the triage and approval dashboard.{% endif %}</p>
 
     <form method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -169,6 +169,7 @@
       <button type="submit" class="btn-signin">Sign in</button>
     </form>
 
+    {% if not client %}
     <div class="quick-access">
       <div class="quick-label">Quick access — fills your username only</div>
       <div class="quick-grid">
@@ -176,6 +177,7 @@
         <button type="button" class="quick-btn" onclick="document.getElementById('username').value='victoria'; document.getElementById('password').focus();">Victoria</button>
       </div>
     </div>
+    {% endif %}
   </div>
 </body>
 </html>

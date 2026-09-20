@@ -1,7 +1,33 @@
+import re
 import sqlite3
 from pathlib import Path
 
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
+
+
+def slugify(name: str) -> str:
+    """URL-friendly identifier for a client's own login link (2026-09-20)
+    -- e.g. "Acme Construction" -> "acme-construction". Lowercases,
+    replaces any run of non-alphanumeric characters with a single hyphen,
+    and trims leading/trailing hyphens."""
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return slug or "client"
+
+
+def unique_client_slug(conn: sqlite3.Connection, name: str, exclude_client_id: int | None = None) -> str:
+    """slugify(name), disambiguated against any other client's existing
+    slug by appending -2, -3, etc. -- two clients with the same or
+    similar name (e.g. "Acme Ltd" and "Acme Ltd" again) must never
+    collide on the URL that's supposed to identify one of them."""
+    base = slugify(name)
+    candidate = base
+    suffix = 2
+    while True:
+        row = conn.execute("SELECT id FROM clients WHERE slug = ?", (candidate,)).fetchone()
+        if row is None or row["id"] == exclude_client_id:
+            return candidate
+        candidate = f"{base}-{suffix}"
+        suffix += 1
 
 
 def get_connection(db_path: str) -> sqlite3.Connection:
@@ -835,3 +861,18 @@ def _apply_migrations(conn: sqlite3.Connection) -> None:
                     "VALUES (?, ?, ?, 'migration')",
                     (trifork_row["id"], _json.dumps(cpv_prefixes), _datetime2.now(_timezone2.utc).isoformat()),
                 )
+
+    # Client slug backfill (2026-09-20): every client's own distinct login
+    # link (/login/<slug>) needs a slug -- ADD COLUMN (below, if missing)
+    # leaves it NULL for existing rows, same durable-ADD-but-not-the-
+    # backfill situation as every other self-heal in this file, so this
+    # runs unconditionally every boot rather than gated on "column doesn't
+    # exist yet".
+    client_cols_now = [r[1] for r in conn.execute("PRAGMA table_info(clients)").fetchall()]
+    if "slug" not in client_cols_now:
+        conn.execute("ALTER TABLE clients ADD COLUMN slug TEXT")
+    for row in conn.execute("SELECT id, name FROM clients WHERE slug IS NULL").fetchall():
+        conn.execute(
+            "UPDATE clients SET slug = ? WHERE id = ?",
+            (unique_client_slug(conn, row["name"], exclude_client_id=row["id"]), row["id"]),
+        )
