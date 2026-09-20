@@ -95,7 +95,7 @@ def test_retriage_and_route_refuses_non_pending_notice(conn):
     row = conn.execute("SELECT * FROM notices WHERE id = ?", (notice_id,)).fetchone()
     assert row["owner"] == "Mark"
     assert row["auto_rejected_unowned"] == 0
-    approvals.reject_notice(conn, notice_id, "Victoria", True, "already decided")
+    approvals.reject_notice(conn, notice_id, "Victoria", "account_approver", "already decided")
 
     try:
         approvals.retriage_and_route(conn, notice_id)
@@ -138,7 +138,7 @@ def test_retriage_all_unmatched_only_touches_untouched_notices(conn):
         conn, "REF-RETRIAGE-7", "Some Bank",
         "real-time payments platform integration, hardware appliance refresh",
     )
-    approvals.reject_notice(conn, already_rejected, "Victoria", True, "pre-existing decision")
+    approvals.reject_notice(conn, already_rejected, "Victoria", "account_approver", "pre-existing decision")
 
     conn.execute(
         "INSERT INTO config_sector_keywords (sector, keyword, notes) VALUES ('Energy', 'acme utility', NULL)"

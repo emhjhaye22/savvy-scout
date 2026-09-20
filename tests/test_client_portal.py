@@ -77,12 +77,12 @@ def _add_client(conn, name, is_active=1, cpv_prefix="45"):
     return client_id
 
 
-def _add_tenant_user(conn, username, display_name, client_id):
+def _add_tenant_user(conn, username, display_name, client_id, role="account_user"):
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at, client_id) "
-        "VALUES (?, ?, ?, 0, 0, ?, ?)",
-        (username, generate_password_hash("testpass"), display_name, now, client_id),
+        "INSERT INTO users (username, password_hash, display_name, role, created_at, client_id) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (username, generate_password_hash("testpass"), display_name, role, now, client_id),
     )
     conn.commit()
 
@@ -111,7 +111,7 @@ def test_tenant_can_set_status(app):
 
     from savvy_scout.triage.client_filter import run_client_triage
     run_client_triage(conn, client_id)
-    _add_tenant_user(conn, "acmeuser", "Acme User", client_id)
+    _add_tenant_user(conn, "acmeuser", "Acme User", client_id, role="account_approver")
     notice_id = conn.execute("SELECT id FROM notices WHERE ref = 'REF-A'").fetchone()["id"]
 
     client = _logged_in_client(app, "acmeuser")
@@ -128,6 +128,33 @@ def test_tenant_can_set_status(app):
     assert row["note"] == "Good fit"
 
 
+def test_tenant_account_user_cannot_set_status(app):
+    """2026-09-20 permission split: an Account User can view matches but
+    only an Account Approver (or the platform Admin) can record a
+    decision -- previously any logged-in client user could."""
+    conn = _db(app)
+    _insert_notice(conn, "REF-A", cpv_primary="45200000")
+    client_id = _add_client(conn, "Acme Construction")
+
+    from savvy_scout.triage.client_filter import run_client_triage
+    run_client_triage(conn, client_id)
+    _add_tenant_user(conn, "acmeuser", "Acme User", client_id, role="account_user")
+    notice_id = conn.execute("SELECT id FROM notices WHERE ref = 'REF-A'").fetchone()["id"]
+
+    client = _logged_in_client(app, "acmeuser")
+    resp = client.post(
+        f"/my-matches/{notice_id}/set-status",
+        data={"status": "SHORTLISTED", "note": "Good fit"},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert b"Only an Account Approver" in resp.data
+    row = conn.execute(
+        "SELECT * FROM client_notice_actions WHERE client_id = ? AND notice_id = ?", (client_id, notice_id)
+    ).fetchone()
+    assert row is None
+
+
 def test_tenant_cannot_see_another_clients_matches(app):
     """IDOR check: client_portal never takes a client_id from the URL, so
     there's no parameter to manipulate -- confirm a tenant's own view is
@@ -142,8 +169,8 @@ def test_tenant_cannot_see_another_clients_matches(app):
     from savvy_scout.triage.client_filter import run_client_triage
     run_client_triage(conn, acme_id)
     run_client_triage(conn, other_id)
-    _add_tenant_user(conn, "acmeuser", "Acme User", acme_id)
-    _add_tenant_user(conn, "otheruser", "Other User", other_id)
+    _add_tenant_user(conn, "acmeuser", "Acme User", acme_id, role="account_approver")
+    _add_tenant_user(conn, "otheruser", "Other User", other_id, role="account_approver")
 
     other_notice_id = conn.execute("SELECT id FROM notices WHERE ref = 'REF-OTHER'").fetchone()["id"]
 

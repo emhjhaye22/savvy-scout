@@ -34,13 +34,20 @@ class User(UserMixin):
         self.username = row["username"]
         self.display_name = row["display_name"]
         self.email = row["email"]
-        self.is_victoria = bool(row["is_victoria"])
-        self.is_admin = bool(row["is_admin"])
+        self.role = row["role"]
         # Which client this user is acting on behalf of (2026-09-18 tenancy
         # fix) -- scopes shortlists/watchlists so they aren't one global
         # list shared by everyone. row["client_id"] may be None only for a
         # row read before the migration backfill has run.
         self.client_id = row["client_id"]
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role == "admin"
+
+    @property
+    def is_account_approver(self) -> bool:
+        return self.role == "account_approver"
 
 
 def get_db() -> sqlite3.Connection:

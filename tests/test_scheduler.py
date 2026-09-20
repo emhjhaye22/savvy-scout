@@ -19,11 +19,15 @@ def _settings(report_recipient_email="mark@bidsavvy.io"):
     )
 
 
+def _trifork_id(conn):
+    return conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
+
+
 def test_report_recipients_includes_victoria_and_mark(conn):
     conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, email, is_victoria, created_at) "
-        "VALUES ('victoria', 'x', 'Victoria', 'victoria.milan@bidsavvy.io', 1, ?)",
-        (datetime.now(timezone.utc).isoformat(),),
+        "INSERT INTO users (username, password_hash, display_name, email, role, created_at, client_id) "
+        "VALUES ('victoria', 'x', 'Victoria', 'victoria.milan@bidsavvy.io', 'account_approver', ?, ?)",
+        (datetime.now(timezone.utc).isoformat(), _trifork_id(conn)),
     )
     conn.commit()
 
@@ -34,9 +38,9 @@ def test_report_recipients_includes_victoria_and_mark(conn):
 
 def test_report_recipients_deduplicates_when_mark_is_also_victoria(conn):
     conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, email, is_victoria, created_at) "
-        "VALUES ('victoria', 'x', 'Victoria', 'mark@bidsavvy.io', 1, ?)",
-        (datetime.now(timezone.utc).isoformat(),),
+        "INSERT INTO users (username, password_hash, display_name, email, role, created_at, client_id) "
+        "VALUES ('victoria', 'x', 'Victoria', 'mark@bidsavvy.io', 'account_approver', ?, ?)",
+        (datetime.now(timezone.utc).isoformat(), _trifork_id(conn)),
     )
     conn.commit()
 
@@ -79,9 +83,9 @@ def _escalate_notice(conn, ref, deadline=None, overall_rating=None, capability_f
 
 def test_victoria_reminder_flags_near_deadline_as_urgent(conn, monkeypatch):
     conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, email, is_victoria, created_at) "
-        "VALUES ('victoria', 'x', 'Victoria', 'victoria.milan@bidsavvy.io', 1, ?)",
-        (datetime.now(timezone.utc).isoformat(),),
+        "INSERT INTO users (username, password_hash, display_name, email, role, created_at, client_id) "
+        "VALUES ('victoria', 'x', 'Victoria', 'victoria.milan@bidsavvy.io', 'account_approver', ?, ?)",
+        (datetime.now(timezone.utc).isoformat(), _trifork_id(conn)),
     )
     near_deadline = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
     _escalate_notice(conn, "REF-URGENT", deadline=near_deadline, overall_rating="FLAG", capability_fit_rating="MED")
@@ -106,9 +110,9 @@ def test_victoria_reminder_flags_near_deadline_as_urgent(conn, monkeypatch):
 
 def test_victoria_reminder_flags_pursue_as_high_value_regardless_of_deadline(conn, monkeypatch):
     conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, email, is_victoria, created_at) "
-        "VALUES ('victoria', 'x', 'Victoria', 'victoria.milan@bidsavvy.io', 1, ?)",
-        (datetime.now(timezone.utc).isoformat(),),
+        "INSERT INTO users (username, password_hash, display_name, email, role, created_at, client_id) "
+        "VALUES ('victoria', 'x', 'Victoria', 'victoria.milan@bidsavvy.io', 'account_approver', ?, ?)",
+        (datetime.now(timezone.utc).isoformat(), _trifork_id(conn)),
     )
     far_deadline = (datetime.now(timezone.utc) + timedelta(days=60)).isoformat()
     _escalate_notice(conn, "REF-STRONG", deadline=far_deadline, overall_rating="PURSUE", capability_fit_rating="HIGH")
@@ -132,9 +136,9 @@ def test_victoria_reminder_flags_pursue_as_high_value_regardless_of_deadline(con
 
 def test_victoria_reminder_skips_sending_when_nothing_qualifies(conn, monkeypatch):
     conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, email, is_victoria, created_at) "
-        "VALUES ('victoria', 'x', 'Victoria', 'victoria.milan@bidsavvy.io', 1, ?)",
-        (datetime.now(timezone.utc).isoformat(),),
+        "INSERT INTO users (username, password_hash, display_name, email, role, created_at, client_id) "
+        "VALUES ('victoria', 'x', 'Victoria', 'victoria.milan@bidsavvy.io', 'account_approver', ?, ?)",
+        (datetime.now(timezone.utc).isoformat(), _trifork_id(conn)),
     )
     far_deadline = (datetime.now(timezone.utc) + timedelta(days=60)).isoformat()
     _escalate_notice(conn, "REF-MEDIOCRE", deadline=far_deadline, overall_rating="FLAG", capability_fit_rating="MED")

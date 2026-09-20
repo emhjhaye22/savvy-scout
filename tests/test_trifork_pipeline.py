@@ -6,7 +6,25 @@ from savvy_scout.escalation.brief import record_brief
 from savvy_scout.export.trifork_pipeline import HEADERS, TOTAL_COLUMNS, update_trifork_pipeline
 
 
+def _ensure_mark_user(conn):
+    """owner_display_names() (2026-09-20, replaces the static OWNER_NAMES
+    tuple) reads real user rows -- unlike the old hardcoded list, it needs
+    an actual "Mark" account to exist for status_history rows attributed to
+    him to be found."""
+    existing = conn.execute("SELECT 1 FROM users WHERE display_name = 'Mark'").fetchone()
+    if existing:
+        return
+    trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
+    conn.execute(
+        "INSERT INTO users (username, password_hash, display_name, role, created_at, client_id) "
+        "VALUES ('mark', 'x', 'Mark', 'admin', ?, ?)",
+        (datetime.now(timezone.utc).isoformat(), trifork_id),
+    )
+    conn.commit()
+
+
 def _notice(conn, ref, target, actor="Mark", rating="FLAG"):
+    _ensure_mark_user(conn)
     now = datetime.now(timezone.utc).isoformat()
     status = "ESCALATED_TO_VICTORIA" if target == "ESCALATED_TO_VICTORIA" else "REJECTED"
     notice_id = conn.execute(

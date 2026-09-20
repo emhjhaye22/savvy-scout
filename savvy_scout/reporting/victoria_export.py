@@ -7,7 +7,7 @@ from savvy_scout.escalation.brief import (
     build_original_notice_pdf,
     record_brief,
 )
-from savvy_scout.escalation.context import OWNER_NAMES
+from savvy_scout.escalation.context import owner_display_names
 from savvy_scout.escalation.word_documents import (
     build_capture_brief_docx,
     build_internal_addendum_docx,
@@ -19,9 +19,9 @@ from savvy_scout.reporting.reports import generate_monthly_report, generate_week
 
 def _owner_escalated_notice_ids(conn: sqlite3.Connection, owner: str | None = None) -> list[int]:
     # owner, if given, restricts the Addendum/Brief package to that owner's
-    # own escalations only -- explicit request (2026-08-16): Mark's package
-    # must not include Kanvesh's or Hammad's opportunities.
-    names = (owner,) if owner else OWNER_NAMES
+    # own escalations only -- explicit request (2026-08-16): one owner's
+    # package must not include another owner's opportunities.
+    names = (owner,) if owner else owner_display_names(conn)
     placeholders = ",".join("?" for _ in names)
     rows = conn.execute(
         f"SELECT notice_id, MAX(id) AS latest_id FROM status_history "

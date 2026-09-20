@@ -16,17 +16,19 @@ def app(tmp_path):
     init_db(setup_conn)
     seed_all(setup_conn)
     trifork_id = setup_conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
-    for username, display_name in [
-        ("victoria", "Victoria"), ("mark", "Mark"), ("testuser", "Test User"),
+    for username, display_name, role in [
+        ("victoria", "Victoria", "account_approver"),
+        ("mark", "Mark", "admin"),
+        ("testuser", "Test User", "account_user"),
     ]:
         setup_conn.execute(
-            "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at, client_id) "
+            "INSERT INTO users (username, password_hash, display_name, role, created_at, client_id) "
             "VALUES (?, ?, ?, ?, ?, ?)",
             (
                 username,
                 generate_password_hash("testpass"),
                 display_name,
-                int(display_name == "Victoria"),
+                role,
                 datetime.now(timezone.utc).isoformat(),
                 trifork_id,
             ),

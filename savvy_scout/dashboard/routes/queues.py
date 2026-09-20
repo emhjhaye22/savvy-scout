@@ -10,6 +10,7 @@ from flask_login import current_user, login_required
 
 from savvy_scout.dashboard.auth import get_db
 from savvy_scout.dashboard.notifications import STAGE_GROUPS, victoria_sourced_reject_sql
+from savvy_scout.db.connection import get_approver_email
 from savvy_scout.dashboard.scope_filter import in_scope_filter_sql
 from savvy_scout.escalation.brief import mark_emailed
 from savvy_scout.dashboard.routes.competitor_intel import _parse_gbp, possible_competitors_for_notice
@@ -244,7 +245,7 @@ def index():
     # Phase 2 scope reads are an owner-level concern, not hers -- she only
     # acts once a notice reaches her Escalated queue, after the owner has
     # already handled Phase 1 and Phase 2 themselves.
-    if current_user.is_victoria:
+    if current_user.is_account_approver:
         phase2_pending_count = 0
     else:
         phase2_pending_count = conn.execute(
@@ -300,7 +301,7 @@ def index():
     phase2_rows = _with_deadline_class(phase2_rows)
 
     escalated_rows = []
-    if current_user.is_victoria:
+    if current_user.is_account_approver:
         # Every ESCALATED_TO_VICTORIA notice has been through Phase 2 first
         # (2026-07-21 policy: escalation is only reachable from
         # AWAITING_PHASE2_APPROVAL) and always gets an escalation_briefs row
@@ -352,7 +353,7 @@ def process_phase2():
         key_name = "OPENAI_API_KEY" if settings.scope_read_provider == "openai" else "ANTHROPIC_API_KEY"
         flash(f"Set {key_name} in .env to run Phase 2 scope reads.", "error")
         return redirect(url_for("queues.index"))
-    owner = None if current_user.is_victoria else current_user.display_name
+    owner = None if current_user.is_account_approver else current_user.display_name
     processed = _process_pending_phase2(conn, owner)
     if processed:
         flash(f"Completed {processed} Phase 2 AI scope read{'s' if processed != 1 else ''}.")
@@ -367,7 +368,7 @@ def advance_phase2_manual():
     conn = get_db()
     count = approvals.advance_pending_phase2_without_scope_read(
         conn, current_user.display_name,
-        owner=None if current_user.is_victoria else current_user.display_name,
+        owner=None if current_user.is_account_approver else current_user.display_name,
     )
     if count:
         flash(f"{count} notice{'s' if count != 1 else ''} advanced to Phase 2 approval without an AI scope read.")
@@ -439,7 +440,7 @@ def notice_detail(notice_id):
 
     # Prev/next within the same status queue for this user
     owner_filter = current_user.display_name
-    is_vic = int(current_user.is_victoria)
+    is_vic = int(current_user.is_account_approver)
     siblings = conn.execute("""
         SELECT id FROM notices
         WHERE status = ? AND (owner = ? OR ? = 1)
@@ -577,7 +578,7 @@ def opportunities():
     # so e.g. Mark's "Escalated" pill showed his own count but clicking it
     # actually listed every sector's escalated notices -- the pill and the
     # list it linked to disagreed. Victoria still sees everything.
-    if not current_user.is_victoria:
+    if not current_user.is_account_approver:
         query += " AND n.owner = ?"
         params.append(current_user.display_name)
 
@@ -671,7 +672,7 @@ def opportunities():
     # main list above. Previously this counted every owner's notices
     # regardless of who was looking, so e.g. Hammad's "To Review" pill showed
     # the whole pipeline's count instead of just his own.
-    if current_user.is_victoria:
+    if current_user.is_account_approver:
         status_counts = {r[0]: r[1] for r in conn.execute(
             f"SELECT status, COUNT(*) FROM notices WHERE {in_scope_where} GROUP BY status",
             tuple(in_scope_params),
@@ -806,7 +807,7 @@ def bulk_mark_docs_downloaded():
     for notice_id in notice_ids:
         try:
             approvals.mark_docs_downloaded(
-                conn, notice_id, current_user.display_name, current_user.is_victoria
+                conn, notice_id, current_user.display_name, current_user.role
             )
             succeeded += 1
         except (approvals.NotAuthorized, ValueError):
@@ -836,13 +837,13 @@ def approve(notice_id):
             settings = current_app.config["SAVVY_SCOUT_SETTINGS"]
             client, scope_read_fn = get_scope_read_client(settings)
             approvals.approve_phase1(
-                conn, notice_id, current_user.display_name, current_user.is_victoria,
+                conn, notice_id, current_user.display_name, current_user.role,
                 client, scope_read_fn=scope_read_fn,
             )
             flash("Fail overturned and sent for Phase 2 scope read.")
         elif notice["status"] == "AWAITING_PHASE2_APPROVAL":
             approvals.approve_phase2(
-                conn, notice_id, current_user.display_name, current_user.is_victoria
+                conn, notice_id, current_user.display_name, current_user.role
             )
             flash("Approved by owner — sent to Victoria for her decision.")
         else:
@@ -860,7 +861,7 @@ def advance_phase2_manual_single(notice_id):
     conn = get_db()
     try:
         approvals.advance_phase2_without_scope_read(
-            conn, notice_id, current_user.display_name, current_user.is_victoria
+            conn, notice_id, current_user.display_name, current_user.role
         )
         flash("Advanced to Phase 2 approval without an AI scope read.")
     except (approvals.NotAuthorized, ValueError) as exc:
@@ -874,7 +875,7 @@ def reject(notice_id):
     conn = get_db()
     try:
         approvals.reject_notice(
-            conn, notice_id, current_user.display_name, current_user.is_victoria,
+            conn, notice_id, current_user.display_name, current_user.role,
             request.form.get("reason", ""),
         )
         flash("Rejected.")
@@ -889,7 +890,7 @@ def park(notice_id):
     conn = get_db()
     try:
         approvals.park_notice(
-            conn, notice_id, current_user.display_name, current_user.is_victoria,
+            conn, notice_id, current_user.display_name, current_user.role,
             request.form.get("reason", ""),
         )
         flash("Parked.")
@@ -904,7 +905,7 @@ def mark_docs_downloaded(notice_id):
     conn = get_db()
     try:
         approvals.mark_docs_downloaded(
-            conn, notice_id, current_user.display_name, current_user.is_victoria
+            conn, notice_id, current_user.display_name, current_user.role
         )
         flash("Marked bid documents as downloaded.")
     except (approvals.NotAuthorized, ValueError) as exc:
@@ -929,7 +930,7 @@ def mark_victoria_decision(notice_id):
 @queues_bp.route("/notices/<int:notice_id>/victoria-decision", methods=["POST"])
 @login_required
 def victoria_decision(notice_id):
-    if not current_user.is_victoria:
+    if not current_user.is_account_approver:
         flash("Only Victoria can action an escalation.", "error")
         return redirect(url_for("queues.index"))
     conn = get_db()
@@ -958,7 +959,7 @@ def view_brief(notice_id, brief_id):
     notice = conn.execute("SELECT * FROM notices WHERE id = ?", (notice_id,)).fetchone()
     if not notice:
         abort(404)
-    if not current_user.is_victoria and notice["owner"] != current_user.display_name:
+    if not current_user.is_account_approver and notice["owner"] != current_user.display_name:
         flash("Only the owning sector lead or Victoria can view this document.", "error")
         return redirect(url_for("queues.index"))
 
@@ -1004,11 +1005,14 @@ def send_escalation_email(notice_id):
         flash("No escalation brief found for this notice.", "error")
         return redirect(url_for("queues.index"))
 
-    if not current_user.is_victoria and notice["owner"] != current_user.display_name:
+    if not current_user.is_account_approver and notice["owner"] != current_user.display_name:
         flash("Only the owning sector lead can send this escalation.", "error")
         return redirect(url_for("queues.index"))
 
-    recipient = "victoria.milan@bidsavvy.io"
+    recipient = get_approver_email(conn, current_app.config["TRIFORK_CLIENT_ID"])
+    if not recipient:
+        flash("No Account Approver email is on file for Trifork.", "error")
+        return redirect(url_for("queues.index"))
     try:
         graph_send_escalation_email(
             recipient=recipient,

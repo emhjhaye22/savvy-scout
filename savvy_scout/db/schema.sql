@@ -385,6 +385,13 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT,
     is_victoria INTEGER NOT NULL DEFAULT 0,
     is_admin INTEGER NOT NULL DEFAULT 0,
+    -- (2026-09-20) generic role, replacing the is_admin/is_victoria pair as
+    -- the source of truth -- see db/connection.py's migration for why the
+    -- two booleans above are kept around rather than dropped. 'admin' is
+    -- the platform owner (one per app, Trifork-only); 'account_approver'
+    -- can record a go/no-go decision for their own client (Trifork or a
+    -- tenant); 'account_user' can view but not decide.
+    role TEXT NOT NULL DEFAULT 'account_user' CHECK (role IN ('admin', 'account_approver', 'account_user')),
     created_at TEXT NOT NULL,
     teams_webhook_url TEXT,
     client_id INTEGER REFERENCES clients(id)

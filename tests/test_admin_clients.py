@@ -422,10 +422,10 @@ def test_add_user_creates_account_for_chosen_client(app):
     assert row["client_id"] == acme_id
 
 
-def test_add_user_forces_is_victoria_false_for_non_trifork_client(app):
-    """is_victoria grants visibility into every sector owner's notices in
-    Trifork's own pipeline (queues.py) -- it must never be attachable to a
-    non-Trifork tenant account, even if the form posts is_victoria=on."""
+def test_add_user_forces_account_user_role_for_admin_on_non_trifork_client(app):
+    """admin is the platform owner (2026-09-20, generalized from the old
+    is_victoria-only guard) -- it must never be attachable to a non-Trifork
+    tenant account, even if the form posts role=admin."""
     conn = _db(app)
     acme_id = _add_client_and_get_id(_admin_client(app), conn)
     client = _admin_client(app)
@@ -435,9 +435,30 @@ def test_add_user_forces_is_victoria_false_for_non_trifork_client(app):
             "display_name": "Acme Contact",
             "email": "contact@acme.example",
             "client_id": str(acme_id),
-            "is_victoria": "on",
+            "role": "admin",
         },
         follow_redirects=True,
     )
     row = conn.execute("SELECT * FROM users WHERE email = 'contact@acme.example'").fetchone()
-    assert row["is_victoria"] == 0
+    assert row["role"] == "account_user"
+
+
+def test_add_user_allows_account_approver_role_for_non_trifork_client(app):
+    """Unlike admin, a tenant client CAN have its own Account Approver
+    (2026-09-20) -- this is the whole point of generalizing the role model
+    off Trifork's single hardcoded Victoria."""
+    conn = _db(app)
+    acme_id = _add_client_and_get_id(_admin_client(app), conn)
+    client = _admin_client(app)
+    client.post(
+        "/admin/users/add",
+        data={
+            "display_name": "Acme Approver",
+            "email": "approver@acme.example",
+            "client_id": str(acme_id),
+            "role": "account_approver",
+        },
+        follow_redirects=True,
+    )
+    row = conn.execute("SELECT * FROM users WHERE email = 'approver@acme.example'").fetchone()
+    assert row["role"] == "account_approver"

@@ -135,9 +135,11 @@
                 <input type="text" class="new-name-field" name="new_display_name" placeholder="Name" style="display: none;">
                 <input type="text" name="owner_email" placeholder="Email" value="{{ owner_contacts.get(row['owner'], {}).get('email', '') }}">
                 <input type="text" name="owner_teams_webhook_url" placeholder="Teams webhook (optional)" value="{{ owner_contacts.get(row['owner'], {}).get('teams_webhook_url', '') }}">
-                <label style="display: flex; align-items: center; gap: 6px; font-size: 12px;">
-                  <input type="checkbox" name="owner_is_victoria" {% if owner_contacts.get(row['owner'], {}).get('is_victoria') %}checked{% endif %}> Bid Director authority
-                </label>
+                {% set current_owner_role = owner_contacts.get(row['owner'], {}).get('role', 'account_user') %}
+                <select name="owner_role" style="font-size: 12px;">
+                  <option value="account_user" {% if current_owner_role != 'account_approver' %}selected{% endif %}>Account User</option>
+                  <option value="account_approver" {% if current_owner_role == 'account_approver' %}selected{% endif %}>Account Approver</option>
+                </select>
               </div>
             </td>
             {% else %}
@@ -248,10 +250,13 @@
           {% endfor %}
         </select>
       </div>
-      <div id="new-user-victoria-field">
-        <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; padding-bottom: 9px;">
-          <input type="checkbox" name="is_victoria"> Bid Director authority
-        </label>
+      <div>
+        <label for="new-role" style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Role</label>
+        <select id="new-role" name="role">
+          <option value="account_user" selected>Account User</option>
+          <option value="account_approver">Account Approver</option>
+          <option value="admin" id="new-role-admin-option">Admin</option>
+        </select>
       </div>
       <button type="submit" class="btn btn-approve">+ Add &amp; invite</button>
     </form>
@@ -259,23 +264,25 @@
 </div>
 
 <script>
-  // Bid Director authority only means anything inside Trifork's own
-  // pipeline (queues.py reads is_victoria to show every sector owner's
-  // notices) -- hide it for any other client so it's never even offered
-  // for a tenant account (server-side, admin.add_user() also force-clears
-  // it regardless of this field, in case a stale form value ever reaches it).
+  // Admin is the platform owner (2026-09-20) -- exclusively Trifork's own
+  // account, so hide that option for any other client so it's never even
+  // offered for a tenant account (server-side, admin.add_user() also
+  // force-clears it regardless of this field, in case a stale form value
+  // ever reaches it). Account Approver/Account User are offered for every
+  // client -- each can have its own approver now, not just Trifork.
   (function () {
     var clientSelect = document.getElementById('new-client');
-    var victoriaField = document.getElementById('new-user-victoria-field');
-    if (!clientSelect || !victoriaField) return;
-    function syncVictoriaField() {
+    var roleSelect = document.getElementById('new-role');
+    var adminOption = document.getElementById('new-role-admin-option');
+    if (!clientSelect || !roleSelect || !adminOption) return;
+    function syncRoleOptions() {
       var selected = clientSelect.options[clientSelect.selectedIndex];
       var isTrifork = selected && selected.textContent.trim() === 'Trifork';
-      victoriaField.style.display = isTrifork ? '' : 'none';
-      if (!isTrifork) victoriaField.querySelector('input[type="checkbox"]').checked = false;
+      adminOption.disabled = !isTrifork;
+      if (!isTrifork && roleSelect.value === 'admin') roleSelect.value = 'account_user';
     }
-    clientSelect.addEventListener('change', syncVictoriaField);
-    syncVictoriaField();
+    clientSelect.addEventListener('change', syncRoleOptions);
+    syncRoleOptions();
   })();
 </script>
 
@@ -312,9 +319,9 @@
         </td>
         <td style="font-family: monospace; font-size: 12px;">{{ user['username'] }}</td>
         <td>
-          {% if user['is_admin'] %}<span class="badge badge-strong">Admin</span>{% endif %}
-          {% if user['is_victoria'] %}<span class="badge badge-med">Bid Director</span>{% endif %}
-          {% if not user['is_admin'] and not user['is_victoria'] %}<span class="badge badge-unknown">Sector Owner</span>{% endif %}
+          {% if user['role'] == 'admin' %}<span class="badge badge-strong">Admin</span>{% endif %}
+          {% if user['role'] == 'account_approver' %}<span class="badge badge-med">Account Approver</span>{% endif %}
+          {% if user['role'] == 'account_user' %}<span class="badge badge-unknown">Account User</span>{% endif %}
         </td>
         <td style="font-size: 12px; color: var(--text-muted);">{{ user['client_name'] or '—' }}</td>
         <td style="font-size: 12px; color: var(--text-muted);">{{ user['created_at'][:10] }}</td>
@@ -448,28 +455,28 @@
     });
   });
 
-  // Sectors & Owners: swap the email/Teams/Bid Director fields to match
-  // whichever owner is selected (2026-08-09), so editing an existing
-  // person's contact info happens right here instead of in Manage Users.
+  // Sectors & Owners: swap the email/Teams/Role fields to match whichever
+  // owner is selected (2026-08-09), so editing an existing person's
+  // contact info happens right here instead of in Manage Users.
   const ownerContacts = {{ owner_contacts | default({}) | tojson }};
   function ownerSelectChanged(select) {
     const fields = select.closest('td').querySelector('.owner-contact-fields');
     const nameField = fields.querySelector('.new-name-field');
     const emailField = fields.querySelector('input[name="owner_email"]');
     const teamsField = fields.querySelector('input[name="owner_teams_webhook_url"]');
-    const victoriaField = fields.querySelector('input[name="owner_is_victoria"]');
+    const roleField = fields.querySelector('select[name="owner_role"]');
     if (select.value === '__new__') {
       nameField.style.display = '';
       nameField.value = '';
       emailField.value = '';
       teamsField.value = '';
-      victoriaField.checked = false;
+      roleField.value = 'account_user';
     } else {
       nameField.style.display = 'none';
       const contact = ownerContacts[select.value] || {};
       emailField.value = contact.email || '';
       teamsField.value = contact.teams_webhook_url || '';
-      victoriaField.checked = !!contact.is_victoria;
+      roleField.value = contact.role === 'account_approver' ? 'account_approver' : 'account_user';
     }
   }
 </script>

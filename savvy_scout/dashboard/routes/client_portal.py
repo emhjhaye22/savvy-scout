@@ -58,6 +58,13 @@ def set_status(notice_id):
         flash("Your account isn't set up with an active client filter yet.", "error")
         return redirect(url_for("welcome.index"))
 
+    # Real permission split (2026-09-20): previously any logged-in client
+    # user could record a decision -- now only an Account Approver (or the
+    # platform Admin) can, an Account User can view but not decide.
+    if not (current_user.is_admin or current_user.is_account_approver):
+        flash("Only an Account Approver can record a decision on a match.", "error")
+        return redirect(url_for("client_portal.matches"))
+
     status = request.form.get("status", "")
     if status not in ("NEW", "SHORTLISTED", "REJECTED"):
         flash("Invalid status.", "error")

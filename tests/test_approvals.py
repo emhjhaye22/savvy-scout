@@ -117,19 +117,19 @@ def _advance_to_phase2_queue(conn, notice_id):
 def test_reject_notice_requires_reason(conn):
     notice_id = _make_pass_notice(conn)
     with pytest.raises(ValueError):
-        approvals.reject_notice(conn, notice_id, "Mark", False, "")
+        approvals.reject_notice(conn, notice_id, "Mark", "account_user", "")
 
 
 def test_reject_notice_enforces_ownership(conn):
     notice_id = _make_pass_notice(conn)  # owner is Mark
     with pytest.raises(approvals.NotAuthorized):
-        approvals.reject_notice(conn, notice_id, "Kanvesh", False, "Not my patch")
+        approvals.reject_notice(conn, notice_id, "Kanvesh", "account_user", "Not my patch")
 
 
 def test_reject_notice_victoria_can_always_act(conn):
     notice_id = _make_pass_notice(conn)
     _advance_to_phase2_queue(conn, notice_id)
-    approvals.reject_notice(conn, notice_id, "Victoria", True, "Overridden")
+    approvals.reject_notice(conn, notice_id, "Victoria", "account_approver", "Overridden")
     row = conn.execute("SELECT status FROM notices WHERE id = ?", (notice_id,)).fetchone()
     assert row["status"] == Status.REJECTED.value
 
@@ -137,7 +137,7 @@ def test_reject_notice_victoria_can_always_act(conn):
 def test_park_notice_requires_reason(conn):
     notice_id = _make_pass_notice(conn)
     with pytest.raises(ValueError):
-        approvals.park_notice(conn, notice_id, "Mark", False, "   ")
+        approvals.park_notice(conn, notice_id, "Mark", "account_user", "   ")
 
 
 def test_flagged_notice_reaches_phase2_queue_for_owner_review(conn):
@@ -268,7 +268,7 @@ def test_victoria_decision_reject_requires_reason(conn, tmp_path):
 def test_approve_phase1_runs_scope_read_and_advances_status(conn):
     notice_id = _make_fail_notice(conn)
     fake_client = FakeClient()
-    approvals.approve_phase1(conn, notice_id, "Mark", False, fake_client)
+    approvals.approve_phase1(conn, notice_id, "Mark", "account_user", fake_client)
 
     row = conn.execute("SELECT status FROM notices WHERE id = ?", (notice_id,)).fetchone()
     assert row["status"] == Status.AWAITING_PHASE2_APPROVAL.value
@@ -282,7 +282,7 @@ def test_approve_phase1_runs_scope_read_and_advances_status(conn):
 def test_approve_phase1_enforces_ownership(conn):
     notice_id = _make_fail_notice(conn)  # owner Mark
     with pytest.raises(approvals.NotAuthorized):
-        approvals.approve_phase1(conn, notice_id, "Hammad", False, FakeClient())
+        approvals.approve_phase1(conn, notice_id, "Hammad", "account_user", FakeClient())
 
 
 def test_correct_pre_routing_fix_backlog_moves_stale_escalation_to_phase2(conn):

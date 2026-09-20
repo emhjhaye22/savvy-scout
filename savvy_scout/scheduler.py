@@ -25,7 +25,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from savvy_scout.config import load_settings
 from savvy_scout.db.backup import backup_database
-from savvy_scout.db.connection import get_connection, init_db
+from savvy_scout.db.connection import get_approver_email, get_connection, init_db
 from savvy_scout.db.seed_config import seed_all
 from savvy_scout.graph.drive import upload_file
 from savvy_scout.notifications import (
@@ -102,16 +102,18 @@ def run_daily_backup() -> None:
 
 
 def _report_recipients(conn, settings) -> list[str]:
-    """Explicit request (2026-08-21): Victoria was never on the Weekly/
-    Monthly report distribution, only whoever REPORT_RECIPIENT_EMAIL points
-    at (Mark). She gets every individual escalation email already
-    (_notify_victoria_of_escalation), but not this digest-level report."""
+    """Explicit request (2026-08-21): Trifork's Account Approver was never
+    on the Weekly/Monthly report distribution, only whoever
+    REPORT_RECIPIENT_EMAIL points at (the Admin). She gets every individual
+    escalation email already (_notify_victoria_of_escalation), but not this
+    digest-level report."""
     recipients = []
     if settings.report_recipient_email:
         recipients.append(settings.report_recipient_email)
-    victoria = conn.execute("SELECT email FROM users WHERE is_victoria = 1 LIMIT 1").fetchone()
-    if victoria and victoria["email"]:
-        recipients.append(victoria["email"])
+    trifork = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()
+    approver_email = get_approver_email(conn, trifork["id"]) if trifork else None
+    if approver_email:
+        recipients.append(approver_email)
     return list(dict.fromkeys(recipients))
 
 
@@ -198,9 +200,10 @@ def run_victoria_reminder_job() -> None:
     settings = load_settings()
     conn = get_connection(settings.db_path)
     try:
-        victoria = conn.execute("SELECT email FROM users WHERE is_victoria = 1 LIMIT 1").fetchone()
-        if not victoria or not victoria["email"]:
-            logger.debug("No email on file for Victoria; skipping reminder digest.")
+        trifork = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()
+        approver_email = get_approver_email(conn, trifork["id"]) if trifork else None
+        if not approver_email:
+            logger.debug("No email on file for the Account Approver; skipping reminder digest.")
             return
 
         rows, escalated_at_by_id = _pending_victoria_escalations(conn)
@@ -238,7 +241,7 @@ def run_victoria_reminder_job() -> None:
             logger.debug("No outstanding Victoria escalations qualify for a reminder today.")
             return
         try:
-            send_victoria_reminder_digest_email(victoria["email"], urgent, high_value, app_url)
+            send_victoria_reminder_digest_email(approver_email, urgent, high_value, app_url)
             logger.info("Sent Victoria reminder digest: %d urgent, %d high-value", len(urgent), len(high_value))
         except NotificationError:
             logger.exception("Failed to send Victoria reminder digest")

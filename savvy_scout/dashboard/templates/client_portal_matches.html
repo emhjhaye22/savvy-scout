@@ -12,7 +12,12 @@
 </style>
 
 <div class="ci-note" style="background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; font-size: 12.5px; color: var(--text-muted); line-height: 1.5;">
-  <strong>What this is:</strong> every notice currently matching your configured filter, most recently evaluated first. Mark a notice Shortlisted or Rejected with a note to keep track of what you're pursuing.
+  <strong>What this is:</strong> every notice currently matching your configured filter, most recently evaluated first.
+  {% if current_user.is_admin or current_user.is_account_approver %}
+  Mark a notice Shortlisted or Rejected with a note to keep track of what you're pursuing.
+  {% else %}
+  Your account can view these matches; an Account Approver on your team can mark one Shortlisted or Rejected.
+  {% endif %}
 </div>
 
 <div class="summary-bar" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
@@ -52,6 +57,7 @@
             {% if m['note'] %}<div class="cna-note">{{ m['note'] }}</div>{% endif %}
           </td>
           <td>
+            {% if current_user.is_admin or current_user.is_account_approver %}
             <form method="post" action="{{ url_for('client_portal.set_status', notice_id=m['id']) }}" class="cna-actions">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="status_filter" value="{{ status_filter }}">
@@ -60,6 +66,9 @@
               <button type="submit" name="status" value="REJECTED" class="btn btn-secondary btn-sm">Reject</button>
               {% if m['action_status'] != 'NEW' %}<button type="submit" name="status" value="NEW" class="btn btn-secondary btn-sm">Reset</button>{% endif %}
             </form>
+            {% else %}
+            <span style="color: var(--text-muted); font-size: 12px;">View only</span>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

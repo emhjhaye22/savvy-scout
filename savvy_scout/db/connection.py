@@ -19,6 +19,18 @@ def init_db(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def get_approver_email(conn: sqlite3.Connection, client_id: int) -> str | None:
+    """The Account Approver's email for a given client (2026-09-20,
+    replaces the old "SELECT ... WHERE is_victoria = 1 LIMIT 1" pattern,
+    which assumed exactly one approver existed system-wide -- broken now
+    that a tenant client can have its own). Scoped by client_id so Trifork's
+    own approver and a tenant's approver never collide."""
+    row = conn.execute(
+        "SELECT email FROM users WHERE client_id = ? AND role = 'account_approver' LIMIT 1", (client_id,)
+    ).fetchone()
+    return row["email"] if row else None
+
+
 def _apply_migrations(conn: sqlite3.Connection) -> None:
     # v1.5 status rename migration
     status_map = {
@@ -701,3 +713,49 @@ def _apply_migrations(conn: sqlite3.Connection) -> None:
     # rows doesn't orphan any historical record -- the name just stays as
     # a text snapshot of who acted at the time).
     conn.execute("DELETE FROM users WHERE display_name IN ('Kanvesh', 'Hammad')")
+
+    # Generic role migration (2026-09-20): is_admin/is_victoria don't scale
+    # past one hardcoded approver system-wide (scheduler.py/approvals.py's
+    # "SELECT ... WHERE is_victoria = 1 LIMIT 1" breaks the moment a second
+    # client wants its own approver) -- role is now the source of truth.
+    # Same self-healing shape as the client_id fix above: ADD COLUMN is
+    # durable independent of commit(), a later UPDATE isn't. is_admin/
+    # is_victoria are deliberately kept as columns (not dropped) so this
+    # heal always has a durable source to re-derive role from.
+    #
+    # Deliberately NOT keyed on "role IS NULL" alone: schema.sql's CREATE
+    # TABLE gives role a NOT NULL DEFAULT 'account_user' for brand-new
+    # databases (every test fixture included), so a raw INSERT that sets
+    # is_admin=1 but doesn't mention role gets 'account_user' from that
+    # default immediately -- never NULL. Heal is keyed directly on the
+    # legacy flags instead: is_admin/is_victoria are only ever 1 on the
+    # handful of pre-migration accounts (every new account created after
+    # this point writes role directly and leaves these two columns at
+    # their own 0 default), so this is safe to run unconditionally every
+    # boot without ever touching -- let alone clobbering -- a tenant's own
+    # explicitly-assigned role.
+    #
+    # No "AND role != ..." guard on the first two statements: on the ALTER
+    # path just below (an existing pre-role database, i.e. production),
+    # role starts out NULL, and SQL's three-valued logic makes
+    # "role != 'admin'" evaluate to NULL (not true) when role IS NULL --
+    # silently excluding every row from the UPDATE. The guard was only ever
+    # a micro-optimization to skip a redundant write, never load-bearing
+    # for correctness (a row with is_admin=0 and is_victoria=0, e.g. any
+    # tenant's own role, never matches either WHERE clause regardless), so
+    # it's dropped rather than rewritten NULL-safe.
+    user_cols_now = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if "role" not in user_cols_now:
+        conn.execute("ALTER TABLE users ADD COLUMN role TEXT")
+    conn.execute("UPDATE users SET role = 'admin' WHERE is_admin = 1")
+    conn.execute("UPDATE users SET role = 'account_approver' WHERE is_victoria = 1 AND is_admin = 0")
+    conn.execute("UPDATE users SET role = 'account_user' WHERE role IS NULL")
+
+    # Real emails for the two original seeded accounts (2026-09-20): the
+    # role->email lookup that replaces queues.py's hardcoded
+    # "victoria.milan@bidsavvy.io" literal needs a real address in the DB
+    # to resolve to the same place that literal used to point at.
+    conn.execute("UPDATE users SET email = 'mark@bidsavvy.io' WHERE display_name = 'Mark' AND email IS NULL")
+    conn.execute(
+        "UPDATE users SET email = 'victoria.milan@bidsavvy.io' WHERE display_name = 'Victoria' AND email IS NULL"
+    )

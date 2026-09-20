@@ -4,7 +4,25 @@ import sqlite3
 from datetime import datetime, timezone
 
 MISSING = "—"
-OWNER_NAMES = ("Mark", "Kanvesh", "Hammad")
+
+
+def owner_display_names(conn: sqlite3.Connection) -> tuple[str, ...]:
+    """Every Trifork account that isn't the Account Approver (2026-09-20,
+    replaces the old hardcoded OWNER_NAMES = ("Mark", "Kanvesh", "Hammad")
+    tuple, which needed a manual edit every time staff changed and was
+    already stale -- Kanvesh/Hammad left Trifork in September). Self-
+    maintaining: reflects whoever currently holds the admin/account_user
+    roles for Trifork, no code change needed when that changes."""
+    trifork = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()
+    if trifork is None:
+        return ()
+    return tuple(
+        row["display_name"]
+        for row in conn.execute(
+            "SELECT display_name FROM users WHERE client_id = ? AND role != 'account_approver'",
+            (trifork["id"],),
+        ).fetchall()
+    )
 
 
 def _json_value(value, default):
@@ -62,13 +80,14 @@ def _latest_gate_outcomes(conn, notice_id):
 
 
 def _decision_context(conn, notice_id):
-    owner_placeholders = ",".join("?" for _ in OWNER_NAMES)
+    owner_names = owner_display_names(conn)
+    owner_placeholders = ",".join("?" for _ in owner_names)
     owner_decision = conn.execute(
         f"SELECT * FROM status_history WHERE notice_id = ? "
         f"AND from_status = 'AWAITING_PHASE2_APPROVAL' "
         f"AND to_status IN ('ESCALATED_TO_VICTORIA', 'REJECTED') "
         f"AND changed_by IN ({owner_placeholders}) ORDER BY id DESC LIMIT 1",
-        (notice_id, *OWNER_NAMES),
+        (notice_id, *owner_names),
     ).fetchone()
     victoria_decision = conn.execute(
         "SELECT * FROM status_history WHERE notice_id = ? "

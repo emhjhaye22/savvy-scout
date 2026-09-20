@@ -169,7 +169,7 @@
       <strong style="font-size: 13px; color: var(--navy); margin-right: 8px;">Waiting for Phase 2 scope read.</strong>
       <span style="font-size: 12px; color: var(--text-muted);">Run the AI scope read (Phase 2 section of the Approval Queue) before this notice can be reviewed.</span>
     </div>
-    {% elif s == 'ESCALATED_TO_VICTORIA' and current_user.is_victoria %}
+    {% elif s == 'ESCALATED_TO_VICTORIA' and current_user.is_account_approver %}
     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 16px; background: rgba(58,58,58,0.1); border-radius: 8px; border: 1px solid rgba(58,58,58,0.3); margin-top: 8px;">
       <strong style="font-size: 13px; color: var(--navy); margin-right: 8px;">Victoria's Decision:</strong>
       <form method="post" action="{{ url_for('queues.victoria_decision', notice_id=notice['id']) }}" onsubmit="return validateVictoriaDecision(this)" style="display:inline-flex; flex-direction: column; align-items: flex-start; gap: 6px;">
@@ -478,7 +478,7 @@
     <span class="badge badge-provisional">PROVISIONAL — FOR VALIDATION</span>
   </div>
   <div class="card-body">
-    <div class="prov-label">PROVISIONAL, FOR VALIDATION — Not a bid decision. Victoria Milan, Bid Director, makes all bid and no-bid decisions.</div>
+    <div class="prov-label">PROVISIONAL, FOR VALIDATION — Not a bid decision. The Account Approver makes all bid and no-bid decisions.</div>
 
     <div class="scope-grid">
       <div class="scope-card">

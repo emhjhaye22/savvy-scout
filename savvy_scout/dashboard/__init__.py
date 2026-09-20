@@ -199,24 +199,24 @@ def create_app(settings: Settings) -> Flask:
         count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
 
         if count == 0:
-            # Create test users. Mark is the account-management admin
-            # (is_admin), separate from Victoria's rule-correction authority
-            # (is_victoria) -- see dashboard/routes/admin.py. Kanvesh and
+            # Create test users. Mark is the Admin (account-management,
+            # separate from Victoria's Account Approver rule-correction
+            # authority -- see dashboard/routes/admin.py). Kanvesh and
             # Hammad are no longer seeded here: scouting consolidated to
             # Mark and Victoria alone. Both join Trifork's own account
             # (2026-09-18 tenancy fix) -- init_db/seed_all above already
             # guarantee that row exists by the time this runs.
             trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
             users = [
-                ('mark', 'Mark', False, True),
-                ('victoria', 'Victoria', True, False),
+                ('mark', 'Mark', 'admin'),
+                ('victoria', 'Victoria', 'account_approver'),
             ]
 
-            for username, display_name, is_victoria, is_admin in users:
+            for username, display_name, role in users:
                 password = secrets.token_urlsafe(12)
                 conn.execute(
-                    "INSERT INTO users (username, password_hash, display_name, is_victoria, is_admin, created_at, client_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (username, generate_password_hash(password), display_name, int(is_victoria), int(is_admin), datetime.now(timezone.utc).isoformat(), trifork_id)
+                    "INSERT INTO users (username, password_hash, display_name, role, created_at, client_id) VALUES (?, ?, ?, ?, ?, ?)",
+                    (username, generate_password_hash(password), display_name, role, datetime.now(timezone.utc).isoformat(), trifork_id)
                 )
                 print(f"✓ Created local dev user: {username} / {password}")
 
@@ -250,9 +250,9 @@ def create_app(settings: Settings) -> Flask:
             # tenant-isolation gate, which reads as broken, not restricted.
             return {"is_trifork": False}
         conn = get_db()
-        notif = get_notification_context(conn, current_user.display_name, int(current_user.is_victoria))
+        notif = get_notification_context(conn, current_user.display_name, int(current_user.is_account_approver))
         sidebar_stage_counts = get_sidebar_stage_counts(
-            conn, current_user.display_name, int(current_user.is_victoria)
+            conn, current_user.display_name, int(current_user.is_account_approver)
         )
         return {"notif": notif, "sidebar_stage_counts": sidebar_stage_counts, "is_trifork": True}
 

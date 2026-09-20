@@ -98,7 +98,7 @@
         <div class="welcome-card-desc">Whitelist, data dictionary, sweep history</div>
       </div>
     </a>
-    {% if current_user.is_victoria or current_user.is_admin %}
+    {% if current_user.is_account_approver or current_user.is_admin %}
     <a class="welcome-card" href="{{ url_for('admin.index') }}">
       <span class="welcome-card-icon"><i class="fa-solid fa-shield-halved"></i></span>
       <div>

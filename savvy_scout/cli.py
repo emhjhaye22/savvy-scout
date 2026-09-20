@@ -5,7 +5,7 @@
     python -m savvy_scout.cli export --output tracker.xlsx
     python -m savvy_scout.cli regression-test --baseline baseline.xlsx --output diff.xlsx
     python -m savvy_scout.cli backup
-    python -m savvy_scout.cli create-user --username mark --display-name Mark
+    python -m savvy_scout.cli create-user --username mark --display-name Mark --role admin
     python -m savvy_scout.cli retriage-unmatched
     python -m savvy_scout.cli dashboard --port 5000
 """
@@ -29,9 +29,6 @@ from savvy_scout.workflow.approvals import (
     reclassify_phase2_scoped_backlog,
     retriage_all_unmatched,
 )
-
-DASHBOARD_DISPLAY_NAMES = {"Mark", "Victoria"}
-
 
 def cmd_init_db(args: argparse.Namespace) -> None:
     settings = load_settings()
@@ -109,12 +106,6 @@ def cmd_backup(args: argparse.Namespace) -> None:
 def cmd_create_user(args: argparse.Namespace) -> None:
     from werkzeug.security import generate_password_hash
 
-    if args.display_name not in DASHBOARD_DISPLAY_NAMES:
-        print(
-            f"Warning: '{args.display_name}' is not one of {sorted(DASHBOARD_DISPLAY_NAMES)}; "
-            "the dashboard's admin/Victoria checks match on exact display name."
-        )
-
     settings = load_settings()
     conn = get_connection(settings.db_path)
     init_db(conn)
@@ -128,19 +119,19 @@ def cmd_create_user(args: argparse.Namespace) -> None:
     # Trifork staff.
     trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
     conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, is_victoria, created_at, client_id) "
+        "INSERT INTO users (username, password_hash, display_name, role, created_at, client_id) "
         "VALUES (?, ?, ?, ?, ?, ?)",
         (
             args.username,
             generate_password_hash(password),
             args.display_name,
-            int(args.display_name == "Victoria"),
+            args.role,
             datetime.now(timezone.utc).isoformat(),
             trifork_id,
         ),
     )
     conn.commit()
-    print(f"Created dashboard user '{args.username}' ({args.display_name}).")
+    print(f"Created dashboard user '{args.username}' ({args.display_name}, role: {args.role}).")
 
 
 def cmd_retriage_unmatched(args: argparse.Namespace) -> None:
@@ -241,10 +232,13 @@ def build_parser() -> argparse.ArgumentParser:
     backup_parser.set_defaults(func=cmd_backup)
 
     create_user_parser = subparsers.add_parser(
-        "create-user", help="Create a dashboard login (Mark or Victoria)"
+        "create-user", help="Create a dashboard login"
     )
     create_user_parser.add_argument("--username", required=True)
     create_user_parser.add_argument("--display-name", required=True)
+    create_user_parser.add_argument(
+        "--role", required=True, choices=("admin", "account_approver", "account_user")
+    )
     create_user_parser.set_defaults(func=cmd_create_user)
 
     subparsers.add_parser(

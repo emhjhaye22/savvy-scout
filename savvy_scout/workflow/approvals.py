@@ -28,6 +28,7 @@ from savvy_scout.escalation.word_documents import (
     build_capture_brief_docx,
     build_internal_addendum_docx,
 )
+from savvy_scout.db.connection import get_approver_email
 from savvy_scout.export.trifork_pipeline import update_configured_trifork_pipeline
 from savvy_scout.logging_util import log_audit, log_status_change
 from savvy_scout.models.notice import Status, validate_transition
@@ -62,10 +63,10 @@ def _get_notice(conn: sqlite3.Connection, notice_id: int) -> sqlite3.Row:
     return row
 
 
-def _require_owner_or_victoria(
-    notice_row: sqlite3.Row, actor_display_name: str, actor_is_victoria: bool
+def _require_owner_or_approver(
+    notice_row: sqlite3.Row, actor_display_name: str, actor_role: str
 ) -> None:
-    if actor_is_victoria:
+    if actor_role == "account_approver":
         return
     if notice_row["owner"] != actor_display_name:
         raise NotAuthorized(
@@ -147,9 +148,10 @@ def escalate_to_victoria(
 
 
 def _notify_victoria_of_escalation(conn: sqlite3.Connection, notice_id: int, trigger_reason: str) -> None:
-    victoria = conn.execute("SELECT email FROM users WHERE is_victoria = 1 LIMIT 1").fetchone()
-    if not victoria or not victoria["email"]:
-        logger.debug("No email on file for Victoria; skipping escalation email for notice %s.", notice_id)
+    trifork = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()
+    approver_email = get_approver_email(conn, trifork["id"]) if trifork else None
+    if not approver_email:
+        logger.debug("No email on file for the Account Approver; skipping escalation email for notice %s.", notice_id)
         return
 
     notice = _get_notice(conn, notice_id)
@@ -162,7 +164,7 @@ def _notify_victoria_of_escalation(conn: sqlite3.Connection, notice_id: int, tri
 
     try:
         send_victoria_escalation_email(
-            victoria["email"], notice_id, notice["ref"], notice["title"], notice["buyer"],
+            approver_email, notice_id, notice["ref"], notice["title"], notice["buyer"],
             notice["sector"], notice["owner"], notice["indicative_value"], notice["deadline"],
             assessment["overall_rating"] if assessment else None,
             assessment["overall_reasoning"] if assessment else None,
@@ -176,7 +178,7 @@ def approve_phase1(
     conn: sqlite3.Connection,
     notice_id: int,
     actor_display_name: str,
-    actor_is_victoria: bool,
+    actor_role: str,
     anthropic_client,
     scope_read_fn=run_scope_read,
 ) -> None:
@@ -188,7 +190,7 @@ def approve_phase1(
     compatibility; pass triage.scope_read.get_scope_read_client(settings)'s
     result to use whichever provider SCOPE_READ_PROVIDER selects instead."""
     notice_row = _get_notice(conn, notice_id)
-    _require_owner_or_victoria(notice_row, actor_display_name, actor_is_victoria)
+    _require_owner_or_approver(notice_row, actor_display_name, actor_role)
 
     assessment = scope_read_fn(anthropic_client, conn, notice_row)
 
@@ -214,16 +216,16 @@ def reject_notice(
     conn: sqlite3.Connection,
     notice_id: int,
     actor_display_name: str,
-    actor_is_victoria: bool,
+    actor_role: str,
     reason: str,
 ) -> None:
     if not reason or not reason.strip():
         raise ValueError("A rejection reason is required.")
     notice_row = _get_notice(conn, notice_id)
-    _require_owner_or_victoria(notice_row, actor_display_name, actor_is_victoria)
+    _require_owner_or_approver(notice_row, actor_display_name, actor_role)
     was_owner_phase2_review = (
         Status(notice_row["status"]) == Status.AWAITING_PHASE2_APPROVAL
-        and actor_display_name == "Mark"
+        and actor_role == "admin"
     )
     _transition(conn, notice_row, Status.REJECTED, actor_display_name, reason)
     if was_owner_phase2_review:
@@ -234,7 +236,7 @@ def approve_phase2(
     conn: sqlite3.Connection,
     notice_id: int,
     actor_display_name: str,
-    actor_is_victoria: bool,
+    actor_role: str,
     reason: str | None = None,
 ) -> None:
     """Owner confirms a Phase 2 result (2026-07-30 policy): owner approval is
@@ -246,7 +248,7 @@ def approve_phase2(
     sends the notice to Victoria for her decision, with the same escalation
     brief either way."""
     notice_row = _get_notice(conn, notice_id)
-    _require_owner_or_victoria(notice_row, actor_display_name, actor_is_victoria)
+    _require_owner_or_approver(notice_row, actor_display_name, actor_role)
     if Status(notice_row["status"]) != Status.AWAITING_PHASE2_APPROVAL:
         raise ValueError(f"Notice {notice_row['ref']} is not in AWAITING_PHASE2_APPROVAL.")
 
@@ -260,13 +262,13 @@ def park_notice(
     conn: sqlite3.Connection,
     notice_id: int,
     actor_display_name: str,
-    actor_is_victoria: bool,
+    actor_role: str,
     reason: str,
 ) -> None:
     if not reason or not reason.strip():
         raise ValueError("A reason is required to park a notice.")
     notice_row = _get_notice(conn, notice_id)
-    _require_owner_or_victoria(notice_row, actor_display_name, actor_is_victoria)
+    _require_owner_or_approver(notice_row, actor_display_name, actor_role)
     _transition(conn, notice_row, Status.PARKED, actor_display_name, reason)
 
 
@@ -274,7 +276,7 @@ def mark_docs_downloaded(
     conn: sqlite3.Connection,
     notice_id: int,
     actor_display_name: str,
-    actor_is_victoria: bool,
+    actor_role: str,
 ) -> None:
     """Owner confirms they've grabbed the bid documents (ITT/PQQ/spec --
     see notices.bid_documents_json) from the source portal, for their own
@@ -283,7 +285,7 @@ def mark_docs_downloaded(
     machine since the beginning but had no route/action wired to it until
     2026-07-30."""
     notice_row = _get_notice(conn, notice_id)
-    _require_owner_or_victoria(notice_row, actor_display_name, actor_is_victoria)
+    _require_owner_or_approver(notice_row, actor_display_name, actor_role)
     if Status(notice_row["status"]) not in (Status.APPROVED, Status.CAPTURE_BRIEF_DRAFTED):
         raise ValueError(
             f"Notice {notice_row['ref']} must be Approved or have a Capture Brief drafted "
@@ -308,7 +310,7 @@ def mark_victoria_decision(
     if not reason or not reason.strip():
         raise ValueError("A reason is required to mark a notice for Victoria's decision.")
     notice_row = _get_notice(conn, notice_id)
-    _require_owner_or_victoria(notice_row, actor_display_name, actor_is_victoria=False)
+    _require_owner_or_approver(notice_row, actor_display_name, actor_role="account_user")
     if Status(notice_row["status"]) != Status.AWAITING_PHASE2_APPROVAL:
         raise ValueError(
             f"Notice {notice_row['ref']} is not in AWAITING_PHASE2_APPROVAL "
@@ -696,7 +698,7 @@ def _advance_phase2_without_scope_read_unchecked(
 
 
 def advance_phase2_without_scope_read(
-    conn: sqlite3.Connection, notice_id: int, actor_display_name: str, actor_is_victoria: bool = False
+    conn: sqlite3.Connection, notice_id: int, actor_display_name: str, actor_role: str = "account_user"
 ) -> None:
     """Manually advances ONE PHASE2_SCOPED notice straight to
     AWAITING_PHASE2_APPROVAL without running the B2 AI scope read (2026-07-21
@@ -713,12 +715,12 @@ def advance_phase2_without_scope_read(
     configured (see process_pending_phase2_scope_reads); this is the manual
     fallback for when it is not, not a replacement for it.
 
-    2026-07-30: now enforces _require_owner_or_victoria like every sibling
+    2026-07-30: now enforces _require_owner_or_approver like every sibling
     mutation (approve/reject/park) -- previously missing here, which let any
     logged-in owner advance another owner's notice by guessing/opening its
     notice_id URL directly."""
     notice_row = _get_notice(conn, notice_id)
-    _require_owner_or_victoria(notice_row, actor_display_name, actor_is_victoria)
+    _require_owner_or_approver(notice_row, actor_display_name, actor_role)
     _advance_phase2_without_scope_read_unchecked(conn, notice_row, actor_display_name)
 
 

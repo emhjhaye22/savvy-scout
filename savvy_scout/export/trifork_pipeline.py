@@ -9,7 +9,7 @@ from pathlib import Path
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Font
 
-from savvy_scout.escalation.context import MISSING, OWNER_NAMES, build_context
+from savvy_scout.escalation.context import MISSING, build_context, owner_display_names
 
 TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "templates" / "artifacts" / "pipeline_tracker_template.xlsx"
 TRACKER_SHEETS = ("Pass", "Flag", "Fail")
@@ -29,10 +29,10 @@ TOTAL_COLUMNS = len(HEADERS)
 
 
 def _owner_reviewed_notice_ids(conn: sqlite3.Connection, owner: str | None = None) -> list[int]:
-    # owner, if given (e.g. "Mark"), restricts to that owner's own decisions
-    # only -- explicit request (2026-08-16): Mark's tracker export must not
-    # include Kanvesh's or Hammad's escalations/rejections.
-    names = (owner,) if owner else OWNER_NAMES
+    # owner, if given, restricts to that owner's own decisions only --
+    # explicit request (2026-08-16): one owner's tracker export must not
+    # include another owner's escalations/rejections.
+    names = (owner,) if owner else owner_display_names(conn)
     placeholders = ",".join("?" for _ in names)
     rows = conn.execute(
         f"SELECT notice_id, MAX(id) latest_id FROM status_history "
@@ -47,13 +47,14 @@ def _owner_reviewed_notice_ids(conn: sqlite3.Connection, owner: str | None = Non
 
 
 def _decision_target(conn, notice_id):
-    placeholders = ",".join("?" for _ in OWNER_NAMES)
+    owner_names = owner_display_names(conn)
+    placeholders = ",".join("?" for _ in owner_names)
     return conn.execute(
         f"SELECT to_status, reason FROM status_history WHERE notice_id = ? "
         f"AND from_status = 'AWAITING_PHASE2_APPROVAL' "
         f"AND to_status IN ('ESCALATED_TO_VICTORIA', 'REJECTED') "
         f"AND changed_by IN ({placeholders}) ORDER BY id DESC LIMIT 1",
-        (notice_id, *OWNER_NAMES),
+        (notice_id, *owner_names),
     ).fetchone()
 
 

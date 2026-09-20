@@ -744,7 +744,7 @@
     <div class="avatar">{{ current_user.display_name[0] }}</div>
     <div class="user-info">
       <div class="user-name">{{ current_user.display_name }}</div>
-      <div class="user-role">{% if current_user.is_victoria %}Bid Director{% else %}Sector Owner{% endif %}</div>
+      <div class="user-role">{% if current_user.is_admin %}Admin{% elif current_user.is_account_approver %}Account Approver{% else %}Account User{% endif %}</div>
     </div>
   </div>
 
@@ -830,7 +830,7 @@
     </ul>
   </div>
 
-  {% if current_user.display_name in ('Victoria', 'Mark') or current_user.is_admin %}
+  {% if current_user.is_admin or current_user.is_account_approver %}
   <div class="sidebar-divider"></div>
   <div class="sidebar-section">
     <div class="sidebar-section-label">Administration</div>

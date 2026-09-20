@@ -58,15 +58,17 @@ AUTO_MANAGED_COLUMNS = {"id", "updated_at", "updated_by", "created_at"}
 
 
 def _has_correction_authority() -> bool:
-    return current_user.display_name in ("Victoria", "Mark")
+    """Rule-correction authority: Admin or Account Approver (2026-09-20,
+    generalized from the literal "Victoria or Mark" check -- see
+    _is_super_admin below for why these stay two separate checks rather
+    than one combined role)."""
+    return current_user.is_admin or current_user.is_account_approver
 
 
 def _is_super_admin() -> bool:
-    """Account-management authority: deliberately Mark (is_admin), separate
-    from Victoria's rule-correction authority above (2026-08-08, explicit
-    request -- the two roles are not the same person). Kanvesh and Hammad
-    lost correction authority on 2026-09-01 when scouting consolidated to
-    Mark alone."""
+    """Account-management authority: deliberately Admin only, separate from
+    Account Approver's rule-correction authority above (2026-08-08,
+    explicit request -- the two roles are not the same person)."""
     return bool(current_user.is_admin)
 
 
@@ -165,9 +167,9 @@ def _build_admin_context(conn, has_correction, is_admin) -> dict:
             row["display_name"]: {
                 "email": row["email"] or "",
                 "teams_webhook_url": row["teams_webhook_url"] or "",
-                "is_victoria": bool(row["is_victoria"]),
+                "role": row["role"],
             }
-            for row in conn.execute("SELECT display_name, email, teams_webhook_url, is_victoria FROM users").fetchall()
+            for row in conn.execute("SELECT display_name, email, teams_webhook_url, role FROM users").fetchall()
         }
         if has_correction else {}
     )
@@ -342,7 +344,11 @@ def assign_owner(row_id):
     # per selection, rather than two separate sets for the new/existing cases.
     owner_email = request.form.get("owner_email", "").strip().lower()
     owner_teams = request.form.get("owner_teams_webhook_url", "").strip()
-    owner_is_victoria = request.form.get("owner_is_victoria") == "on"
+    # Trifork-internal only (no tenant-client equivalent of a sector owner),
+    # so no "admin" option here -- just the two roles the account can hold.
+    owner_role = request.form.get("owner_role", "account_user")
+    if owner_role not in ("account_approver", "account_user"):
+        owner_role = "account_user"
     if owner_email and "@" not in owner_email:
         flash(f"'{owner_email}' doesn't look like a valid email address.", "error")
         return redirect(url_for("admin.index") + "#group-sectors")
@@ -368,11 +374,11 @@ def assign_owner(row_id):
         # add_user()'s identical comment above.
         trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
         conn.execute(
-            "INSERT INTO users (username, password_hash, display_name, email, teams_webhook_url, is_victoria, is_admin, created_at, client_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)",
+            "INSERT INTO users (username, password_hash, display_name, email, teams_webhook_url, role, created_at, client_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 username, generate_password_hash(temp_password), new_name, owner_email,
-                owner_teams or None, int(owner_is_victoria), datetime.now(timezone.utc).isoformat(), trifork_id,
+                owner_teams or None, owner_role, datetime.now(timezone.utc).isoformat(), trifork_id,
             ),
         )
         conn.commit()
@@ -389,15 +395,21 @@ def assign_owner(row_id):
         new_owner_name = owner_choice
         # Contact info (2026-08-09): editable inline for an *existing* owner
         # too, not just when creating a new one -- one save updates their
-        # email/Teams webhook/Bid Director flag together with the sector
-        # assignment, instead of a separate trip to Manage Users.
+        # email/Teams webhook/role together with the sector assignment,
+        # instead of a separate trip to Manage Users.
         existing_user = conn.execute(
-            "SELECT id FROM users WHERE display_name = ?", (new_owner_name,)
+            "SELECT id, role FROM users WHERE display_name = ?", (new_owner_name,)
         ).fetchone()
         if existing_user:
+            # This form only ever offers account_approver/account_user (no
+            # admin option, see owner_role above) -- if the person picked as
+            # a sector owner happens to already be the Admin, don't demote
+            # them just because this unrelated field defaulted to
+            # account_user; leave admin status untouched either way.
+            new_role = existing_user["role"] if existing_user["role"] == "admin" else owner_role
             conn.execute(
-                "UPDATE users SET email = ?, teams_webhook_url = ?, is_victoria = ? WHERE id = ?",
-                (owner_email or None, owner_teams or None, int(owner_is_victoria), existing_user["id"]),
+                "UPDATE users SET email = ?, teams_webhook_url = ?, role = ? WHERE id = ?",
+                (owner_email or None, owner_teams or None, new_role, existing_user["id"]),
             )
             conn.commit()
 
@@ -565,7 +577,9 @@ def add_user():
 
     display_name = request.form.get("display_name", "").strip()
     email = request.form.get("email", "").strip().lower()
-    is_victoria = request.form.get("is_victoria") == "on"
+    role = request.form.get("role", "account_user")
+    if role not in ("admin", "account_approver", "account_user"):
+        role = "account_user"
     client_id = request.form.get("client_id", type=int)
 
     if not display_name or not email:
@@ -592,11 +606,11 @@ def add_user():
         # (backward compatibility with the pre-picker form shape).
         client = conn.execute("SELECT * FROM clients WHERE id = ?", (trifork_id,)).fetchone()
     client_id = client["id"]
-    # is_victoria grants visibility into every sector owner's notices in
-    # Trifork's own pipeline (queues.py) -- it must never be attachable to a
-    # non-Trifork tenant account, regardless of what the form posts.
-    if client_id != trifork_id:
-        is_victoria = False
+    # admin is the platform owner (2026-09-20, generalized from the earlier
+    # is_victoria-only guard) -- exclusively Trifork's own account, never
+    # attachable to a tenant client regardless of what the form posts.
+    if client_id != trifork_id and role == "admin":
+        role = "account_user"
 
     existing = conn.execute(
         "SELECT 1 FROM users WHERE email = ? OR username = ? OR display_name = ?",
@@ -608,14 +622,14 @@ def add_user():
 
     temp_password, (message, category) = _invite_or_reset(email, display_name, username)
     conn.execute(
-        "INSERT INTO users (username, password_hash, display_name, email, is_victoria, is_admin, "
-        "created_at, client_id) VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
+        "INSERT INTO users (username, password_hash, display_name, email, role, "
+        "created_at, client_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
         (
             username,
             generate_password_hash(temp_password),
             display_name,
             email,
-            int(is_victoria),
+            role,
             datetime.now(timezone.utc).isoformat(),
             client_id,
         ),

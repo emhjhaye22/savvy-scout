@@ -57,7 +57,7 @@ def victoria_sourced_reject_sql(alias: str = "notices") -> str:
 VICTORIA_STAGE_SLUGS = {"escalated", "approved", "rejected"}
 
 
-def get_sidebar_stage_counts(conn: sqlite3.Connection, owner: str, is_victoria: int) -> list[dict]:
+def get_sidebar_stage_counts(conn: sqlite3.Connection, owner: str, is_approver: int) -> list[dict]:
     """One count per Workflow Stages row: Victoria sees only the stages she
     actually acts on (see VICTORIA_STAGE_SLUGS), every other owner sees
     every stage but scoped to only their own notices -- same owner-scoping
@@ -70,11 +70,11 @@ def get_sidebar_stage_counts(conn: sqlite3.Connection, owner: str, is_victoria: 
     in_scope_where, in_scope_params = in_scope_filter_sql(conn)
     counts = []
     for slug, css_class, label, statuses in STAGE_GROUPS:
-        if is_victoria and slug not in VICTORIA_STAGE_SLUGS:
+        if is_approver and slug not in VICTORIA_STAGE_SLUGS:
             continue
         placeholders = ",".join("?" for _ in statuses)
         extra_where = f" AND {victoria_sourced_reject_sql('notices')}" if slug == "rejected" else ""
-        if is_victoria:
+        if is_approver:
             count = conn.execute(
                 f"SELECT COUNT(*) FROM notices WHERE status IN ({placeholders}) AND {in_scope_where}{extra_where}",
                 (*statuses, *in_scope_params),
@@ -88,12 +88,12 @@ def get_sidebar_stage_counts(conn: sqlite3.Connection, owner: str, is_victoria: 
     return counts
 
 
-def get_notification_context(conn: sqlite3.Connection, owner: str, is_victoria: int) -> dict:
+def get_notification_context(conn: sqlite3.Connection, owner: str, is_approver: int) -> dict:
     in_scope_where, in_scope_params = in_scope_filter_sql(conn)
     attention_count = conn.execute(
         f"SELECT COUNT(*) FROM notices WHERE status IN ('TO_REVIEW', 'AWAITING_PHASE2_APPROVAL') "
         f"AND {in_scope_where} AND (owner = ? OR ? = 1)",
-        (*in_scope_params, owner, is_victoria),
+        (*in_scope_params, owner, is_approver),
     ).fetchone()[0]
     attention_rows = conn.execute(
         f"""
@@ -109,7 +109,7 @@ def get_notification_context(conn: sqlite3.Connection, owner: str, is_victoria: 
         ORDER BY n.deadline IS NULL, n.deadline ASC
         LIMIT 5
         """,
-        (*in_scope_params, owner, is_victoria),
+        (*in_scope_params, owner, is_approver),
     ).fetchall()
 
     since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
@@ -119,9 +119,9 @@ def get_notification_context(conn: sqlite3.Connection, owner: str, is_victoria: 
         JOIN notices n ON n.id = sh.notice_id
         WHERE sh.changed_at >= ? AND (n.owner = ? OR ? = 1)
         """,
-        (since, owner, is_victoria),
+        (since, owner, is_approver),
     ).fetchone()[0]
-    if is_victoria:
+    if is_approver:
         activity_rows = conn.execute(
             """
             SELECT sh.changed_at, sh.changed_by, sh.from_status, sh.to_status, sh.reason,

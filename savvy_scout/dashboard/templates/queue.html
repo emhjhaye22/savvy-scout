@@ -134,7 +134,7 @@
 {# ---- PHASE 2 QUEUE (owners only -- Victoria has no sector, see Escalated below) ----
    This is the primary work queue -- shown first, above the safety-net gate
    review, since it's where real work actually waits most of the time. #}
-{% if not current_user.is_victoria %}
+{% if not current_user.is_account_approver %}
 <div class="queue-section">
   <div class="queue-header">
     <div class="queue-heading">
@@ -206,7 +206,7 @@
    Collapsed by default and shown below the primary queue above: these are
    gate FAILs on a safety-net double-check, not the main work queue. Still
    one click away, count stays visible. #}
-{% if not current_user.is_victoria %}
+{% if not current_user.is_account_approver %}
 <details class="queue-section">
   <summary class="queue-header" style="cursor: pointer; list-style: none;">
     <div class="queue-heading">
@@ -275,7 +275,7 @@
 {% endif %}
 
 {# ---- VICTORIA ESCALATION (only for Victoria) ---- #}
-{% if current_user.is_victoria %}
+{% if current_user.is_account_approver %}
 <div class="queue-section">
   <div class="queue-header">
     <div class="queue-heading">
