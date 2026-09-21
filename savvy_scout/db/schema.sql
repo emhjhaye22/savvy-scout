@@ -615,6 +615,7 @@ CREATE INDEX IF NOT EXISTS idx_client_notice_actions_client ON client_notice_act
 
 CREATE INDEX IF NOT EXISTS idx_notices_ref ON notices(ref);
 CREATE INDEX IF NOT EXISTS idx_notices_status ON notices(status);
+CREATE INDEX IF NOT EXISTS idx_notices_status_owner_deadline ON notices(status, owner, deadline);
 -- 2026-09-20: Admin's "no filters" views (Overview, Opportunities,
 -- sidebar/notification counts) query by owner and sector on every page
 -- load with no scope-narrowing WHERE clause -- previously every one of
@@ -626,6 +627,9 @@ CREATE INDEX IF NOT EXISTS idx_notices_sector ON notices(sector);
 CREATE INDEX IF NOT EXISTS idx_notices_first_seen_at ON notices(first_seen_at);
 CREATE INDEX IF NOT EXISTS idx_gate_results_notice ON gate_results(notice_id);
 CREATE INDEX IF NOT EXISTS idx_triage_runs_notice ON triage_runs(notice_id);
+CREATE INDEX IF NOT EXISTS idx_triage_runs_notice_id ON triage_runs(notice_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_phase2_assessments_notice ON phase2_assessments(notice_id);
 CREATE INDEX IF NOT EXISTS idx_escalation_briefs_notice ON escalation_briefs(notice_id);
 CREATE INDEX IF NOT EXISTS idx_sweep_run_sources_run ON sweep_run_sources(sweep_run_id);
+CREATE INDEX IF NOT EXISTS idx_status_history_notice_id ON status_history(notice_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_status_history_changed_at ON status_history(changed_at);
