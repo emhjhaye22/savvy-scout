@@ -353,7 +353,7 @@ def _build_top_buyers(conn, in_scope_where, in_scope_params, limit=5) -> list[di
     return [{"buyer": r["buyer"], "count": r["cnt"], "pct": round(r["cnt"] / max_count * 100, 1)} for r in rows]
 
 
-def _build_top_competitors(conn, client_id, limit=5) -> list[dict]:
+def _build_top_competitors(conn, client_id, limit=5, show_all_sectors: bool = False) -> list[dict]:
     """Mirrors _build_top_buyers, but for Competitor Intel's own aggregation
     (2026-09-06) rather than a fresh query -- reuses _is_relevant_award(), the
     same purpose-built relevance check Competitor Intel's default filter uses
@@ -363,7 +363,7 @@ def _build_top_competitors(conn, client_id, limit=5) -> list[dict]:
     already fixed. Deliberately NOT scoped by in_scope_filter_sql: award
     notices are UK5, which that filter excludes by design, same reasoning
     as Competitor Intel's own screen."""
-    relevant = [c for c in _competitors(conn, client_id) if c["relevant"]][:limit]
+    relevant = [c for c in _competitors(conn, client_id, show_all_sectors=show_all_sectors) if c["relevant"]][:limit]
     max_count = relevant[0]["award_count"] if relevant else 1
     return [
         {"supplier_name": c["supplier_name"], "count": c["award_count"], "pct": round(c["award_count"] / max_count * 100, 1)}
@@ -371,7 +371,7 @@ def _build_top_competitors(conn, client_id, limit=5) -> list[dict]:
     ]
 
 
-def _build_sector_spend(conn) -> list[dict]:
+def _build_sector_spend(conn, show_all_sectors: bool = False) -> list[dict]:
     """Market-size-by-sector panel named in the UI alignment build's
     Dashboard spec (2026-09-06): aggregated award value per sector, across
     every configured sector (config_owner_map, the same source of truth
@@ -380,18 +380,25 @@ def _build_sector_spend(conn) -> list[dict]:
     a sector with no data shows a real zero bar, not an omitted one.
     Deliberately NOT using in_scope_filter_sql: that excludes UK5
     (awarded/closed) by design, and award notices are UK5 by definition,
-    same reasoning as Competitor Intel's aggregation."""
+    same reasoning as Competitor Intel's aggregation.
+
+    show_all_sectors (2026-09-21, Admin-only, "nothing filtered"): adds an
+    "Unclassified" bucket for award value outside every configured sector,
+    instead of silently dropping it."""
     sector_order = [
         r["sector"] for r in conn.execute("SELECT sector FROM config_owner_map ORDER BY sector").fetchall()
     ]
-    rows = conn.execute(
-        "SELECT sector, indicative_value FROM notices WHERE is_award = 1 AND sector IS NOT NULL"
-    ).fetchall()
+    if show_all_sectors:
+        sector_order = sector_order + ["Unclassified"]
+    rows = conn.execute("SELECT sector, indicative_value FROM notices WHERE is_award = 1").fetchall()
     totals = {sector: 0.0 for sector in sector_order}
     for row in rows:
         parsed = _parse_gbp(row["indicative_value"])
-        if parsed is not None and row["sector"] in totals:
-            totals[row["sector"]] += parsed
+        if parsed is None:
+            continue
+        bucket = row["sector"] if row["sector"] in totals else ("Unclassified" if show_all_sectors else None)
+        if bucket is not None:
+            totals[bucket] += parsed
     buckets = [(sector, totals[sector]) for sector in sector_order]
     return bar_chart_series(buckets)
 
@@ -536,8 +543,8 @@ def index():
     source_performance = _build_source_performance(conn, uk_now)
     approval_rate = _build_approval_rate(conn, in_scope_where, in_scope_params)
     top_buyers = _build_top_buyers(conn, in_scope_where, in_scope_params)
-    top_competitors = _build_top_competitors(conn, current_user.client_id)
-    sector_spend = _build_sector_spend(conn)
+    top_competitors = _build_top_competitors(conn, current_user.client_id, show_all_sectors=show_all_sectors)
+    sector_spend = _build_sector_spend(conn, show_all_sectors=show_all_sectors)
 
     # Cross-feature tiles (2026-09-05 UI alignment): Signals, Competitor
     # Intel, and Shortlists are separate screens, but a one-glance count of

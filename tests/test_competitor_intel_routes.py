@@ -521,3 +521,51 @@ def test_buyers_tab_merges_case_variant_buyer_names(app):
     resp = client.get("/competitor-intel?tab=buyers")
     body = resp.data.decode()
     assert body.count("County Council") + body.count("county council") == 1
+
+
+def _admin_client(app):
+    # role set directly, not is_admin + relying on the self-heal migration
+    # -- that only re-derives role during init_db(), which already ran
+    # once when create_app() built this app fixture, so a raw INSERT here
+    # (after the fixture, inside the test body) would otherwise land on
+    # schema.sql's plain 'account_user' column default and stay there.
+    conn = _db(app)
+    trifork_id = conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
+    conn.execute(
+        "INSERT INTO users (username, password_hash, display_name, role, created_at, client_id) "
+        "VALUES ('adminowner', ?, 'Admin Owner', 'admin', ?, ?)",
+        (generate_password_hash("testpass"), datetime.now(timezone.utc).isoformat(), trifork_id),
+    )
+    conn.commit()
+    client = app.test_client()
+    client.post("/login", data={"username": "adminowner", "password": "testpass"})
+    return client
+
+
+def test_admin_sees_unclassified_sector_competitors_and_buyers(app):
+    """2026-09-21 explicit request ("nothing filtered" for Admin): an award
+    notice that never matched a configured sector at all must still show
+    up for Admin -- both on the Competitors tab and the Buyers tab --
+    instead of being silently dropped by the sector IS NOT NULL filter."""
+    conn = _db(app)
+    _insert_award(conn, "REF-UNCLASSIFIED", "Unclassified Buyer", None, "Unclassified Supplier", "50000 GBP")
+
+    admin = _admin_client(app)
+    resp = admin.get("/competitor-intel?show=all")
+    assert resp.status_code == 200
+    assert b"Unclassified Supplier" in resp.data
+    assert b"Admin view" in resp.data
+
+    resp = admin.get("/competitor-intel?tab=buyers&show=all")
+    assert resp.status_code == 200
+    assert b"Unclassified Buyer" in resp.data
+
+
+def test_non_admin_does_not_see_unclassified_sector_awards(app):
+    conn = _db(app)
+    _insert_award(conn, "REF-UNCLASSIFIED", "Unclassified Buyer", None, "Unclassified Supplier", "50000 GBP")
+
+    client = _logged_in_client(app)
+    resp = client.get("/competitor-intel?show=all")
+    assert resp.status_code == 200
+    assert b"Unclassified Supplier" not in resp.data

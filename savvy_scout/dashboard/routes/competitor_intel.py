@@ -139,14 +139,15 @@ def _is_relevant_award(conn: sqlite3.Connection, row: sqlite3.Row) -> bool:
     return relevant
 
 
-def _competitors(conn: sqlite3.Connection, client_id: int):
+def _competitors(conn: sqlite3.Connection, client_id: int, show_all_sectors: bool = False):
+    sector_clause = "" if show_all_sectors else "AND sector IS NOT NULL"
     rows = conn.execute(
-        """
+        f"""
         SELECT ref, supplier_name, sector, indicative_value, text_blob, cpv_primary,
                cpv_primary_inferred, cpv_additional,
                COALESCE(published_at, first_seen_at) AS win_date
         FROM notices
-        WHERE is_award = 1 AND supplier_name IS NOT NULL AND supplier_name != '' AND sector IS NOT NULL
+        WHERE is_award = 1 AND supplier_name IS NOT NULL AND supplier_name != '' {sector_clause}
         """
     ).fetchall()
 
@@ -161,7 +162,7 @@ def _competitors(conn: sqlite3.Connection, client_id: int):
         )
         name_variants.setdefault(key, Counter())[r["supplier_name"]] += 1
         entry["award_count"] += 1
-        entry["sectors"].add(r["sector"])
+        entry["sectors"].add(r["sector"] or "Unclassified")
         parsed = _parse_gbp(r["indicative_value"])
         if parsed is not None:
             entry["priced_total"] += parsed
@@ -333,20 +334,25 @@ def _competitor_detail(conn: sqlite3.Connection, supplier_name: str, client_id: 
     }
 
 
-def _buyers(conn: sqlite3.Connection):
+def _buyers(conn: sqlite3.Connection, show_all_sectors: bool = False):
     """Same relevance principle as _competitors() (2026-09-06): a buyer is
     only "relevant" if at least one of their notices -- award or not, since
     a buyer who's only ever published genuinely digital/software tenders
     but hasn't awarded one yet is still a real prospect -- is itself
     Trifork's type of work. Without this, the tab listed every buyer who's
     ever published anything in a tracked sector, the same noise problem
-    Competitors had before this fix."""
+    Competitors had before this fix.
+
+    show_all_sectors (2026-09-21, Admin-only, "nothing filtered"): also
+    includes buyers whose notices never matched a configured sector at
+    all."""
+    sector_clause = "" if show_all_sectors else "AND sector IS NOT NULL"
     rows = conn.execute(
-        """
+        f"""
         SELECT ref, buyer, sector, cpv_primary, cpv_primary_inferred, cpv_additional, text_blob,
                COALESCE(published_at, first_seen_at) AS activity_date
         FROM notices
-        WHERE buyer IS NOT NULL AND buyer != '' AND sector IS NOT NULL
+        WHERE buyer IS NOT NULL AND buyer != '' {sector_clause}
         """
     ).fetchall()
 
@@ -360,7 +366,7 @@ def _buyers(conn: sqlite3.Connection):
         )
         name_variants.setdefault(key, Counter())[r["buyer"]] += 1
         entry["notice_count"] += 1
-        entry["sectors"].add(r["sector"])
+        entry["sectors"].add(r["sector"] or "Unclassified")
         if r["activity_date"] and (entry["last_activity"] is None or r["activity_date"] > entry["last_activity"]):
             entry["last_activity"] = r["activity_date"]
         if not entry["relevant"] and _is_relevant_award(conn, r):
@@ -383,18 +389,20 @@ def index():
     tab = request.args.get("tab", "competitors")
     show_all = request.args.get("show") == "all"
 
-    all_competitors = _competitors(conn, current_user.client_id) if tab != "buyers" else []
+    all_competitors = (
+        _competitors(conn, current_user.client_id, show_all_sectors=current_user.is_admin) if tab != "buyers" else []
+    )
     irrelevant_count = sum(1 for c in all_competitors if not c["relevant"])
     competitors = all_competitors if show_all else [c for c in all_competitors if c["relevant"]]
 
-    all_buyers = _buyers(conn) if tab == "buyers" else []
+    all_buyers = _buyers(conn, show_all_sectors=current_user.is_admin) if tab == "buyers" else []
     irrelevant_buyer_count = sum(1 for b in all_buyers if not b["relevant"])
     buyers = all_buyers if show_all else [b for b in all_buyers if b["relevant"]]
 
     return render_template(
         "competitor_intel.html", tab=tab, competitors=competitors, buyers=buyers,
         show_all=show_all, irrelevant_count=irrelevant_count,
-        irrelevant_buyer_count=irrelevant_buyer_count,
+        irrelevant_buyer_count=irrelevant_buyer_count, show_all_sectors=current_user.is_admin,
     )
 
 
