@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Approval Queue — TenderSight™{% endblock %}
 {% block page_title %}Approval Queue{% endblock %}
+{% block page_subtitle %}{% if show_all_sectors %}<div class="topbar-subtitle">Admin view — every trade, sector, and owner's queue, not just Trifork's configured scope</div>{% endif %}{% endblock %}
 
 {% block content %}
 
@@ -274,8 +275,8 @@
 </details>
 {% endif %}
 
-{# ---- VICTORIA ESCALATION (only for Victoria) ---- #}
-{% if current_user.is_account_approver %}
+{# ---- VICTORIA ESCALATION (Victoria acts here; Admin sees it read-only) ---- #}
+{% if current_user.is_account_approver or current_user.is_admin %}
 <div class="queue-section">
   <div class="queue-header">
     <div class="queue-heading">
@@ -322,6 +323,7 @@
         {% endif %}
       </div>
       <div class="notice-right">
+        {% if current_user.is_account_approver %}
         <form method="post" action="{{ url_for('queues.victoria_decision', notice_id=n['id']) }}" onsubmit="return validateVictoriaDecision(this)" style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div style="display: flex; gap: 6px;">
@@ -343,11 +345,14 @@
         {% else %}
         <span style="font-size: 11px; color: var(--success);">Brief sent {{ n['emailed_at'][:10] }}</span>
         {% endif %}
+        {% else %}
+        <span style="font-size: 11px; color: var(--text-muted);">View only — {{ 'brief sent ' + n['emailed_at'][:10] if n['emailed_at'] else 'awaiting Account Approver decision' }}</span>
+        {% endif %}
       </div>
     </div>
     {% endfor %}
   {% else %}
-  <div class="empty-queue"><p>No notices awaiting your decision.</p></div>
+  <div class="empty-queue"><p>No notices awaiting {{ 'a decision' if current_user.is_account_approver else "the Account Approver's decision" }}.</p></div>
   {% endif %}
 </div>
 {% endif %}

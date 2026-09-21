@@ -218,14 +218,24 @@ def _day_headers(weekdays):
     return [{"label": label, "date": _pretty_date(d)} for label, d in zip(WEEKDAY_LABELS, weekdays)]
 
 
-def _build_sector_performance(conn, now_uk: datetime) -> dict:
+def _build_sector_performance(conn, now_uk: datetime, show_all_sectors: bool = False) -> dict:
     """Sector Performance (2026-08-09): per-sector opportunity counts for
     Mon-Sun of the CURRENT week, then This Week/This Month/YTD, dated by
     publication date (not sweep date). Two grand-total rows are appended:
     "In Sector" (sum of the per-sector rows above, i.e. what in_scope_filter_sql
     also counts) and "Total Swept" (every notice pulled, matched to a sector
     or not) -- comparing the two shows how much of the raw sweep volume
-    actually lands in-scope."""
+    actually lands in-scope.
+
+    show_all_sectors (2026-09-21, Admin-only, "nothing filtered"): by default
+    a notice only ever populates a per-sector row if it's strictly in scope
+    (real sector + within that sector's configured CPV prefixes + UK1-4
+    stage) -- everything else is invisible below "Total Swept" (found live:
+    Trifork's 5 configured sectors totalled 34 of 539 swept notices, with the
+    other 505 having no row at all). For Admin, every notice gets its own
+    per-sector row keyed by its raw sector (or "Unclassified" if none),
+    regardless of CPV/stage -- so the per-sector rows sum to Total Swept,
+    not just In Sector."""
     weekdays, week_start, week_end, month_start, year_start, last_week_start, last_week_end = _perf_windows(now_uk)
 
     predicate = _build_scope_predicate(conn)
@@ -249,8 +259,11 @@ def _build_sector_performance(conn, now_uk: datetime) -> dict:
         # sector silently vanished from this table entirely, not just its
         # date columns).
         is_in_scope = predicate(row["sector"], row["cpv_primary"], row["uk_stage"])
+        all_sectors_key = row["sector"] or "Unclassified"
         if is_in_scope:
             sector_buckets.setdefault(row["sector"], _new_perf_bucket(weekdays))
+        elif show_all_sectors:
+            sector_buckets.setdefault(all_sectors_key, _new_perf_bucket(weekdays))
 
         report_date = _report_date(row)
         if report_date is None:
@@ -266,6 +279,12 @@ def _build_sector_performance(conn, now_uk: datetime) -> dict:
                 last_week_start, last_week_end,
             )
             bucket = sector_buckets[row["sector"]]
+            _accumulate_perf(
+                bucket, report_date, weekdays, week_start, week_end, month_start, year_start,
+                last_week_start, last_week_end,
+            )
+        elif show_all_sectors:
+            bucket = sector_buckets[all_sectors_key]
             _accumulate_perf(
                 bucket, report_date, weekdays, week_start, week_end, month_start, year_start,
                 last_week_start, last_week_end,
@@ -539,7 +558,7 @@ def index():
     # several more SQL queries, since bucketing by Europe/London calendar day
     # from a stored ISO timestamp with mixed UTC offsets isn't reliable to do
     # in raw SQL.
-    sector_performance = _build_sector_performance(conn, uk_now)
+    sector_performance = _build_sector_performance(conn, uk_now, show_all_sectors=show_all_sectors)
     source_performance = _build_source_performance(conn, uk_now)
     approval_rate = _build_approval_rate(conn, in_scope_where, in_scope_params)
     top_buyers = _build_top_buyers(conn, in_scope_where, in_scope_params)

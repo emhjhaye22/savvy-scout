@@ -239,7 +239,18 @@ RATING_TIER_SQL = """
 def index():
     conn = get_db()
     settings = current_app.config["SAVVY_SCOUT_SETTINGS"]
-    in_scope_where, in_scope_params = in_scope_filter_sql(conn)
+    # Admin sees every trade/sector and every owner's queue here too
+    # (2026-09-21, "nothing filtered" -- same rule as Overview/
+    # Opportunities/sidebar). Deliberately NOT widened to grant Victoria's
+    # actual decision authority over the Escalated queue below -- that
+    # stays is_account_approver-only, unchanged; this only affects what
+    # Admin can see.
+    show_all_sectors = current_user.is_admin
+    sees_every_owner = current_user.is_account_approver or current_user.is_admin
+    if show_all_sectors:
+        in_scope_where, in_scope_params = "1=1", []
+    else:
+        in_scope_where, in_scope_params = in_scope_filter_sql(conn)
 
     # Owner-scoped (2026-07-30). Victoria never sees this at all (2026-08-09):
     # Phase 2 scope reads are an owner-level concern, not hers -- she only
@@ -247,6 +258,11 @@ def index():
     # already handled Phase 1 and Phase 2 themselves.
     if current_user.is_account_approver:
         phase2_pending_count = 0
+    elif sees_every_owner:
+        phase2_pending_count = conn.execute(
+            f"SELECT COUNT(*) FROM notices WHERE status = 'PHASE2_SCOPED' AND {in_scope_where}",
+            tuple(in_scope_params),
+        ).fetchone()[0]
     else:
         phase2_pending_count = conn.execute(
             f"SELECT COUNT(*) FROM notices WHERE status = 'PHASE2_SCOPED' AND {in_scope_where} AND owner = ?",
@@ -263,6 +279,11 @@ def index():
     # Overview/sidebar/Opportunities -- by explicit choice, even though a
     # text-only Gate 5 (sector boundary) fail with an out-of-range CPV
     # won't show here.
+    # is_admin only, deliberately NOT sees_every_owner -- Victoria's rows
+    # here must stay naturally empty (she owns nothing), same as before
+    # this change; only Admin's owner-filter is bypassed.
+    phase1_owner_clause = "" if current_user.is_admin else "AND n.owner = ?"
+    phase1_params = tuple(in_scope_params) if current_user.is_admin else (*in_scope_params, current_user.display_name)
     phase1_rows = conn.execute(f"""
         SELECT n.id, n.ref, n.title, n.buyer, n.owner, n.sector,
                n.indicative_value, n.deadline, n.uk_stage, n.cpv_primary,
@@ -273,9 +294,9 @@ def index():
         )
                 WHERE n.status IN ('TO_REVIEW', 'HANDOFF')
           AND {in_scope_where}
-          AND n.owner = ?
+          {phase1_owner_clause}
         ORDER BY n.deadline IS NULL, n.deadline ASC
-    """, (*in_scope_params, current_user.display_name)).fetchall()
+    """, phase1_params).fetchall()
     phase1_rows = _with_deadline_class(phase1_rows)
 
     # Phase 2 queue: scope read done (or manually advanced), awaiting owner
@@ -284,6 +305,8 @@ def index():
     # deadline breaks ties within a tier -- same idea as Phase 1 has no
     # rating to sort by yet, so it stays deadline-only.
     phase2_tier_sql = RATING_TIER_SQL.format(rating_col="p.overall_rating")
+    phase2_owner_clause = "" if current_user.is_admin else "AND n.owner = ?"
+    phase2_params = tuple(in_scope_params) if current_user.is_admin else (*in_scope_params, current_user.display_name)
     phase2_rows = conn.execute(f"""
         SELECT n.id, n.ref, n.title, n.buyer, n.owner, n.sector,
                n.indicative_value, n.deadline, n.uk_stage,
@@ -295,13 +318,17 @@ def index():
         )
         WHERE n.status = 'AWAITING_PHASE2_APPROVAL'
           AND {in_scope_where}
-          AND n.owner = ?
+          {phase2_owner_clause}
         ORDER BY {phase2_tier_sql}, n.deadline IS NULL, n.deadline ASC
-    """, (*in_scope_params, current_user.display_name)).fetchall()
+    """, phase2_params).fetchall()
     phase2_rows = _with_deadline_class(phase2_rows)
 
+    # Admin sees the Escalated queue read-only too (2026-09-21, same "nothing
+    # filtered" rule) -- but does NOT gain decision authority: the
+    # victoria_decision route below stays is_account_approver-only, and
+    # queue.html hides the decision form for anyone who isn't an approver.
     escalated_rows = []
-    if current_user.is_account_approver:
+    if current_user.is_account_approver or current_user.is_admin:
         # Every ESCALATED_TO_VICTORIA notice has been through Phase 2 first
         # (2026-07-21 policy: escalation is only reachable from
         # AWAITING_PHASE2_APPROVAL) and always gets an escalation_briefs row
@@ -341,6 +368,7 @@ def index():
         phase2_pending_count=phase2_pending_count,
         phase2_ready=settings.scope_read_ready,
         scope_read_key_name="OPENAI_API_KEY" if settings.scope_read_provider == "openai" else "ANTHROPIC_API_KEY",
+        show_all_sectors=show_all_sectors,
     )
 
 

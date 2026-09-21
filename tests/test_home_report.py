@@ -638,3 +638,74 @@ def test_admin_overview_counts_every_trade_and_sector(tmp_path):
 
     assert re.search(r'<div class="stat-value">2</div>\s*<div class="stat-label">Total scouted</div>', html)
     assert "Admin view, every trade and sector ever swept" in html
+
+
+def test_admin_sector_performance_shows_every_sector_and_unclassified(tmp_path):
+    """2026-09-21 explicit follow-up ("still same, only 5 sectors?"): the
+    Sector Performance panel's per-sector rows previously only ever
+    populated from strictly in-scope notices (real sector + within that
+    sector's configured CPV prefixes + UK1-4 stage), so a notice with no
+    sector at all, or a real sector but an out-of-scope CPV, was invisible
+    below the "Total Swept" grand total -- found live: Trifork's 5
+    configured sectors totalled 34 of 539 swept notices, the other 505
+    had no row anywhere. For Admin, every notice must get its own
+    per-sector row (or "Unclassified"), regardless of CPV/stage, so the
+    per-sector rows sum to Total Swept."""
+    db_path = str(tmp_path / "test.db")
+    setup_conn = get_connection(db_path)
+    init_db(setup_conn)
+    seed_all(setup_conn)
+    trifork_id = setup_conn.execute("SELECT id FROM clients WHERE name = 'Trifork'").fetchone()["id"]
+    setup_conn.execute(
+        "INSERT INTO users (username, password_hash, display_name, is_admin, created_at, client_id) "
+        "VALUES (?, ?, ?, 1, ?, ?)",
+        ("mark", generate_password_hash("testpass"), "Mark", datetime.now(timezone.utc).isoformat(), trifork_id),
+    )
+    setup_conn.commit()
+
+    now = datetime.now(timezone.utc)
+    _insert_notice(setup_conn, "REF-IN-SCOPE", now.isoformat(), "Fintech")
+    _insert_notice(setup_conn, "REF-UNCLASSIFIED", now.isoformat(), sector=None)
+    # Real sector, but CPV 45 (construction) isn't in Fintech's ["72", "48"]
+    # allow-list -- out of strict scope, but still a real Fintech notice.
+    _insert_notice(setup_conn, "REF-OUT-OF-CPV", now.isoformat(), "Fintech", cpv_primary="45000000")
+    setup_conn.commit()
+    setup_conn.close()
+
+    settings = Settings(
+        db_path=db_path,
+        lookback_days=7,
+        find_a_tender_base_url="",
+        contracts_finder_base_url="",
+        flask_secret_key="test-key",
+        ms_graph_tenant_id=None,
+        ms_graph_client_id=None,
+        ms_graph_client_secret=None,
+        ms_graph_sender_upn=None,
+    )
+    app = create_app(settings)
+    app.config["TESTING"] = True
+    app.config["WTF_CSRF_ENABLED"] = False
+
+    from savvy_scout.dashboard.routes.home import _build_sector_performance
+
+    conn = get_connection(db_path)
+    now_uk = now.astimezone()
+    admin_perf = _build_sector_performance(conn, now_uk, show_all_sectors=True)
+    admin_rows_by_sector = {r["sector"]: r for r in admin_perf["rows"]}
+    assert admin_rows_by_sector["Unclassified"]["ytd"] == 1
+    # Fintech's row folds together both the in-scope and out-of-CPV notice --
+    # 2 total, even though only 1 counts toward "In Sector (total)".
+    assert admin_rows_by_sector["Fintech"]["ytd"] == 2
+    assert admin_rows_by_sector["In Sector (total)"]["ytd"] == 1
+    assert admin_rows_by_sector["Total Swept (all sources)"]["ytd"] == 3
+
+    non_admin_perf = _build_sector_performance(conn, now_uk, show_all_sectors=False)
+    non_admin_rows_by_sector = {r["sector"]: r for r in non_admin_perf["rows"]}
+    assert "Unclassified" not in non_admin_rows_by_sector
+    assert non_admin_rows_by_sector["Fintech"]["ytd"] == 1
+    assert non_admin_rows_by_sector["Total Swept (all sources)"]["ytd"] == 3
+
+    client = _logged_in_client(app, "mark")
+    html = client.get("/").get_data(as_text=True)
+    assert "Unclassified" in html
