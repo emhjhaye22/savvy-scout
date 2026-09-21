@@ -52,6 +52,10 @@ def create_app(settings: Settings) -> Flask:
     # don't depend on being on Render, unlike Secure below.
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    # Keep long-lived dashboard forms usable. The token remains tied to the
+    # signed session and still requires the same-origin session cookie, but it
+    # must not expire while a reviewer has a notice or login tab open.
+    app.config["WTF_CSRF_TIME_LIMIT"] = None
     # Render sets RENDER=true in every runtime environment there -- only
     # force Secure cookies there, never on plain-http localhost (2026-08-08,
     # prepping for a public deploy), or a local dev login would silently
