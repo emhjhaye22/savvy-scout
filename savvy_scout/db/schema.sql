@@ -301,6 +301,26 @@ CREATE TABLE IF NOT EXISTS config_sector_cpv_scope (
     updated_by TEXT NOT NULL
 );
 
+-- Config: CPV-division fallback sector names, for notices no Trifork sector
+-- keyword matches at all (triage.sector_classifier.classify_general_market_sector).
+-- cpv_prefix is the 2-digit CPV division (e.g. "45" -> Construction). Only
+-- consulted by Gate 1 as a last resort, after the keyword classifier and the
+-- uncoupled-candidate check both come up empty -- lets the general/admin
+-- market view show a real sector name instead of blank/"Unclassified" for
+-- the ~85% of swept notices Trifork's own 6 sectors never touch. A sector
+-- named here with no matching config_owner_map row stays unowned (visible,
+-- auto-closed, no AI spend) until a real client is onboarded for it.
+-- 2026-09-21 addition.
+CREATE TABLE IF NOT EXISTS config_cpv_division_sectors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cpv_prefix TEXT NOT NULL UNIQUE,
+    sector_name TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    notes TEXT,
+    updated_at TEXT NOT NULL,
+    updated_by TEXT NOT NULL
+);
+
 -- Config: framework call-off keywords vs establishment/direct keywords, for
 -- Gate 3. Trifork's confirmed framework memberships (currently none, G-Cloud
 -- 15 application in progress per the references) live in

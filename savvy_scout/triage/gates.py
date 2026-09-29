@@ -59,6 +59,7 @@ from savvy_scout.notifications import (
     send_new_opportunity_teams_message,
 )
 from savvy_scout.triage.sector_classifier import (
+    classify_general_market_sector,
     classify_sector,
     contains_keyword,
     is_contested,
@@ -118,7 +119,9 @@ def _is_airport_or_defence_aviation(buyer: str | None, text_blob: str) -> bool:
     return any(contains_keyword(haystack, term) for term in AIRPORT_TERMS)
 
 
-def gate1_sector_owner(conn: sqlite3.Connection, buyer: str | None, text_blob: str) -> GateResult:
+def gate1_sector_owner(
+    conn: sqlite3.Connection, buyer: str | None, text_blob: str, cpv_primary: str | None = None
+) -> GateResult:
     if _is_airport_or_defence_aviation(buyer, text_blob):
         return GateResult(
             "FAIL",
@@ -134,6 +137,7 @@ def gate1_sector_owner(conn: sqlite3.Connection, buyer: str | None, text_blob: s
         )
 
     sector = classify_sector(conn, buyer, text_blob)
+    is_general_market = False
     if sector is None:
         candidates = uncoupled_candidate_sectors(conn, buyer, text_blob)
         if candidates:
@@ -144,18 +148,40 @@ def gate1_sector_owner(conn: sqlite3.Connection, buyer: str | None, text_blob: s
                 "out of sector. Still routed to TO_REVIEW like any other FAIL, since this "
                 "gate's keyword match can be wrong -- see triage_notice.",
             )
-        return GateResult(
-            "FAIL",
-            "No configured sector keyword matched this buyer or notice text; "
-            "obviously out of scope (none of the four confirmed sectors, NHS/healthcare, "
-            "or Central/Local Government).",
-        )
+        # 2026-09-21: no Trifork sector keyword matched at all -- fall back to
+        # a CPV-division-based general-market sector name (see
+        # sector_classifier.classify_general_market_sector) so the
+        # general/admin market view has a real sector label instead of
+        # NULL/"Unclassified". This never overrides a real keyword match.
+        sector = classify_general_market_sector(conn, cpv_primary)
+        is_general_market = sector is not None
+        if sector is None:
+            return GateResult(
+                "FAIL",
+                "No configured sector keyword matched this buyer or notice text; "
+                "obviously out of scope (none of the four confirmed sectors, NHS/healthcare, "
+                "or Central/Local Government).",
+            )
 
     owner_row = conn.execute(
         "SELECT owner FROM config_owner_map WHERE sector = ?", (sector,)
     ).fetchone()
     owner = owner_row["owner"] if owner_row else None
     if not owner:
+        if is_general_market:
+            # A CPV-derived general-market sector with no owner is the
+            # routine, expected case (nobody's bought into this sector yet) --
+            # not a Trifork config gap. Auto-close cheaply here (real sector
+            # persisted via extra, no owner) rather than following the FLAG
+            # path below, which routes to PHASE2_SCOPED with no reachable UI
+            # to ever process or auto-reject it once there.
+            return GateResult(
+                "FAIL",
+                f"General-market sector '{sector}' identified via CPV code -- no client "
+                "currently owns this sector, recorded for visibility and auto-closed rather "
+                "than left for a review nobody's assigned to do.",
+                extra={"sector": sector},
+            )
         return GateResult(
             "FLAG",
             f"Sector '{sector}' matched but has no owner configured; escalate to Victoria.",
@@ -565,7 +591,7 @@ def run_gates(conn: sqlite3.Connection, notice_row: sqlite3.Row) -> dict[str, Ga
     lot_statuses = json.loads(notice_row["lot_statuses"]) if notice_row["lot_statuses"] else []
 
     results: dict[str, GateResult] = {}
-    results["gate1"] = gate1_sector_owner(conn, notice_row["buyer"], text_blob)
+    results["gate1"] = gate1_sector_owner(conn, notice_row["buyer"], text_blob, notice_row["cpv_primary"])
     results["gate2"] = gate5_cpv(
         conn,
         notice_row["cpv_primary"],

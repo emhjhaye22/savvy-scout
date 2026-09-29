@@ -455,6 +455,76 @@ def seed_sector_cpv_scope(conn: sqlite3.Connection) -> None:
     log_audit(conn, "config", "config_sector_cpv_scope", "settings_change", SEEDED_BY, "initial seed")
 
 
+def seed_cpv_division_sectors(conn: sqlite3.Connection) -> None:
+    """2026-09-21 addition: standard CPV-division fallback names, consulted
+    by triage.sector_classifier.classify_general_market_sector only when no
+    Trifork sector keyword matches at all -- gives the general/admin market
+    view a real sector label instead of blank/"Unclassified" for the large
+    share of swept notices outside Trifork's own 6 curated sectors. A
+    division left out of this table simply stays "Unclassified", same as
+    today -- full CPV coverage isn't required for this to be a big
+    improvement. Not exhaustive of every CPV division, just the ones that
+    actually show up in UK public-sector tender data."""
+    if not _table_empty(conn, "config_cpv_division_sectors"):
+        return
+    now = _now()
+    rows = [
+        ("03", "Agriculture, Farming and Forestry"),
+        ("09", "Energy, Fuel and Petroleum Products"),
+        ("14", "Mining and Basic Metals"),
+        ("15", "Food and Beverages"),
+        ("16", "Agricultural Machinery"),
+        ("18", "Clothing and Footwear"),
+        ("19", "Leather and Textiles"),
+        ("22", "Printing and Publishing"),
+        ("24", "Chemical Products"),
+        ("30", "Office and Computing Equipment"),
+        ("31", "Electrical Machinery and Equipment"),
+        ("32", "Radio, TV and Communications Equipment"),
+        ("33", "Medical Equipment and Pharmaceuticals"),
+        ("34", "Transport Equipment"),
+        ("35", "Security and Defence Equipment"),
+        ("37", "Sports, Leisure and Cultural Goods"),
+        ("38", "Laboratory and Precision Equipment"),
+        ("39", "Furniture and Furnishings"),
+        ("41", "Water Collection and Purification"),
+        ("42", "Industrial Machinery"),
+        ("43", "Mining, Quarrying and Construction Machinery"),
+        ("44", "Construction Materials and Structures"),
+        ("45", "Construction"),
+        ("48", "Software (General Market)"),
+        ("50", "Repair and Maintenance Services"),
+        ("51", "Installation Services"),
+        ("55", "Hospitality and Catering"),
+        ("60", "Transport Services"),
+        ("63", "Auxiliary Transport Services and Travel Agencies"),
+        ("64", "Postal and Telecommunications Services"),
+        ("65", "Public Utilities"),
+        ("66", "Financial and Insurance Services"),
+        ("70", "Real Estate Services"),
+        ("71", "Architectural and Engineering Services"),
+        ("72", "IT Services (General Market)"),
+        ("73", "Research and Development Services"),
+        ("75", "Public Administration and Defence"),
+        ("76", "Oil and Gas Industry Services"),
+        ("77", "Agricultural and Forestry Services"),
+        ("79", "Business Services"),
+        ("80", "Education and Training"),
+        ("85", "Health and Social Care"),
+        ("90", "Environmental and Sanitation Services"),
+        ("92", "Recreational, Cultural and Sporting Services"),
+        ("98", "Community and Personal Services"),
+    ]
+    conn.executemany(
+        "INSERT INTO config_cpv_division_sectors "
+        "(cpv_prefix, sector_name, enabled, notes, updated_at, updated_by) "
+        "VALUES (?, ?, 1, NULL, ?, ?)",
+        [(prefix, name, now, SEEDED_BY) for prefix, name in rows],
+    )
+    conn.commit()
+    log_audit(conn, "config", "config_cpv_division_sectors", "settings_change", SEEDED_BY, "initial seed")
+
+
 def seed_framework_keywords(conn: sqlite3.Connection) -> None:
     if not _table_empty(conn, "config_framework_keywords"):
         return
@@ -743,4 +813,5 @@ def seed_all(conn: sqlite3.Connection) -> None:
     seed_sources(conn)
     seed_exclusion_terms(conn)
     seed_sector_cpv_scope(conn)
+    seed_cpv_division_sectors(conn)
     seed_clients(conn)

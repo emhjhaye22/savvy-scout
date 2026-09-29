@@ -493,12 +493,20 @@ def retriage_all_unmatched(conn: sqlite3.Connection, actor: str = "system_retria
     TO_REVIEW or was auto-rejected for having no owner (the "obviously out of
     scope" Gate 1 FAIL/contested-FLAG bucket) -- the safe subset to bulk
     re-check after a sector keyword correction, since nothing there has had
-    a human decision made on it yet. Returns counts of what changed."""
+    a human decision made on it yet. Returns counts of what changed.
+
+    Also picks up auto-rejected notices that DO carry a sector but no owner
+    (2026-09-21): a CPV-division general-market sector
+    (config_cpv_division_sectors) is persisted even though nobody owns it,
+    so "sector IS NULL" alone would permanently skip it once labelled --
+    a later keyword fix or a new config_owner_map row for that sector could
+    then never route it into the real pipeline."""
     candidate_ids = [
         row["id"]
         for row in conn.execute(
-            "SELECT id FROM notices WHERE sector IS NULL AND "
-            "(status = ? OR (status = ? AND auto_rejected_unowned = 1))",
+            "SELECT id FROM notices WHERE "
+            "(status = ? AND sector IS NULL) "
+            "OR (status = ? AND auto_rejected_unowned = 1 AND owner IS NULL)",
             (Status.TO_REVIEW.value, Status.REJECTED.value),
         ).fetchall()
     ]

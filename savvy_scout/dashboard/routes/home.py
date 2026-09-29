@@ -543,7 +543,7 @@ def index():
     ).fetchall()
     sector_split = [
         {
-            "sector": row["sector"],
+            "sector": row["sector"] or "Unclassified",
             "count": row["cnt"],
             "share": round((row["cnt"] / scouting_total * 100) if scouting_total else 0, 1),
         }

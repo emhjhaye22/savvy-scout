@@ -136,6 +136,23 @@ def is_contested(conn: sqlite3.Connection, buyer: str | None, text_blob: str) ->
     return len(_classify(conn, buyer, text_blob).matched) > 1
 
 
+def classify_general_market_sector(conn: sqlite3.Connection, cpv_primary: str | None) -> str | None:
+    """CPV-division fallback for a notice no Trifork sector keyword matched
+    at all (2026-09-21). Only consulted by Gate 1 after classify_sector and
+    uncoupled_candidate_sectors both come up empty -- never overrides a real
+    keyword match, a contested match, or an uncoupled-candidate FLAG. Lets
+    the general/admin market view show a real sector name (e.g.
+    "Construction") instead of blank/"Unclassified" for the large share of
+    swept notices outside Trifork's own 6 curated sectors."""
+    if not cpv_primary or len(cpv_primary) < 2:
+        return None
+    row = conn.execute(
+        "SELECT sector_name FROM config_cpv_division_sectors WHERE cpv_prefix = ? AND enabled = 1",
+        (cpv_primary[:2],),
+    ).fetchone()
+    return row["sector_name"] if row else None
+
+
 def uncoupled_candidate_sectors(conn: sqlite3.Connection, buyer: str | None, text_blob: str) -> set[str]:
     """Sectors with a bare industry-word mention but no coupling evidence and
     no identity match either. Used by Gate 1 to FLAG ("mentions the

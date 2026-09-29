@@ -34,8 +34,11 @@ def test_retriage_notice_picks_up_a_newly_added_keyword(conn):
         cpv_primary="72200000",
     )
     row = conn.execute("SELECT * FROM notices WHERE id = ?", (notice_id,)).fetchone()
-    assert row["sector"] is None
-    # No sector match -> nobody to review it -> auto-rejected, but flagged
+    # No Trifork keyword match -> only the CPV-division general-market label
+    # (2026-09-21, config_cpv_division_sectors), no owner.
+    assert row["sector"] == "IT Services (General Market)"
+    assert row["owner"] is None
+    # No owner -> nobody to review it -> auto-rejected, but flagged
     # recoverable (unlike a human's own REJECTED decision).
     assert row["status"] == Status.REJECTED.value
     assert row["auto_rejected_unowned"] == 1
@@ -147,7 +150,7 @@ def test_retriage_all_unmatched_only_touches_untouched_notices(conn):
 
     counts = approvals.retriage_all_unmatched(conn)
 
-    assert counts["checked"] == 2  # only the two still in AWAITING_PHASE1_APPROVAL with no sector
+    assert counts["checked"] == 2  # only the two auto-rejected with no owner
     assert counts["now_matched"] == 1
     assert counts["still_unmatched"] == 1
 

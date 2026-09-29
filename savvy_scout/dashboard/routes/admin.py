@@ -21,7 +21,7 @@ from savvy_scout.triage.client_filter import (
     record_client_notice_status,
     run_client_triage,
 )
-from savvy_scout.workflow.approvals import bring_back_escalated_for_gate_retriage
+from savvy_scout.workflow.approvals import bring_back_escalated_for_gate_retriage, retriage_all_unmatched
 from savvy_scout.notifications import NotificationError, send_account_invite_email
 
 admin_bp = Blueprint("admin", __name__)
@@ -36,6 +36,7 @@ EDITABLE_TABLES = [
     "config_trifork_frameworks",
     "config_cpv_lists",
     "config_sector_cpv_scope",
+    "config_cpv_division_sectors",
     "config_scale_filter",
     "config_capability_profile",
     "config_sources",
@@ -48,6 +49,7 @@ TABLE_GROUPS = [
     ("gate2", "Type of Work (Gate 2)", ["config_gate2_terms", "config_coupling_terms"]),
     ("frameworks", "Framework Rules", ["config_framework_keywords", "config_trifork_frameworks"]),
     ("cpv", "CPV & Scale", ["config_cpv_lists", "config_sector_cpv_scope", "config_scale_filter"]),
+    ("general-market", "General Market Sectors (CPV)", ["config_cpv_division_sectors"]),
     ("capability", "Capability Profile", ["config_capability_profile"]),
     ("sources", "Sweep Sources", ["config_sources"]),
 ]
@@ -1138,6 +1140,27 @@ def retriage_escalated():
     flash(
         f"Re-evaluated Phase 1 gates and sent {counts['sent_to_phase2']} of "
         f"{counts['checked']} escalated notice(s) back to Phase 2 for owner review.",
+    )
+    return redirect(url_for("admin.index"))
+
+
+@admin_bp.route("/retriage-unmatched", methods=["POST"])
+@login_required
+def retriage_unmatched():
+    """Re-runs Phase 1 for every notice with no sector that's still in
+    TO_REVIEW or was auto-rejected as unowned (2026-09-21) -- picks up the
+    CPV-division fallback sectors (config_cpv_division_sectors) for the
+    existing backlog, and any sector that's since gained an owner. Never
+    touches a notice a human has already decided on (see
+    workflow.approvals.retriage_and_route)."""
+    if not (_has_correction_authority() or _is_super_admin()):
+        flash("Only Victoria or the admin account can do this.", "error")
+        return redirect(url_for("queues.index"))
+    conn = get_db()
+    counts = retriage_all_unmatched(conn, actor=current_user.display_name)
+    flash(
+        f"Re-evaluated {counts['checked']} unclassified notice(s): {counts['now_matched']} "
+        f"now have a sector, {counts['still_unmatched']} still don't."
     )
     return redirect(url_for("admin.index"))
 

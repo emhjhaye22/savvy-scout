@@ -70,6 +70,11 @@
       <button type="submit" class="btn btn-secondary btn-sm">Retriage escalated notices</button>
       <span style="font-size: 12px; color: var(--text-muted);">After a gate/config correction: re-evaluates Phase 1 for every notice awaiting Victoria's decision and sends it back to Phase 2 for owner review.</span>
     </form>
+    <form method="post" action="{{ url_for('admin.retriage_unmatched') }}" style="display: flex; align-items: center; gap: 10px;" onsubmit="return confirm('Re-evaluate Phase 1 for every notice with no sector (still in review or auto-rejected as unowned)?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-secondary btn-sm">Retriage unclassified notices</button>
+      <span style="font-size: 12px; color: var(--text-muted);">After editing General Market Sectors (CPV) or adding a sector owner: re-classifies every notice with no sector. Never touches a notice a human has already decided on.</span>
+    </form>
     <form method="post" action="#" onsubmit="event.preventDefault(); const id = prompt('Notice ID to delete:'); if (id) { this.action = '/admin/notices/' + id + '/delete'; if (confirm('Permanently delete notice ' + id + ' and all its records?')) this.submit(); }" style="display: flex; align-items: center; gap: 10px;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-secondary btn-sm">Delete a notice by ID</button>
